@@ -123,6 +123,50 @@ export type Database = {
           },
         ]
       }
+      crm_integrations: {
+        Row: {
+          api_key_encrypted: string
+          client_id: string
+          created_at: string
+          crm_type: string
+          domain: string | null
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          api_key_encrypted: string
+          client_id: string
+          created_at?: string
+          crm_type: string
+          domain?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          api_key_encrypted?: string
+          client_id?: string
+          created_at?: string
+          crm_type?: string
+          domain?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_integrations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_minutes: {
         Row: {
           action_items: string[] | null
