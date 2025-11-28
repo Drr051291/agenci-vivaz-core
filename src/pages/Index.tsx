@@ -12,8 +12,22 @@ const Index = () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      
       if (session) {
-        navigate("/dashboard");
+        // Verificar o role do usuário
+        const { data: userRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .single();
+
+        // Se for cliente, redirecionar para área do cliente
+        if (userRole?.role === "client") {
+          navigate("/area-cliente");
+        } else {
+          // Admin ou colaborador vai para dashboard
+          navigate("/dashboard");
+        }
       }
     };
     checkAuth();
