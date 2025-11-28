@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Building2, Globe, MapPin, FileText, User, Phone, Mail, Calendar, DollarSign } from "lucide-react";
+import { ArrowLeft, FileText, User, Phone, Mail, Calendar, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { ClientOverview } from "@/components/client-details/ClientOverview";
 import { ClientTasks } from "@/components/client-details/ClientTasks";
@@ -116,148 +116,100 @@ export default function ClientDetails() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/clientes")}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">{client.company_name}</h1>
-              <Badge className={getSegmentColor(client.segment)}>
-                {getSegmentLabel(client.segment)}
-              </Badge>
+      <div className="space-y-4">
+        {/* Header compacto */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/clientes")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold">{client.company_name}</h1>
+                <Badge className={getSegmentColor(client.segment)}>
+                  {getSegmentLabel(client.segment)}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">Detalhes e gestão do cliente</p>
             </div>
-            <p className="text-muted-foreground">Detalhes e gestão do cliente</p>
           </div>
           <Badge className={getStatusColor(client.status)}>
             {getStatusLabel(client.status)}
           </Badge>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Informações do Cliente
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {client.cnpj && (
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">CNPJ</p>
-                  <p className="text-sm text-muted-foreground">{client.cnpj}</p>
+        {/* Informações compactadas em uma linha */}
+        <Card className="border-muted">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
+              {client.cnpj && (
+                <div className="flex items-start gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">CNPJ</p>
+                    <p className="font-medium truncate">{client.cnpj}</p>
+                  </div>
                 </div>
-              </div>
-            )}
-            {client.website && (
-              <div className="flex items-center gap-2">
-                <Globe className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Website</p>
-                  <a
-                    href={client.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {client.website}
-                  </a>
-                </div>
-              </div>
-            )}
-            {client.address && (
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Endereço</p>
-                  <p className="text-sm text-muted-foreground">{client.address}</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Contato Principal
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+              )}
               {client.contact_name && (
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Nome</p>
-                    <p className="text-sm text-muted-foreground">{client.contact_name}</p>
+                <div className="flex items-start gap-2">
+                  <User className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Contato</p>
+                    <p className="font-medium truncate">{client.contact_name}</p>
                   </div>
                 </div>
               )}
               {client.contact_phone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Telefone</p>
-                    <p className="text-sm text-muted-foreground">{client.contact_phone}</p>
+                <div className="flex items-start gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Telefone</p>
+                    <p className="font-medium truncate">{client.contact_phone}</p>
                   </div>
                 </div>
               )}
               {client.contact_email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Email</p>
-                    <p className="text-sm text-muted-foreground">{client.contact_email}</p>
+                <div className="flex items-start gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="font-medium truncate">{client.contact_email}</p>
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Informações Contratuais
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
               {client.contract_start && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Início do Contrato</p>
-                    <p className="text-sm text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Início</p>
+                    <p className="font-medium">
                       {new Date(client.contract_start).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
                 </div>
               )}
               {client.monthly_fee && (
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Mensalidade</p>
-                    <p className="text-sm font-semibold text-primary">
+                <div className="flex items-start gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Mensalidade</p>
+                    <p className="font-semibold text-primary">
                       R$ {client.monthly_fee.toFixed(2)}
                     </p>
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <Tabs defaultValue="overview" className="w-full">
+        {/* Tabs com foco no conteúdo */}
+        <Tabs defaultValue="tasks" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="tasks">Atividades</TabsTrigger>
@@ -265,19 +217,19 @@ export default function ClientDetails() {
             <TabsTrigger value="dashboards">Dashboards</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview">
+          <TabsContent value="overview" className="mt-4">
             <ClientOverview clientId={client.id} />
           </TabsContent>
 
-          <TabsContent value="tasks">
+          <TabsContent value="tasks" className="mt-4">
             <ClientTasks clientId={client.id} />
           </TabsContent>
 
-          <TabsContent value="meetings">
+          <TabsContent value="meetings" className="mt-4">
             <ClientMeetings clientId={client.id} />
           </TabsContent>
 
-          <TabsContent value="dashboards">
+          <TabsContent value="dashboards" className="mt-4">
             <ClientDashboards clientId={client.id} />
           </TabsContent>
         </Tabs>
