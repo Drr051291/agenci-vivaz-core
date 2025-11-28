@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Building2, Globe, Phone } from "lucide-react";
+import { Plus, Building2, Globe, Pencil } from "lucide-react";
 
 interface Client {
   id: string;
@@ -39,6 +39,7 @@ const Clients = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
     company_name: "",
     cnpj: "",
@@ -80,39 +81,81 @@ const Clients = () => {
     if (!user) {
       toast({
         title: "Erro de autenticação",
-        description: "Você precisa estar logado para adicionar clientes.",
+        description: "Você precisa estar logado para gerenciar clientes.",
         variant: "destructive",
       });
       return;
     }
 
-    const { error } = await supabase.from("clients").insert([{
-      ...formData,
-      user_id: user.id
-    }]);
+    if (editingClient) {
+      // Atualizar cliente existente
+      const { error } = await supabase
+        .from("clients")
+        .update(formData)
+        .eq("id", editingClient.id);
 
-    if (error) {
-      toast({
-        title: "Erro ao adicionar cliente",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error) {
+        toast({
+          title: "Erro ao atualizar cliente",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Cliente atualizado!",
+          description: "Dados do cliente atualizados com sucesso.",
+        });
+        handleCloseDialog();
+        fetchClients();
+      }
     } else {
-      toast({
-        title: "Cliente adicionado!",
-        description: "Cliente cadastrado com sucesso.",
-      });
-      setDialogOpen(false);
-      setFormData({
-        company_name: "",
-        cnpj: "",
-        address: "",
-        website: "",
-        notes: "",
-        status: "prospecting",
-      });
-      fetchClients();
+      // Criar novo cliente
+      const { error } = await supabase.from("clients").insert([{
+        ...formData,
+        user_id: user.id
+      }]);
+
+      if (error) {
+        toast({
+          title: "Erro ao adicionar cliente",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Cliente adicionado!",
+          description: "Cliente cadastrado com sucesso.",
+        });
+        handleCloseDialog();
+        fetchClients();
+      }
     }
+  };
+
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client);
+    setFormData({
+      company_name: client.company_name,
+      cnpj: client.cnpj || "",
+      address: client.address || "",
+      website: client.website || "",
+      notes: client.notes || "",
+      status: client.status,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setEditingClient(null);
+    setFormData({
+      company_name: "",
+      cnpj: "",
+      address: "",
+      website: "",
+      notes: "",
+      status: "prospecting",
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -141,7 +184,7 @@ const Clients = () => {
             <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
             <p className="text-muted-foreground">Gerencie seus clientes</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={handleCloseDialog}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -151,9 +194,13 @@ const Clients = () => {
             <DialogContent className="sm:max-w-[500px]">
               <form onSubmit={handleSubmit}>
                 <DialogHeader>
-                  <DialogTitle>Adicionar Cliente</DialogTitle>
+                  <DialogTitle>
+                    {editingClient ? "Editar Cliente" : "Adicionar Cliente"}
+                  </DialogTitle>
                   <DialogDescription>
-                    Preencha as informações do novo cliente
+                    {editingClient 
+                      ? "Atualize as informações do cliente" 
+                      : "Preencha as informações do novo cliente"}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -228,7 +275,9 @@ const Clients = () => {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit">Adicionar Cliente</Button>
+                  <Button type="submit">
+                    {editingClient ? "Salvar Alterações" : "Adicionar Cliente"}
+                  </Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -259,7 +308,7 @@ const Clients = () => {
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex-1">
                       <CardTitle className="text-lg">{client.company_name}</CardTitle>
                       {client.cnpj && (
                         <CardDescription className="text-xs mt-1">
@@ -267,13 +316,23 @@ const Clients = () => {
                         </CardDescription>
                       )}
                     </div>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                        client.status
-                      )}`}
-                    >
-                      {getStatusLabel(client.status)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditClient(client)}
+                        className="h-8 w-8"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
+                          client.status
+                        )}`}
+                      >
+                        {getStatusLabel(client.status)}
+                      </span>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
