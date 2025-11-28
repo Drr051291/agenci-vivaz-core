@@ -15,6 +15,7 @@ import ClientDashboards from "./pages/client-area/ClientDashboards";
 import Collaborators from "./pages/Collaborators";
 import Messages from "./pages/Messages";
 import Users from "./pages/Users";
+import CrmIntegrations from "./pages/CrmIntegrations";
 import SharedMeeting from "./pages/SharedMeeting";
 import NotFound from "./pages/NotFound";
 
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="/colaboradores" element={<Collaborators />} />
           <Route path="/mensagens" element={<Messages />} />
           <Route path="/usuarios" element={<Users />} />
+          <Route path="/crm-integracoes" element={<CrmIntegrations />} />
           <Route path="/atas/:token" element={<SharedMeeting />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
