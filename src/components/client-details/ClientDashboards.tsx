@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, ExternalLink, Maximize2, Pencil, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { ClientCrmIntegration } from "./ClientCrmIntegration";
+import { PipedriveMetrics } from "./PipedriveMetrics";
 import {
   Dialog,
   DialogContent,
@@ -198,8 +200,20 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
   }
 
   return (
-    <div className="flex flex-col h-full space-y-2">
-      {dashboards.length === 0 ? (
+    <div className="flex flex-col h-full space-y-4">
+      {/* Integração CRM */}
+      <ClientCrmIntegration clientId={clientId} />
+
+      {/* Métricas do Pipedrive */}
+      <div>
+        <h3 className="text-lg font-semibold mb-3">Métricas do Pipedrive</h3>
+        <PipedriveMetrics clientId={clientId} />
+      </div>
+
+      {/* Dashboards Reportei */}
+      <div className="flex-1">
+        <h3 className="text-lg font-semibold mb-3">Dashboards Reportei</h3>
+        {dashboards.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center h-64">
             <p className="text-muted-foreground mb-4">Nenhum dashboard configurado</p>
@@ -339,6 +353,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
           </div>
         </>
       )}
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
