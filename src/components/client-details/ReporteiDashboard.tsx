@@ -1,228 +1,234 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, Users, Eye, Heart, MessageCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { Users, TrendingUp, Heart, MessageCircle, Eye, DollarSign, MousePointer, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ReporteiMetricCard } from "./ReporteiMetricCard";
+import { ReporteiChannelTabs } from "./ReporteiChannelTabs";
+import { toast } from "sonner";
 
 interface ReporteiDashboardProps {
-  companyId?: string;
-  reportId?: string;
+  dashboardId: string;
+  config?: any;
+  onConfigure: () => void;
 }
 
-interface MetricCardProps {
-  title: string;
-  value: string | number;
-  trend?: string;
-  icon: React.ReactNode;
-}
-
-const MetricCard = ({ title, value, trend, icon }: MetricCardProps) => (
-  <Card className="border-primary/20">
-    <CardHeader className="flex flex-row items-center justify-between pb-2">
-      <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-      <div className="text-primary">{icon}</div>
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
-      {trend && (
-        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-          <TrendingUp className="h-3 w-3 text-green-500" />
-          {trend}
-        </p>
-      )}
-    </CardContent>
-  </Card>
-);
-
-export function ReporteiDashboard({ companyId, reportId }: ReporteiDashboardProps) {
-  const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState("30d");
-  const [metrics, setMetrics] = useState({
-    followers: 0,
-    reach: 0,
-    engagement: 0,
-    likes: 0,
-    comments: 0,
-  });
+export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: ReporteiDashboardProps) => {
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [period, setPeriod] = useState("30");
+  const [channels, setChannels] = useState<any[]>([]);
+  const [metricsData, setMetricsData] = useState<any>({});
   const [chartData, setChartData] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchReportData();
-  }, [reportId, period]);
+    if (config?.reportei_client_id && config?.selected_channels?.length > 0) {
+      fetchDashboardData();
+    }
+  }, [config, period]);
 
-  const fetchReportData = async () => {
-    if (!reportId) return;
-    
+  const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('reportei-data', {
+      // Buscar informações dos canais selecionados
+      const { data: integrationsData, error: intError } = await supabase.functions.invoke('reportei-data', {
         body: { 
-          action: 'getReportData',
-          reportId: reportId 
+          action: 'getIntegrations',
+          clientId: config.reportei_client_id
         }
       });
 
-      if (error) throw error;
+      if (intError) throw intError;
 
-      // Processar dados da API do Reportei
-      // Isso é um exemplo - ajuste conforme a estrutura real da resposta
-      setMetrics({
-        followers: data?.metrics?.followers || 0,
-        reach: data?.metrics?.reach || 0,
-        engagement: data?.metrics?.engagement || 0,
-        likes: data?.metrics?.likes || 0,
-        comments: data?.metrics?.comments || 0,
+      const selectedIntegrations = integrationsData.data.filter((int: any) => 
+        config.selected_channels.includes(int.id)
+      );
+
+      setChannels(selectedIntegrations);
+
+      // Buscar métricas para cada canal
+      const metricsPromises = selectedIntegrations.map(async (channel: any) => {
+        const { data: widgetsData } = await supabase.functions.invoke('reportei-data', {
+          body: { 
+            action: 'getWidgets',
+            integrationId: channel.id
+          }
+        });
+
+        return {
+          channelId: channel.id,
+          widgets: widgetsData?.data || []
+        };
       });
 
-      // Dados de exemplo para o gráfico
+      const metricsResults = await Promise.all(metricsPromises);
+      const metricsMap: any = {};
+      
+      metricsResults.forEach((result) => {
+        metricsMap[result.channelId] = result.widgets;
+      });
+
+      setMetricsData(metricsMap);
+
+      // Dados de exemplo para gráficos (será substituído por dados reais)
       setChartData([
-        { name: 'Seg', seguidores: 4200, engajamento: 240 },
-        { name: 'Ter', seguidores: 4350, engajamento: 300 },
-        { name: 'Qua', seguidores: 4500, engajamento: 280 },
-        { name: 'Qui', seguidores: 4680, engajamento: 320 },
-        { name: 'Sex', seguidores: 4820, engajamento: 350 },
-        { name: 'Sáb', seguidores: 5000, engajamento: 290 },
-        { name: 'Dom', seguidores: 5100, engajamento: 270 },
+        { name: "Sem 1", valor: 120000, engajamento: 7800 },
+        { name: "Sem 2", valor: 122000, engajamento: 8200 },
+        { name: "Sem 3", valor: 123500, engajamento: 8500 },
+        { name: "Sem 4", valor: 125400, engajamento: 8900 }
       ]);
     } catch (error) {
-      console.error('Erro ao buscar dados do Reportei:', error);
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Erro ao carregar dados do dashboard');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchDashboardData();
+    setRefreshing(false);
+    toast.success('Dados atualizados!');
+  };
+
+  if (!config?.reportei_client_id || !config?.selected_channels?.length) {
+    return (
+      <Card className="p-8 text-center">
+        <h3 className="text-lg font-semibold mb-2">Dashboard não configurado</h3>
+        <p className="text-muted-foreground mb-4">
+          Configure o dashboard para começar a visualizar suas métricas do Reportei
+        </p>
+        <Button onClick={onConfigure}>Configurar Dashboard</Button>
+      </Card>
+    );
+  }
+
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-64 w-full" />
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+        <Skeleton className="h-64" />
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Filtro de Período */}
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Dashboard de Métricas</h3>
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Selecione o período" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7d">Últimos 7 dias</SelectItem>
-            <SelectItem value="30d">Últimos 30 dias</SelectItem>
-            <SelectItem value="90d">Últimos 90 dias</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+  const getMetricIcon = (metricType: string) => {
+    switch (metricType.toLowerCase()) {
+      case 'followers':
+      case 'seguidores':
+        return Users;
+      case 'impressions':
+      case 'impressões':
+        return Eye;
+      case 'engagement':
+      case 'engajamento':
+        return TrendingUp;
+      case 'likes':
+      case 'curtidas':
+        return Heart;
+      case 'comments':
+      case 'comentários':
+        return MessageCircle;
+      case 'clicks':
+      case 'cliques':
+        return MousePointer;
+      case 'spend':
+      case 'investimento':
+        return DollarSign;
+      default:
+        return TrendingUp;
+    }
+  };
 
-      {/* Cards de Métricas Principais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricCard
-          title="Seguidores"
-          value={metrics.followers.toLocaleString()}
-          trend="+12.5% este mês"
-          icon={<Users className="h-4 w-4" />}
-        />
-        <MetricCard
-          title="Alcance"
-          value={metrics.reach.toLocaleString()}
-          trend="+8.2% este mês"
-          icon={<Eye className="h-4 w-4" />}
-        />
-        <MetricCard
-          title="Engajamento"
-          value={`${metrics.engagement}%`}
-          trend="+3.1% este mês"
-          icon={<TrendingUp className="h-4 w-4" />}
-        />
-        <MetricCard
-          title="Curtidas"
-          value={metrics.likes.toLocaleString()}
-          trend="+15.3% este mês"
-          icon={<Heart className="h-4 w-4" />}
-        />
-        <MetricCard
-          title="Comentários"
-          value={metrics.comments.toLocaleString()}
-          trend="+5.7% este mês"
-          icon={<MessageCircle className="h-4 w-4" />}
-        />
-      </div>
+  const renderChannelMetrics = (channel: any) => {
+    const channelMetrics = metricsData[channel.id] || [];
+    const relevantMetrics = channelMetrics.slice(0, 4); // Mostrar apenas 4 métricas principais
 
-      {/* Gráfico de Evolução */}
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle>Evolução de Seguidores e Engajamento</CardTitle>
-        </CardHeader>
-        <CardContent>
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {relevantMetrics.map((metric: any) => {
+            const Icon = getMetricIcon(metric.name);
+            return (
+              <ReporteiMetricCard
+                key={metric.id}
+                title={metric.name}
+                value={metric.value || "0"}
+                trend={Math.random() * 20 - 5} // Dados de exemplo
+                icon={Icon}
+              />
+            );
+          })}
+        </div>
+
+        <Card className="p-6">
+          <h4 className="text-lg font-semibold mb-4">Evolução - {channel.name}</h4>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="name" className="text-xs" />
-              <YAxis yAxisId="left" className="text-xs" />
-              <YAxis yAxisId="right" orientation="right" className="text-xs" />
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="name" className="text-muted-foreground" />
+              <YAxis className="text-muted-foreground" />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))'
                 }}
               />
-              <Line 
-                yAxisId="left"
-                type="monotone" 
-                dataKey="seguidores" 
-                stroke="hsl(var(--primary))" 
-                strokeWidth={2}
-                name="Seguidores"
-              />
-              <Line 
-                yAxisId="right"
-                type="monotone" 
-                dataKey="engajamento" 
-                stroke="hsl(var(--accent))" 
-                strokeWidth={2}
-                name="Engajamento"
-              />
+              <Legend />
+              <Line type="monotone" dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2} name="Métrica Principal" />
+              <Line type="monotone" dataKey="engajamento" stroke="hsl(var(--chart-2))" strokeWidth={2} name="Engajamento" />
             </LineChart>
           </ResponsiveContainer>
-        </CardContent>
-      </Card>
+        </Card>
+      </div>
+    );
+  };
 
-      {/* Gráfico de Barras - Métricas por Canal */}
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle>Desempenho por Canal</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={[
-              { canal: 'Instagram', alcance: 12500, engajamento: 850 },
-              { canal: 'Facebook', alcance: 8200, engajamento: 420 },
-              { canal: 'LinkedIn', alcance: 5600, engajamento: 320 },
-              { canal: 'Google Ads', alcance: 15000, engajamento: 1200 },
-            ]}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="canal" className="text-xs" />
-              <YAxis className="text-xs" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
-                }}
-              />
-              <Bar dataKey="alcance" fill="hsl(var(--primary))" name="Alcance" />
-              <Bar dataKey="engajamento" fill="hsl(var(--accent))" name="Engajamento" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold">Dashboard Reportei</h3>
+          <p className="text-sm text-muted-foreground">
+            Template: {config.template.replace('_', ' ').toUpperCase()}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Últimos 7 dias</SelectItem>
+              <SelectItem value="30">Últimos 30 dias</SelectItem>
+              <SelectItem value="90">Últimos 90 dias</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button variant="outline" onClick={onConfigure}>
+            Reconfigurar
+          </Button>
+        </div>
+      </div>
+
+      <ReporteiChannelTabs channels={channels}>
+        {(channel) => renderChannelMetrics(channel)}
+      </ReporteiChannelTabs>
     </div>
   );
-}
+};

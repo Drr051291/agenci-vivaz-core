@@ -12,43 +12,64 @@ serve(async (req) => {
   }
 
   try {
-    const { action, companyId, reportId } = await req.json();
+    const { action, clientId, integrationId, widgetId, startDate, endDate } = await req.json();
     const apiKey = Deno.env.get('REPORTEI_API_KEY');
 
     if (!apiKey) {
       throw new Error('REPORTEI_API_KEY not configured');
     }
 
-    const baseUrl = 'https://app.reportei.com/api';
+    const baseUrl = 'https://app.reportei.com/api/v1';
     let endpoint = '';
+    let method = 'GET';
+    let body = null;
     
     switch (action) {
-      case 'getCompanies':
-        endpoint = `${baseUrl}/companies`;
+      case 'getClients':
+        endpoint = `${baseUrl}/clients`;
         break;
-      case 'getReports':
-        endpoint = `${baseUrl}/companies/${companyId}/reports`;
+      case 'getIntegrations':
+        if (!clientId) throw new Error('clientId required for getIntegrations');
+        endpoint = `${baseUrl}/clients/${clientId}/integrations`;
         break;
-      case 'getReportData':
-        endpoint = `${baseUrl}/reports/${reportId}`;
+      case 'getWidgets':
+        if (!integrationId) throw new Error('integrationId required for getWidgets');
+        endpoint = `${baseUrl}/integrations/${integrationId}/widgets`;
+        break;
+      case 'getWidgetValues':
+        if (!integrationId || !widgetId) throw new Error('integrationId and widgetId required');
+        endpoint = `${baseUrl}/integrations/${integrationId}/widgets/value`;
+        method = 'POST';
+        body = JSON.stringify({
+          widget_id: widgetId,
+          start_date: startDate,
+          end_date: endDate,
+        });
         break;
       default:
         throw new Error('Invalid action');
     }
 
-    console.log(`Fetching from Reportei: ${endpoint}`);
+    console.log(`Fetching from Reportei: ${method} ${endpoint}`);
 
-    const response = await fetch(endpoint, {
+    const fetchOptions: RequestInit = {
+      method,
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-    });
+    };
+
+    if (body) {
+      fetchOptions.body = body;
+    }
+
+    const response = await fetch(endpoint, fetchOptions);
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Reportei API error:', errorText);
-      throw new Error(`Reportei API error: ${response.status}`);
+      throw new Error(`Reportei API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
