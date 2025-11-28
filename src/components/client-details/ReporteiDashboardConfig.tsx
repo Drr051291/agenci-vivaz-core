@@ -24,8 +24,11 @@ interface Integration {
 
 interface Widget {
   id: string | number;
-  name: string;
-  description?: string;
+  reference_key: string;
+  references?: {
+    title: string;
+    description?: string;
+  };
 }
 
 interface Template {
@@ -335,9 +338,11 @@ export const ReporteiDashboardConfig = ({
                       onCheckedChange={() => toggleMetric(String(widget.id))}
                     />
                     <Label htmlFor={String(widget.id)} className="cursor-pointer flex-1">
-                      <div className="font-medium">{widget.name}</div>
-                      {widget.description && (
-                        <div className="text-xs text-muted-foreground">{widget.description}</div>
+                      <div className="font-medium">{widget.references?.title || widget.reference_key}</div>
+                      {widget.references?.description && (
+                        <div className="text-xs text-muted-foreground line-clamp-1">
+                          {widget.references.description}
+                        </div>
                       )}
                     </Label>
                   </div>
