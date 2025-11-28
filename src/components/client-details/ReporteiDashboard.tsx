@@ -120,8 +120,11 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
     );
   }
 
-  const getMetricIcon = (metricType: string) => {
-    switch (metricType.toLowerCase()) {
+  const getMetricIcon = (metricType?: string) => {
+    if (!metricType) return TrendingUp;
+    
+    const normalizedType = metricType.toLowerCase();
+    switch (normalizedType) {
       case 'followers':
       case 'seguidores':
         return Users;
@@ -152,16 +155,25 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
     const channelMetrics = metricsData[channel.id] || [];
     const relevantMetrics = channelMetrics.slice(0, 4); // Mostrar apenas 4 métricas principais
 
+    // Se não houver métricas, mostrar mensagem
+    if (relevantMetrics.length === 0) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          Nenhuma métrica disponível para este canal
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {relevantMetrics.map((metric: any) => {
-            const Icon = getMetricIcon(metric.name);
+          {relevantMetrics.map((metric: any, index: number) => {
+            const Icon = getMetricIcon(metric?.name);
             return (
               <ReporteiMetricCard
-                key={metric.id}
-                title={metric.name}
-                value={metric.value || "0"}
+                key={metric?.id || index}
+                title={metric?.name || "Métrica"}
+                value={metric?.value || "0"}
                 trend={Math.random() * 20 - 5} // Dados de exemplo
                 icon={Icon}
               />
