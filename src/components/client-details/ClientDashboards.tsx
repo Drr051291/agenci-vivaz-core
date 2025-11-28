@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ExternalLink } from "lucide-react";
+import { Plus, ExternalLink, Maximize2, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -39,6 +39,9 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingDashboard, setEditingDashboard] = useState<Dashboard | null>(null);
+  const [selectedDashboard, setSelectedDashboard] = useState<Dashboard | null>(null);
+  const [iframeLoading, setIframeLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     dashboard_type: "analytics",
@@ -48,6 +51,12 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
   useEffect(() => {
     fetchDashboards();
   }, [clientId]);
+
+  useEffect(() => {
+    if (dashboards.length > 0 && !selectedDashboard) {
+      setSelectedDashboard(dashboards[0]);
+    }
+  }, [dashboards]);
 
   const fetchDashboards = async () => {
     try {
@@ -71,18 +80,33 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
     e.preventDefault();
 
     try {
-      const { error } = await supabase.from("client_dashboards").insert({
-        client_id: clientId,
-        name: formData.name,
-        dashboard_type: formData.dashboard_type,
-        embed_url: formData.embed_url || null,
-        is_active: true,
-      });
+      if (editingDashboard) {
+        const { error } = await supabase
+          .from("client_dashboards")
+          .update({
+            name: formData.name,
+            dashboard_type: formData.dashboard_type,
+            embed_url: formData.embed_url || null,
+          })
+          .eq("id", editingDashboard.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        toast.success("Dashboard atualizado com sucesso!");
+      } else {
+        const { error } = await supabase.from("client_dashboards").insert({
+          client_id: clientId,
+          name: formData.name,
+          dashboard_type: formData.dashboard_type,
+          embed_url: formData.embed_url || null,
+          is_active: true,
+        });
 
-      toast.success("Dashboard criado com sucesso!");
+        if (error) throw error;
+        toast.success("Dashboard criado com sucesso!");
+      }
+
       setDialogOpen(false);
+      setEditingDashboard(null);
       setFormData({
         name: "",
         dashboard_type: "analytics",
@@ -90,8 +114,52 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
       });
       fetchDashboards();
     } catch (error) {
-      console.error("Erro ao criar dashboard:", error);
-      toast.error("Erro ao criar dashboard");
+      console.error("Erro ao salvar dashboard:", error);
+      toast.error("Erro ao salvar dashboard");
+    }
+  };
+
+  const handleEdit = (dashboard: Dashboard) => {
+    setEditingDashboard(dashboard);
+    setFormData({
+      name: dashboard.name,
+      dashboard_type: dashboard.dashboard_type,
+      embed_url: dashboard.embed_url || "",
+    });
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (dashboardId: string) => {
+    if (!confirm("Tem certeza que deseja deletar este dashboard?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("client_dashboards")
+        .delete()
+        .eq("id", dashboardId);
+
+      if (error) throw error;
+
+      toast.success("Dashboard deletado com sucesso!");
+      if (selectedDashboard?.id === dashboardId) {
+        setSelectedDashboard(null);
+      }
+      fetchDashboards();
+    } catch (error) {
+      console.error("Erro ao deletar dashboard:", error);
+      toast.error("Erro ao deletar dashboard");
+    }
+  };
+
+  const handleSelectDashboard = (dashboard: Dashboard) => {
+    setIframeLoading(true);
+    setSelectedDashboard(dashboard);
+  };
+
+  const handleFullscreen = () => {
+    const iframe = document.getElementById("dashboard-iframe");
+    if (iframe?.requestFullscreen) {
+      iframe.requestFullscreen();
     }
   };
 
@@ -101,6 +169,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
       social_media: "Redes Sociais",
       financial: "Financeiro",
       performance: "Performance",
+      reportei: "Reportei",
       custom: "Personalizado",
     };
     return labels[type] || type;
@@ -115,10 +184,14 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Dashboards</h2>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button onClick={() => {
+          setEditingDashboard(null);
+          setFormData({ name: "", dashboard_type: "analytics", embed_url: "" });
+          setDialogOpen(true);
+        }}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Dashboard
         </Button>
@@ -135,54 +208,146 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {dashboards.map((dashboard) => (
-            <Card key={dashboard.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{dashboard.name}</CardTitle>
-                  <Badge
-                    className={
-                      dashboard.is_active
-                        ? "bg-green-500/10 text-green-500 border-green-500/20"
-                        : "bg-gray-500/10 text-gray-500 border-gray-500/20"
-                    }
-                  >
-                    {dashboard.is_active ? "Ativo" : "Inativo"}
-                  </Badge>
+        <div className="flex gap-4 h-[calc(100vh-280px)] min-h-[500px]">
+          {/* Sidebar com lista de dashboards */}
+          <Card className="w-64 flex-shrink-0">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Meus Dashboards</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 p-3">
+              {dashboards.map((dashboard) => (
+                <div
+                  key={dashboard.id}
+                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                    selectedDashboard?.id === dashboard.id
+                      ? "bg-primary/10 border-primary"
+                      : "bg-card hover:bg-muted/50 border-border"
+                  }`}
+                  onClick={() => handleSelectDashboard(dashboard)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {dashboard.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {getDashboardTypeLabel(dashboard.dashboard_type)}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(dashboard);
+                        }}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(dashboard.id);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Tipo: {getDashboardTypeLabel(dashboard.dashboard_type)}
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Área principal do iframe */}
+          <Card className="flex-1 flex flex-col">
+            {selectedDashboard ? (
+              <>
+                <CardHeader className="pb-3 flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg">
+                        {selectedDashboard.name}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {getDashboardTypeLabel(selectedDashboard.dashboard_type)}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleFullscreen}
+                        title="Tela Cheia"
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                      </Button>
+                      {selectedDashboard.embed_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          title="Abrir em Nova Aba"
+                        >
+                          <a
+                            href={selectedDashboard.embed_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 p-0 relative">
+                  {selectedDashboard.embed_url ? (
+                    <>
+                      {iframeLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        </div>
+                      )}
+                      <iframe
+                        id="dashboard-iframe"
+                        src={selectedDashboard.embed_url}
+                        className="w-full h-full border-0 rounded-b-lg"
+                        title={selectedDashboard.name}
+                        onLoad={() => setIframeLoading(false)}
+                      />
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-muted-foreground">
+                        Nenhuma URL de embed configurada para este dashboard
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </>
+            ) : (
+              <CardContent className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">
+                  Selecione um dashboard para visualizar
                 </p>
-                {dashboard.embed_url && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    asChild
-                  >
-                    <a
-                      href={dashboard.embed_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Abrir Dashboard
-                    </a>
-                  </Button>
-                )}
               </CardContent>
-            </Card>
-          ))}
+            )}
+          </Card>
         </div>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Novo Dashboard</DialogTitle>
+            <DialogTitle>
+              {editingDashboard ? "Editar Dashboard" : "Novo Dashboard"}
+            </DialogTitle>
             <DialogDescription>
               Configure um dashboard para visualização do cliente
             </DialogDescription>
@@ -215,6 +380,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                   <SelectItem value="social_media">Redes Sociais</SelectItem>
                   <SelectItem value="financial">Financeiro</SelectItem>
                   <SelectItem value="performance">Performance</SelectItem>
+                  <SelectItem value="reportei">Reportei</SelectItem>
                   <SelectItem value="custom">Personalizado</SelectItem>
                 </SelectContent>
               </Select>
@@ -231,11 +397,11 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                 placeholder="https://..."
               />
               <p className="text-xs text-muted-foreground mt-1">
-                URL para embed de ferramentas como Google Data Studio, Metabase, etc.
+                URL para embed de ferramentas como Reportei, Google Data Studio, Metabase, etc.
               </p>
             </div>
             <Button type="submit" className="w-full">
-              Criar Dashboard
+              {editingDashboard ? "Salvar Alterações" : "Criar Dashboard"}
             </Button>
           </form>
         </DialogContent>
