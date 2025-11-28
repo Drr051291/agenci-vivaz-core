@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Users, Pencil, Share2, Download } from "lucide-react";
+import { Plus, Calendar, Users, Pencil, Share2, Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -11,6 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/meeting-editor/RichTextEditor";
@@ -40,6 +50,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingMinute | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -98,6 +109,32 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const handleShare = (meeting: MeetingMinute) => {
     setSelectedMeeting(meeting);
     setShareDialogOpen(true);
+  };
+
+  const handleDeleteClick = (meeting: MeetingMinute) => {
+    setSelectedMeeting(meeting);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedMeeting) return;
+
+    try {
+      const { error } = await supabase
+        .from("meeting_minutes")
+        .delete()
+        .eq("id", selectedMeeting.id);
+
+      if (error) throw error;
+
+      toast.success("Ata deletada com sucesso!");
+      setDeleteDialogOpen(false);
+      setSelectedMeeting(null);
+      fetchMeetings();
+    } catch (error) {
+      console.error("Erro ao deletar ata:", error);
+      toast.error("Erro ao deletar ata");
+    }
   };
 
   const handleDownloadPDF = async (meeting: MeetingMinute) => {
@@ -302,6 +339,15 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteClick(meeting)}
+                      title="Deletar"
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -425,6 +471,26 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
           meetingTitle={selectedMeeting.title}
         />
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja deletar esta ata?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. A ata "{selectedMeeting?.title}" será permanentemente removida do sistema, incluindo seu link de compartilhamento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Deletar Ata
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
