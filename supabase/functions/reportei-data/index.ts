@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, clientId, integrationId, widgetId, startDate, endDate } = await req.json();
+    const { action, clientId, integrationId, widgetId, widgetIds, startDate, endDate } = await req.json();
     const apiKey = Deno.env.get('REPORTEI_API_KEY');
 
     if (!apiKey) {
@@ -37,13 +37,15 @@ serve(async (req) => {
         endpoint = `${baseUrl}/integrations/${integrationId}/widgets`;
         break;
       case 'getWidgetValues':
-        if (!integrationId || !widgetId) throw new Error('integrationId and widgetId required');
-        endpoint = `${baseUrl}/integrations/${integrationId}/widgets/value`;
+        if (!widgetIds || !Array.isArray(widgetIds) || widgetIds.length === 0) {
+          throw new Error('widgetIds array required for getWidgetValues');
+        }
+        endpoint = `${baseUrl}/widgets/values`;
         method = 'POST';
         body = JSON.stringify({
-          widget_id: widgetId,
-          start_date: startDate,
-          end_date: endDate,
+          widget_ids: widgetIds,
+          start_date: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          end_date: endDate || new Date().toISOString().split('T')[0],
         });
         break;
       default:
@@ -51,6 +53,9 @@ serve(async (req) => {
     }
 
     console.log(`Fetching from Reportei: ${method} ${endpoint}`);
+    if (body) {
+      console.log(`Request body:`, body);
+    }
 
     const fetchOptions: RequestInit = {
       method,
