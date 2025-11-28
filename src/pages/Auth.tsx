@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
@@ -13,7 +12,6 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -34,39 +32,6 @@ const Auth = () => {
       });
     } else {
       navigate("/dashboard");
-    }
-
-    setLoading(false);
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          role: "client",
-        },
-        emailRedirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
-
-    if (error) {
-      toast({
-        title: "Erro ao criar conta",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Conta criada com sucesso!",
-        description: "Você já pode fazer login.",
-      });
-      setFullName("");
     }
 
     setLoading(false);
