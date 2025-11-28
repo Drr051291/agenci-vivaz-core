@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Users, Pencil } from "lucide-react";
+import { Plus, Calendar, Users, Pencil, Share2, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -15,6 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/meeting-editor/RichTextEditor";
 import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
+import { ShareMeetingDialog } from "@/components/meeting-editor/ShareMeetingDialog";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 interface MeetingMinute {
   id: string;
@@ -24,6 +27,7 @@ interface MeetingMinute {
   content: string;
   action_items?: string[];
   created_at: string;
+  share_token?: string;
 }
 
 interface ClientMeetingsProps {
@@ -35,6 +39,9 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState<MeetingMinute | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     meeting_date: "",
@@ -86,6 +93,93 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       });
     }
     setDialogOpen(true);
+  };
+
+  const handleShare = (meeting: MeetingMinute) => {
+    setSelectedMeeting(meeting);
+    setShareDialogOpen(true);
+  };
+
+  const handleDownloadPDF = async (meeting: MeetingMinute) => {
+    setDownloadingId(meeting.id);
+    try {
+      // Criar um elemento temporário para renderizar o conteúdo
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.width = '800px';
+      tempDiv.style.padding = '40px';
+      tempDiv.style.background = 'white';
+      
+      tempDiv.innerHTML = `
+        <div style="font-family: 'Montserrat', sans-serif;">
+          <h1 style="font-size: 28px; font-weight: bold; margin-bottom: 20px; color: #1F1821;">${meeting.title}</h1>
+          <div style="margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #efefef;">
+            <p style="color: #666; margin: 10px 0;">
+              <strong>Data:</strong> ${new Date(meeting.meeting_date).toLocaleDateString("pt-BR", { dateStyle: "long" })}
+            </p>
+            ${meeting.participants && meeting.participants.length > 0 ? `
+              <p style="color: #666; margin: 10px 0;">
+                <strong>Participantes:</strong> ${meeting.participants.join(", ")}
+              </p>
+            ` : ''}
+          </div>
+          <div style="line-height: 1.8; color: #1F1821;">
+            ${meeting.content}
+          </div>
+          ${meeting.action_items && meeting.action_items.length > 0 ? `
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #efefef;">
+              <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 15px;">Itens de Ação</h3>
+              <ul style="line-height: 2;">
+                ${meeting.action_items.map(item => `<li style="color: #666;">${item}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+        </div>
+      `;
+      
+      document.body.appendChild(tempDiv);
+
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      document.body.removeChild(tempDiv);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const imgWidth = 210;
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`ata-${meeting.title}.pdf`);
+      toast.success("PDF baixado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast.error("Erro ao gerar PDF");
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -182,13 +276,33 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-lg">{meeting.title}</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleOpenDialog(meeting)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleShare(meeting)}
+                      title="Compartilhar"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDownloadPDF(meeting)}
+                      disabled={downloadingId === meeting.id}
+                      title="Baixar PDF"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenDialog(meeting)}
+                      title="Editar"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -302,6 +416,15 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
           </form>
         </DialogContent>
       </Dialog>
+
+      {selectedMeeting && selectedMeeting.share_token && (
+        <ShareMeetingDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          shareToken={selectedMeeting.share_token}
+          meetingTitle={selectedMeeting.title}
+        />
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import ClientDetails from "./pages/ClientDetails";
 import Collaborators from "./pages/Collaborators";
 import Messages from "./pages/Messages";
 import Users from "./pages/Users";
+import SharedMeeting from "./pages/SharedMeeting";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/colaboradores" element={<Collaborators />} />
           <Route path="/mensagens" element={<Messages />} />
           <Route path="/usuarios" element={<Users />} />
+          <Route path="/atas/:token" element={<SharedMeeting />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
