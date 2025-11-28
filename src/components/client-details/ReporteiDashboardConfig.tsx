@@ -96,7 +96,9 @@ export const ReporteiDashboardConfig = ({
   const [selectedClient, setSelectedClient] = useState(currentConfig?.reportei_client_id || "");
   const [selectedChannel, setSelectedChannel] = useState<string>(currentConfig?.selected_channel || "");
   const [availableWidgets, setAvailableWidgets] = useState<Widget[]>([]);
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(currentConfig?.selected_metrics || []);
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(
+    Array.isArray(currentConfig?.selected_metrics) ? currentConfig.selected_metrics : []
+  );
 
   useEffect(() => {
     fetchReporteiClients();
