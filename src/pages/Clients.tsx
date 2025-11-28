@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Building2, Globe, Pencil, User, Phone, Mail, Filter } from "lucide-react";
+import { Plus, Building2, Globe, Pencil, User, Phone, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Client {
@@ -254,7 +254,7 @@ const Clients = () => {
                 Novo Cliente
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
               <form onSubmit={handleSubmit}>
                 <DialogHeader>
                   <DialogTitle>
@@ -266,150 +266,179 @@ const Clients = () => {
                       : "Preencha as informações do novo cliente"}
                   </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="company_name">Nome da Empresa *</Label>
-                    <Input
-                      id="company_name"
-                      value={formData.company_name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, company_name: e.target.value })
-                      }
-                      required
-                    />
+                <div className="space-y-6 py-4">
+                  {/* Informações da Empresa */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-foreground">Informações da Empresa</h3>
+                    <div className="grid gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="company_name">Nome da Empresa *</Label>
+                        <Input
+                          id="company_name"
+                          value={formData.company_name}
+                          onChange={(e) =>
+                            setFormData({ ...formData, company_name: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="cnpj">CNPJ</Label>
+                          <Input
+                            id="cnpj"
+                            value={formData.cnpj}
+                            onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                            placeholder="00.000.000/0000-00"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="website">Website</Label>
+                          <Input
+                            id="website"
+                            type="url"
+                            value={formData.website}
+                            onChange={(e) =>
+                              setFormData({ ...formData, website: e.target.value })
+                            }
+                            placeholder="https://exemplo.com"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="address">Endereço</Label>
+                        <Input
+                          id="address"
+                          value={formData.address}
+                          onChange={(e) =>
+                            setFormData({ ...formData, address: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="status">Status</Label>
+                          <Select
+                            value={formData.status}
+                            onValueChange={(value) =>
+                              setFormData({ ...formData, status: value })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="prospecting">Prospecção</SelectItem>
+                              <SelectItem value="active">Ativo</SelectItem>
+                              <SelectItem value="inactive">Inativo</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="segment">Segmento *</Label>
+                          <Select
+                            value={formData.segment}
+                            onValueChange={(value) =>
+                              setFormData({ ...formData, segment: value })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="inside_sales">Inside Sales</SelectItem>
+                              <SelectItem value="ecommerce">E-commerce</SelectItem>
+                              <SelectItem value="marketplace">Marketplace</SelectItem>
+                              <SelectItem value="local_business">Negócio Local</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cnpj">CNPJ</Label>
-                    <Input
-                      id="cnpj"
-                      value={formData.cnpj}
-                      onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
-                      placeholder="00.000.000/0000-00"
-                    />
+
+                  {/* Contato Principal */}
+                  <div className="space-y-4 pt-4 border-t border-border">
+                    <h3 className="text-sm font-semibold text-foreground">Contato Principal</h3>
+                    <div className="grid gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="contact_name">Nome do Contato</Label>
+                        <Input
+                          id="contact_name"
+                          value={formData.contact_name}
+                          onChange={(e) =>
+                            setFormData({ ...formData, contact_name: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="contact_phone">Telefone</Label>
+                          <Input
+                            id="contact_phone"
+                            value={formData.contact_phone}
+                            onChange={(e) =>
+                              setFormData({ ...formData, contact_phone: e.target.value })
+                            }
+                            placeholder="(00) 00000-0000"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="contact_email">Email</Label>
+                          <Input
+                            id="contact_email"
+                            type="email"
+                            value={formData.contact_email}
+                            onChange={(e) =>
+                              setFormData({ ...formData, contact_email: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="website">Website</Label>
-                    <Input
-                      id="website"
-                      type="url"
-                      value={formData.website}
-                      onChange={(e) =>
-                        setFormData({ ...formData, website: e.target.value })
-                      }
-                      placeholder="https://exemplo.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Endereço</Label>
-                    <Input
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) =>
-                        setFormData({ ...formData, address: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
-                    <Select
-                      value={formData.status}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, status: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="prospecting">Prospecção</SelectItem>
-                        <SelectItem value="active">Ativo</SelectItem>
-                        <SelectItem value="inactive">Inativo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="segment">Segmento *</Label>
-                    <Select
-                      value={formData.segment}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, segment: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="inside_sales">Inside Sales</SelectItem>
-                        <SelectItem value="ecommerce">E-commerce</SelectItem>
-                        <SelectItem value="marketplace">Marketplace</SelectItem>
-                        <SelectItem value="local_business">Negócio Local</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contact_name">Nome do Contato</Label>
-                    <Input
-                      id="contact_name"
-                      value={formData.contact_name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, contact_name: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contact_phone">Telefone do Contato</Label>
-                    <Input
-                      id="contact_phone"
-                      value={formData.contact_phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, contact_phone: e.target.value })
-                      }
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contact_email">Email do Contato</Label>
-                    <Input
-                      id="contact_email"
-                      type="email"
-                      value={formData.contact_email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, contact_email: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contract_start">Início do Contrato</Label>
-                    <Input
-                      id="contract_start"
-                      type="date"
-                      value={formData.contract_start}
-                      onChange={(e) =>
-                        setFormData({ ...formData, contract_start: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="monthly_fee">Mensalidade (R$)</Label>
-                    <Input
-                      id="monthly_fee"
-                      type="number"
-                      step="0.01"
-                      value={formData.monthly_fee}
-                      onChange={(e) =>
-                        setFormData({ ...formData, monthly_fee: e.target.value })
-                      }
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Observações</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      rows={3}
-                    />
+
+                  {/* Informações do Contrato */}
+                  <div className="space-y-4 pt-4 border-t border-border">
+                    <h3 className="text-sm font-semibold text-foreground">Informações do Contrato</h3>
+                    <div className="grid gap-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="contract_start">Início do Contrato</Label>
+                          <Input
+                            id="contract_start"
+                            type="date"
+                            value={formData.contract_start}
+                            onChange={(e) =>
+                              setFormData({ ...formData, contract_start: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="monthly_fee">Mensalidade (R$)</Label>
+                          <Input
+                            id="monthly_fee"
+                            type="number"
+                            step="0.01"
+                            value={formData.monthly_fee}
+                            onChange={(e) =>
+                              setFormData({ ...formData, monthly_fee: e.target.value })
+                            }
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="notes">Observações</Label>
+                        <Textarea
+                          id="notes"
+                          value={formData.notes}
+                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                          rows={3}
+                          placeholder="Informações adicionais sobre o cliente..."
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <DialogFooter>
