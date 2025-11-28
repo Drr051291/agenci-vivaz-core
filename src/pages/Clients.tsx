@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,7 @@ interface Client {
 }
 
 const Clients = () => {
+  const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -304,7 +306,8 @@ const Clients = () => {
             {clients.map((client) => (
               <Card
                 key={client.id}
-                className="border-border/50 hover:border-primary/50 transition-colors"
+                className="border-border/50 hover:border-primary/50 transition-colors cursor-pointer"
+                onClick={() => navigate(`/clientes/${client.id}`)}
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -320,7 +323,10 @@ const Clients = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleEditClient(client)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditClient(client);
+                        }}
                         className="h-8 w-8"
                       >
                         <Pencil className="h-4 w-4" />
