@@ -69,7 +69,19 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Reportei API error:', errorText);
-      throw new Error(`Reportei API error: ${response.status} - ${errorText}`);
+
+      // Propagar o status correto da API do Reportei (ex.: 429 Too Many Requests)
+      return new Response(
+        JSON.stringify({
+          error: 'Reportei API error',
+          status: response.status,
+          details: errorText,
+        }),
+        {
+          status: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
     const data = await response.json();
