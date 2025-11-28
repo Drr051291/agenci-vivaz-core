@@ -149,11 +149,11 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {channelMetrics.map((metric: any, index: number) => {
-            const Icon = getMetricIcon(metric?.name);
+            const Icon = getMetricIcon(metric?.references?.title || metric?.reference_key);
             return (
               <ReporteiMetricCard
                 key={metric?.id || index}
-                title={metric?.name || "Métrica"}
+                title={metric?.references?.title || metric?.reference_key || "Métrica"}
                 value={metric?.value || "0"}
                 trend={Math.random() * 20 - 5}
                 icon={Icon}
