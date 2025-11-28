@@ -8,7 +8,10 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import ClientDetails from "./pages/ClientDetails";
-import ClientArea from "./pages/ClientArea";
+import ClientDashboard from "./pages/client-area/ClientDashboard";
+import ClientMeetings from "./pages/client-area/ClientMeetings";
+import ClientTasks from "./pages/client-area/ClientTasks";
+import ClientDashboards from "./pages/client-area/ClientDashboards";
 import Collaborators from "./pages/Collaborators";
 import Messages from "./pages/Messages";
 import Users from "./pages/Users";
@@ -27,7 +30,10 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/area-cliente" element={<ClientArea />} />
+          <Route path="/area-cliente" element={<ClientDashboard />} />
+          <Route path="/area-cliente/atas" element={<ClientMeetings />} />
+          <Route path="/area-cliente/atividades" element={<ClientTasks />} />
+          <Route path="/area-cliente/dashboards" element={<ClientDashboards />} />
           <Route path="/clientes" element={<Clients />} />
           <Route path="/clientes/:id" element={<ClientDetails />} />
           <Route path="/colaboradores" element={<Collaborators />} />
