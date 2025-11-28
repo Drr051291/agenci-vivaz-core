@@ -13,6 +13,7 @@ import ClientMeetings from "./pages/client-area/ClientMeetings";
 import ClientTasks from "./pages/client-area/ClientTasks";
 import ClientDashboards from "./pages/client-area/ClientDashboards";
 import Collaborators from "./pages/Collaborators";
+import Integrations from "./pages/Integrations";
 import Messages from "./pages/Messages";
 import Users from "./pages/Users";
 import SharedMeeting from "./pages/SharedMeeting";
@@ -37,6 +38,8 @@ const App = () => (
           <Route path="/clientes" element={<Clients />} />
           <Route path="/clientes/:id" element={<ClientDetails />} />
           <Route path="/colaboradores" element={<Collaborators />} />
+          <Route path="/integracoes" element={<Integrations />} />
+          <Route path="/integracoes/:id" element={<Integrations />} />
           <Route path="/mensagens" element={<Messages />} />
           <Route path="/usuarios" element={<Users />} />
           <Route path="/atas/:token" element={<SharedMeeting />} />

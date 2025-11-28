@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, User, Phone, Mail, Calendar, DollarSign } from "lucide-react";
+import { ArrowLeft, FileText, User, Phone, Mail, Calendar, DollarSign, Plug } from "lucide-react";
 import { toast } from "sonner";
 import { ClientOverview } from "@/components/client-details/ClientOverview";
 import { ClientTasks } from "@/components/client-details/ClientTasks";
@@ -137,9 +137,19 @@ export default function ClientDetails() {
               <p className="text-sm text-muted-foreground">Detalhes e gestão do cliente</p>
             </div>
           </div>
-          <Badge className={getStatusColor(client.status)}>
-            {getStatusLabel(client.status)}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/integracoes/${client.id}`)}
+            >
+              <Plug className="h-4 w-4 mr-2" />
+              Configurar Integrações
+            </Button>
+            <Badge className={getStatusColor(client.status)}>
+              {getStatusLabel(client.status)}
+            </Badge>
+          </div>
         </div>
 
         {/* Informações compactadas em uma linha */}
