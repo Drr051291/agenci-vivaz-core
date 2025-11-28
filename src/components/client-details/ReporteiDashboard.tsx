@@ -49,8 +49,44 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
         config.selected_metrics.includes(String(widget.id))
       );
 
-      setChannels([config.channel_info]);
-      setMetricsData({ [config.selected_channel]: selectedWidgets });
+      // Buscar valores reais das métricas selecionadas
+      const widgetIds = selectedWidgets.map((w: any) => w.id);
+      
+      if (widgetIds.length > 0) {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - parseInt(period));
+
+        const { data: valuesData, error: valuesError } = await supabase.functions.invoke('reportei-data', {
+          body: { 
+            action: 'getWidgetValues',
+            widgetIds: widgetIds,
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0]
+          }
+        });
+
+        if (valuesError) {
+          console.error('Error fetching widget values:', valuesError);
+        } else {
+          // Combinar widgets com seus valores
+          const widgetsWithValues = selectedWidgets.map((widget: any) => {
+            const valueData = valuesData?.data?.find((v: any) => v.widget_id === widget.id);
+            return {
+              ...widget,
+              value: valueData?.value || 0,
+              previous_value: valueData?.previous_value || 0,
+              variation: valueData?.variation || 0
+            };
+          });
+          
+          setChannels([config.channel_info]);
+          setMetricsData({ [config.selected_channel]: widgetsWithValues });
+        }
+      } else {
+        setChannels([config.channel_info]);
+        setMetricsData({ [config.selected_channel]: selectedWidgets });
+      }
 
       // Dados de exemplo para gráficos (será substituído por dados reais)
       setChartData([
@@ -150,12 +186,15 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {channelMetrics.map((metric: any, index: number) => {
             const Icon = getMetricIcon(metric?.references?.title || metric?.reference_key);
+            const value = metric?.value || 0;
+            const trend = metric?.variation || 0;
+            
             return (
               <ReporteiMetricCard
                 key={metric?.id || index}
                 title={metric?.references?.title || metric?.reference_key || "Métrica"}
-                value={metric?.value || "0"}
-                trend={Math.random() * 20 - 5}
+                value={String(value)}
+                trend={trend}
                 icon={Icon}
               />
             );
