@@ -10,6 +10,10 @@ import {
   LogOut,
   Menu,
   UserCog,
+  TrendingUp,
+  FileText,
+  CheckSquare,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,12 +32,19 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { useToast } from "@/hooks/use-toast";
 
-const menuItems = [
+const adminMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Colaboradores", url: "/colaboradores", icon: Briefcase },
   { title: "Mensagens", url: "/mensagens", icon: MessageSquare },
   { title: "Usuários", url: "/usuarios", icon: UserCog, adminOnly: true },
+];
+
+const clientMenuItems = [
+  { title: "Dashboard", url: "/area-cliente", icon: LayoutDashboard, adminOnly: false },
+  { title: "Atas de Reuniões", url: "/area-cliente/atas", icon: FileText, adminOnly: false },
+  { title: "Atividades", url: "/area-cliente/atividades", icon: CheckSquare, adminOnly: false },
+  { title: "Dashboards", url: "/area-cliente/dashboards", icon: BarChart3, adminOnly: false },
 ];
 
 interface DashboardLayoutProps {
@@ -45,23 +56,26 @@ const AppSidebar = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isCollapsed = state === "collapsed";
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
+    const checkUserRole = async () => {
       if (!user) return;
       
       const { data } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .eq("role", "admin")
         .single();
 
-      setIsAdmin(!!data);
+      if (data) {
+        setUserRole(data.role);
+        setIsAdmin(data.role === "admin");
+      }
     };
 
-    checkAdminStatus();
+    checkUserRole();
   }, [user]);
 
   const handleLogout = async () => {
@@ -72,6 +86,9 @@ const AppSidebar = ({ user }: { user: User | null }) => {
     });
     navigate("/auth");
   };
+
+  // Determinar qual menu usar baseado no role
+  const menuItems = userRole === "client" ? clientMenuItems : adminMenuItems;
 
   return (
     <Sidebar collapsible="icon">
