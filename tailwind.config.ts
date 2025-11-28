@@ -66,7 +66,7 @@ export default {
       },
       backgroundImage: {
         "gradient-vivaz": "var(--gradient-vivaz)",
-        "gradient-vivaz-dark": "var(--gradient-vivaz-dark)",
+        "gradient-vivaz-light": "var(--gradient-vivaz-light)",
       },
       borderRadius: {
         lg: "var(--radius)",
