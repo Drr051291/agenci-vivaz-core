@@ -455,6 +455,16 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
               </Select>
             </div>
 
+            {formData.dashboard_type === 'reportei_api' && (
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="pt-4 pb-4">
+                  <p className="text-sm text-muted-foreground">
+                    ℹ️ A configuração será feita na próxima etapa após criar o dashboard.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             {getDashboardInstructions(formData.dashboard_type) && (
               <Card className="bg-muted/50 border-primary/20">
                 <CardContent className="pt-4 pb-4">
@@ -479,42 +489,44 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
               </Card>
             )}
 
-            <div>
-              <Label htmlFor="embed_url">URL de Embed *</Label>
-              <Input
-                id="embed_url"
-                type="url"
-                value={formData.embed_url}
-                onChange={(e) =>
-                  setFormData({ ...formData, embed_url: e.target.value })
-                }
-                placeholder={
-                  formData.dashboard_type === "reportei"
-                    ? "https://app.reportei.com/embed/..."
-                    : formData.dashboard_type === "pipedrive"
-                    ? "https://app.pipedrive.com/insights/share/..."
-                    : "https://..."
-                }
-                required
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                {formData.dashboard_type === "reportei" && (
-                  <span className="flex items-center gap-1">
-                    <span className="text-primary">💡</span>
-                    Cole a URL do embed (deve começar com app.reportei.com/embed/)
-                  </span>
-                )}
-                {formData.dashboard_type === "pipedrive" && (
-                  <span className="flex items-center gap-1">
-                    <span className="text-primary">💡</span>
-                    Cole o link de compartilhamento público do Pipedrive
-                  </span>
-                )}
-                {!["reportei", "pipedrive"].includes(formData.dashboard_type) && (
-                  "Cole a URL pública ou de embed da ferramenta"
-                )}
-              </p>
-            </div>
+            {formData.dashboard_type !== 'reportei_api' && (
+              <div>
+                <Label htmlFor="embed_url">URL de Embed *</Label>
+                <Input
+                  id="embed_url"
+                  type="url"
+                  value={formData.embed_url}
+                  onChange={(e) =>
+                    setFormData({ ...formData, embed_url: e.target.value })
+                  }
+                  placeholder={
+                    formData.dashboard_type === "reportei"
+                      ? "https://app.reportei.com/embed/..."
+                      : formData.dashboard_type === "pipedrive"
+                      ? "https://app.pipedrive.com/insights/share/..."
+                      : "https://..."
+                  }
+                  required={formData.dashboard_type !== 'custom'}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  {formData.dashboard_type === "reportei" && (
+                    <span className="flex items-center gap-1">
+                      <span className="text-primary">💡</span>
+                      Cole a URL do embed (deve começar com app.reportei.com/embed/)
+                    </span>
+                  )}
+                  {formData.dashboard_type === "pipedrive" && (
+                    <span className="flex items-center gap-1">
+                      <span className="text-primary">💡</span>
+                      Cole o link de compartilhamento público do Pipedrive
+                    </span>
+                  )}
+                  {!["reportei", "pipedrive"].includes(formData.dashboard_type) && (
+                    "Cole a URL pública ou de embed da ferramenta"
+                  )}
+                </p>
+              </div>
+            )}
 
             <Button type="submit" className="w-full">
               {editingDashboard ? "Salvar Alterações" : "Criar Dashboard"}

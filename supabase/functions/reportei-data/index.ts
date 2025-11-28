@@ -85,6 +85,9 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    
+    // Log para debug da estrutura de dados
+    console.log(`Reportei API response for ${action}:`, JSON.stringify(data, null, 2));
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
