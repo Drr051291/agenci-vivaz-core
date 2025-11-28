@@ -49,27 +49,36 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
 
       setChannels(selectedIntegrations);
 
-      // Buscar métricas para cada canal
-      const metricsPromises = selectedIntegrations.map(async (channel: any) => {
-        const { data: widgetsData } = await supabase.functions.invoke('reportei-data', {
-          body: { 
-            action: 'getWidgets',
-            integrationId: channel.id
-          }
-        });
-
-        return {
-          channelId: channel.id,
-          widgets: widgetsData?.data || []
-        };
-      });
-
-      const metricsResults = await Promise.all(metricsPromises);
+      // Buscar métricas para cada canal SEQUENCIALMENTE para evitar rate limit
       const metricsMap: any = {};
       
-      metricsResults.forEach((result) => {
-        metricsMap[result.channelId] = result.widgets;
-      });
+      for (let i = 0; i < selectedIntegrations.length; i++) {
+        const channel = selectedIntegrations[i];
+        
+        try {
+          const { data: widgetsData, error } = await supabase.functions.invoke('reportei-data', {
+            body: { 
+              action: 'getWidgets',
+              integrationId: channel.id
+            }
+          });
+
+          if (error) {
+            console.error(`Error fetching widgets for channel ${channel.id}:`, error);
+            metricsMap[channel.id] = [];
+          } else {
+            metricsMap[channel.id] = widgetsData?.data || [];
+          }
+
+          // Adicionar delay entre requests para evitar rate limit (exceto no último)
+          if (i < selectedIntegrations.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        } catch (err) {
+          console.error(`Error fetching widgets for channel ${channel.id}:`, err);
+          metricsMap[channel.id] = [];
+        }
+      }
 
       setMetricsData(metricsMap);
 
@@ -80,9 +89,13 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
         { name: "Sem 3", valor: 123500, engajamento: 8500 },
         { name: "Sem 4", valor: 125400, engajamento: 8900 }
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching dashboard data:', error);
-      toast.error('Erro ao carregar dados do dashboard');
+      if (error?.message?.includes('429') || error?.message?.includes('Too many requests')) {
+        toast.error('Limite de requisições atingido. Aguarde alguns segundos e tente novamente.');
+      } else {
+        toast.error('Erro ao carregar dados do dashboard');
+      }
     } finally {
       setLoading(false);
     }
