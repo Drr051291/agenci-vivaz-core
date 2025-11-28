@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, ExternalLink, Maximize2, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { ReporteiDashboard } from "./ReporteiDashboard";
 import {
   Dialog,
   DialogContent,
@@ -337,7 +338,13 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 p-0 relative">
-                  {selectedDashboard.embed_url ? (
+                  {selectedDashboard.dashboard_type === 'reportei_api' ? (
+                    <div className="p-6 h-full overflow-auto">
+                      <ReporteiDashboard
+                        reportId={selectedDashboard.embed_url}
+                      />
+                    </div>
+                  ) : selectedDashboard.embed_url ? (
                     <>
                       {iframeLoading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
@@ -410,8 +417,14 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                 <SelectContent>
                   <SelectItem value="reportei">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">Reportei</span>
-                      <Badge variant="secondary" className="text-xs">Recomendado</Badge>
+                      <span className="font-medium">Reportei (Embed)</span>
+                      <Badge variant="secondary" className="text-xs">Iframe</Badge>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="reportei_api">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Reportei API</span>
+                      <Badge variant="default" className="text-xs">Recomendado</Badge>
                     </div>
                   </SelectItem>
                   <SelectItem value="pipedrive">Pipedrive</SelectItem>
