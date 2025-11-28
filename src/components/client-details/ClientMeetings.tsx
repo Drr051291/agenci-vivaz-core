@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/meeting-editor/RichTextEditor";
+import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 
 interface MeetingMinute {
   id: string;
@@ -75,7 +76,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         .filter((p) => p);
 
       const actionItems = formData.action_items
-        .split("\n")
+        .split(",")
         .map((item) => item.trim())
         .filter((item) => item);
 
@@ -155,9 +156,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
                     {meeting.participants.join(", ")}
                   </div>
                 )}
-                <div className="text-sm whitespace-pre-wrap">
-                  {meeting.content}
-                </div>
+                <MeetingViewer content={meeting.content} />
                 {meeting.action_items && meeting.action_items.length > 0 && (
                   <div className="border-t pt-3">
                     <p className="text-sm font-medium mb-2">Itens de Ação:</p>
@@ -177,36 +176,38 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova Ata de Reunião</DialogTitle>
             <DialogDescription>
-              Registre os detalhes da reunião com o cliente
+              Registre os detalhes da reunião com o cliente. Use o editor para formatar texto, adicionar imagens e vídeos.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="title">Título *</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="meeting_date">Data da Reunião *</Label>
-              <Input
-                id="meeting_date"
-                type="datetime-local"
-                value={formData.meeting_date}
-                onChange={(e) =>
-                  setFormData({ ...formData, meeting_date: e.target.value })
-                }
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="title">Título *</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="meeting_date">Data da Reunião *</Label>
+                <Input
+                  id="meeting_date"
+                  type="datetime-local"
+                  value={formData.meeting_date}
+                  onChange={(e) =>
+                    setFormData({ ...formData, meeting_date: e.target.value })
+                  }
+                  required
+                />
+              </div>
             </div>
             <div>
               <Label htmlFor="participants">
@@ -222,29 +223,26 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
               />
             </div>
             <div>
-              <Label htmlFor="content">Conteúdo da Ata *</Label>
-              <Textarea
-                id="content"
-                value={formData.content}
-                onChange={(e) =>
-                  setFormData({ ...formData, content: e.target.value })
+              <Label>Conteúdo da Ata *</Label>
+              <RichTextEditor
+                content={formData.content}
+                onChange={(content) =>
+                  setFormData({ ...formData, content })
                 }
-                rows={6}
-                required
+                placeholder="Escreva o conteúdo da ata aqui. Você pode colar imagens (Ctrl+V), adicionar formatação, títulos, listas e incorporar vídeos do YouTube."
               />
             </div>
             <div>
               <Label htmlFor="action_items">
                 Itens de Ação (um por linha)
               </Label>
-              <Textarea
+              <Input
                 id="action_items"
                 value={formData.action_items}
                 onChange={(e) =>
                   setFormData({ ...formData, action_items: e.target.value })
                 }
-                rows={4}
-                placeholder="Aprovar orçamento&#10;Agendar próxima reunião&#10;Revisar layout"
+                placeholder="Aprovar orçamento, Agendar próxima reunião, Revisar layout (separados por vírgula)"
               />
             </div>
             <Button type="submit" className="w-full">

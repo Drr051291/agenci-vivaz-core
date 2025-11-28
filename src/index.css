@@ -73,4 +73,120 @@ All colors MUST be HSL.
     font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
     font-weight: 700;
   }
+
+  /* Tiptap Editor Styles */
+  .ProseMirror {
+    outline: none;
+  }
+
+  .ProseMirror p.is-editor-empty:first-child::before {
+    color: hsl(var(--muted-foreground));
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .ProseMirror h1 {
+    font-size: 2em;
+    font-weight: bold;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+  }
+
+  .ProseMirror h2 {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+  }
+
+  .ProseMirror h3 {
+    font-size: 1.25em;
+    font-weight: bold;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+  }
+
+  .ProseMirror p {
+    margin-bottom: 0.5em;
+  }
+
+  .ProseMirror ul,
+  .ProseMirror ol {
+    padding-left: 1.5em;
+    margin-bottom: 0.5em;
+  }
+
+  .ProseMirror blockquote {
+    border-left: 4px solid hsl(var(--border));
+    padding-left: 1em;
+    margin-left: 0;
+    font-style: italic;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .ProseMirror img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+  }
+
+  .ProseMirror iframe {
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+  }
+
+  /* Prose styling for viewer */
+  .prose h1 {
+    font-size: 2em;
+    font-weight: bold;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+  }
+
+  .prose h2 {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+  }
+
+  .prose h3 {
+    font-size: 1.25em;
+    font-weight: bold;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+  }
+
+  .prose p {
+    margin-bottom: 0.5em;
+  }
+
+  .prose ul,
+  .prose ol {
+    padding-left: 1.5em;
+    margin-bottom: 0.5em;
+  }
+
+  .prose blockquote {
+    border-left: 4px solid hsl(var(--border));
+    padding-left: 1em;
+    margin-left: 0;
+    font-style: italic;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .prose img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+  }
+
+  .prose iframe {
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+  }
 }
