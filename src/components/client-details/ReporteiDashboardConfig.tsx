@@ -15,9 +15,13 @@ interface ReporteiClient {
 }
 
 interface Integration {
-  id: string;
-  name: string;
-  type: string;
+  id: string | number;
+  name?: string;
+  title?: string;
+  type?: string | number;
+  network?: string;
+  network_name?: string;
+  widgets_count?: number;
 }
 
 interface Template {
@@ -127,6 +131,10 @@ export const ReporteiDashboardConfig = ({
       });
 
       if (error) throw error;
+      
+      console.log('Raw integrations data from Reportei API:', data);
+      console.log('Integrations array:', data.data);
+      
       setIntegrations(data.data || []);
     } catch (error) {
       console.error('Error fetching integrations:', error);
@@ -218,18 +226,40 @@ export const ReporteiDashboardConfig = ({
         <div className="space-y-4">
           <Label>Selecione os Canais</Label>
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {integrations.map((integration) => (
-              <div key={integration.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={integration.id}
-                  checked={selectedChannels.includes(integration.id)}
-                  onCheckedChange={() => toggleChannel(integration.id)}
-                />
-                <Label htmlFor={integration.id} className="capitalize cursor-pointer">
-                  {integration.name} ({integration.type})
-                </Label>
-              </div>
-            ))}
+            {integrations.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum canal encontrado</p>
+            ) : (
+              integrations.map((integration) => {
+                const channelName = integration.title || integration.name || `Canal ${integration.id}`;
+                const channelType = integration.network_name || integration.network || '';
+                const widgetCount = integration.widgets_count || 0;
+                
+                return (
+                  <div key={integration.id} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-muted/50">
+                    <Checkbox
+                      id={String(integration.id)}
+                      checked={selectedChannels.includes(String(integration.id))}
+                      onCheckedChange={() => toggleChannel(String(integration.id))}
+                    />
+                    <Label htmlFor={String(integration.id)} className="cursor-pointer flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{channelName}</span>
+                        {channelType && (
+                          <span className="text-xs text-muted-foreground capitalize">
+                            {channelType}
+                          </span>
+                        )}
+                        {widgetCount > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            ({widgetCount} métricas)
+                          </span>
+                        )}
+                      </div>
+                    </Label>
+                  </div>
+                );
+              })
+            )}
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
