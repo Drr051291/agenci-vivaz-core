@@ -57,6 +57,16 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        vivaz: {
+          purple: "hsl(var(--vivaz-purple))",
+          "purple-dark": "hsl(var(--vivaz-purple-dark))",
+          dark: "hsl(var(--vivaz-dark))",
+          light: "hsl(var(--vivaz-light))",
+        },
+      },
+      backgroundImage: {
+        "gradient-vivaz": "var(--gradient-vivaz)",
+        "gradient-vivaz-dark": "var(--gradient-vivaz-dark)",
       },
       borderRadius: {
         lg: "var(--radius)",
