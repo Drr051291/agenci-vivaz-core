@@ -165,14 +165,42 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
 
   const getDashboardTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
+      pipedrive: "Pipedrive",
+      reportei: "Reportei",
       analytics: "Analytics",
       social_media: "Redes Sociais",
       financial: "Financeiro",
       performance: "Performance",
-      reportei: "Reportei",
       custom: "Personalizado",
     };
     return labels[type] || type;
+  };
+
+  const getDashboardInstructions = (type: string) => {
+    const instructions: Record<string, { title: string; steps: string[] }> = {
+      reportei: {
+        title: "Como obter o embed do Reportei",
+        steps: [
+          "1. Acesse seu dashboard no Reportei",
+          "2. Clique no botão de compartilhar no canto superior direito",
+          "3. Ative a opção 'Permitir visualização pública'",
+          "4. Copie o link público gerado",
+          "5. Cole o link no campo 'URL de Embed' abaixo",
+        ],
+      },
+      pipedrive: {
+        title: "Como obter o embed do Pipedrive",
+        steps: [
+          "1. No Pipedrive, acesse Insights > Relatórios",
+          "2. Selecione o relatório que deseja compartilhar",
+          "3. Clique em 'Compartilhar' ou 'Share'",
+          "4. Ative 'Compartilhar publicamente' ou 'Share publicly'",
+          "5. Copie o link público gerado",
+          "6. Cole o link no campo 'URL de Embed' abaixo",
+        ],
+      },
+    };
+    return instructions[type];
   };
 
   if (loading) {
@@ -352,7 +380,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
               Configure um dashboard para visualização do cliente
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <Label htmlFor="name">Nome do Dashboard *</Label>
               <Input
@@ -361,11 +389,13 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
+                placeholder="Ex: Dashboard de Vendas Mensal"
                 required
               />
             </div>
+
             <div>
-              <Label htmlFor="dashboard_type">Tipo</Label>
+              <Label htmlFor="dashboard_type">Plataforma *</Label>
               <Select
                 value={formData.dashboard_type}
                 onValueChange={(value) =>
@@ -373,20 +403,43 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione a plataforma" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="analytics">Analytics</SelectItem>
+                  <SelectItem value="reportei">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Reportei</span>
+                      <Badge variant="secondary" className="text-xs">Recomendado</Badge>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="pipedrive">Pipedrive</SelectItem>
+                  <SelectItem value="analytics">Google Analytics</SelectItem>
                   <SelectItem value="social_media">Redes Sociais</SelectItem>
                   <SelectItem value="financial">Financeiro</SelectItem>
                   <SelectItem value="performance">Performance</SelectItem>
-                  <SelectItem value="reportei">Reportei</SelectItem>
                   <SelectItem value="custom">Personalizado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {getDashboardInstructions(formData.dashboard_type) && (
+              <Card className="bg-muted/50 border-primary/20">
+                <CardContent className="pt-4 pb-4">
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                    <span className="text-primary">ℹ️</span>
+                    {getDashboardInstructions(formData.dashboard_type)?.title}
+                  </h4>
+                  <ol className="text-xs text-muted-foreground space-y-1.5 ml-6">
+                    {getDashboardInstructions(formData.dashboard_type)?.steps.map((step, index) => (
+                      <li key={index} className="leading-relaxed">{step}</li>
+                    ))}
+                  </ol>
+                </CardContent>
+              </Card>
+            )}
+
             <div>
-              <Label htmlFor="embed_url">URL de Embed (opcional)</Label>
+              <Label htmlFor="embed_url">URL de Embed *</Label>
               <Input
                 id="embed_url"
                 type="url"
@@ -394,12 +447,34 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                 onChange={(e) =>
                   setFormData({ ...formData, embed_url: e.target.value })
                 }
-                placeholder="https://..."
+                placeholder={
+                  formData.dashboard_type === "reportei"
+                    ? "https://app.reportei.com/public/..."
+                    : formData.dashboard_type === "pipedrive"
+                    ? "https://app.pipedrive.com/insights/share/..."
+                    : "https://..."
+                }
+                required
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                URL para embed de ferramentas como Reportei, Google Data Studio, Metabase, etc.
+              <p className="text-xs text-muted-foreground mt-2">
+                {formData.dashboard_type === "reportei" && (
+                  <span className="flex items-center gap-1">
+                    <span className="text-primary">💡</span>
+                    Cole o link público gerado pelo Reportei
+                  </span>
+                )}
+                {formData.dashboard_type === "pipedrive" && (
+                  <span className="flex items-center gap-1">
+                    <span className="text-primary">💡</span>
+                    Cole o link de compartilhamento público do Pipedrive
+                  </span>
+                )}
+                {!["reportei", "pipedrive"].includes(formData.dashboard_type) && (
+                  "Cole a URL pública ou de embed da ferramenta"
+                )}
               </p>
             </div>
+
             <Button type="submit" className="w-full">
               {editingDashboard ? "Salvar Alterações" : "Criar Dashboard"}
             </Button>
