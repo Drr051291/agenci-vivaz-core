@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Facebook, Instagram, Linkedin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -16,12 +16,16 @@ interface ReporteiClient {
 
 interface Integration {
   id: string | number;
-  name?: string;
-  title?: string;
+  source_name?: string;
+  integration_name?: string;
+  full_name?: string;
   type?: string | number;
-  network?: string;
-  network_name?: string;
-  widgets_count?: number;
+}
+
+interface Widget {
+  id: string | number;
+  name: string;
+  description?: string;
 }
 
 interface Template {
@@ -90,8 +94,9 @@ export const ReporteiDashboardConfig = ({
   const [reporteiClients, setReporteiClients] = useState<ReporteiClient[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [selectedClient, setSelectedClient] = useState(currentConfig?.reportei_client_id || "");
-  const [selectedChannels, setSelectedChannels] = useState<string[]>(currentConfig?.selected_channels || []);
-  const [selectedTemplate, setSelectedTemplate] = useState(currentConfig?.template || "custom");
+  const [selectedChannel, setSelectedChannel] = useState<string>(currentConfig?.selected_channel || "");
+  const [availableWidgets, setAvailableWidgets] = useState<Widget[]>([]);
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(currentConfig?.selected_metrics || []);
 
   useEffect(() => {
     fetchReporteiClients();
@@ -102,6 +107,12 @@ export const ReporteiDashboardConfig = ({
       fetchIntegrations();
     }
   }, [selectedClient]);
+
+  useEffect(() => {
+    if (selectedChannel) {
+      fetchWidgets();
+    }
+  }, [selectedChannel]);
 
   const fetchReporteiClients = async () => {
     setLoading(true);
@@ -144,14 +155,42 @@ export const ReporteiDashboardConfig = ({
     }
   };
 
+  const fetchWidgets = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reportei-data', {
+        body: { 
+          action: 'getWidgets',
+          integrationId: selectedChannel
+        }
+      });
+
+      if (error) throw error;
+      
+      console.log('Widgets disponíveis:', data.data);
+      setAvailableWidgets(data.data || []);
+    } catch (error) {
+      console.error('Error fetching widgets:', error);
+      toast.error('Erro ao carregar métricas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSave = async () => {
     setLoading(true);
     try {
+      const selectedIntegration = integrations.find(int => String(int.id) === selectedChannel);
+      
       const config = {
         reportei_client_id: selectedClient,
-        selected_channels: selectedChannels,
-        template: selectedTemplate,
-        selected_metrics: {}
+        selected_channel: selectedChannel,
+        selected_metrics: selectedMetrics,
+        channel_info: {
+          name: selectedIntegration?.integration_name || '',
+          account: selectedIntegration?.source_name || '',
+          full_name: selectedIntegration?.full_name || ''
+        }
       };
 
       const { error } = await supabase
@@ -171,22 +210,33 @@ export const ReporteiDashboardConfig = ({
     }
   };
 
-  const toggleChannel = (channelId: string) => {
-    setSelectedChannels(prev => 
-      prev.includes(channelId) 
-        ? prev.filter(id => id !== channelId)
-        : [...prev, channelId]
+  const toggleMetric = (metricId: string) => {
+    setSelectedMetrics(prev => 
+      prev.includes(metricId) 
+        ? prev.filter(id => id !== metricId)
+        : [...prev, metricId]
     );
+  };
+
+  const getChannelIcon = (integrationName?: string) => {
+    if (!integrationName) return null;
+    const name = integrationName.toLowerCase();
+    if (name.includes('meta') || name.includes('facebook')) return <Facebook className="h-5 w-5 text-[#1877F2]" />;
+    if (name.includes('instagram')) return <Instagram className="h-5 w-5 text-[#E4405F]" />;
+    if (name.includes('linkedin')) return <Linkedin className="h-5 w-5 text-[#0A66C2]" />;
+    if (name.includes('google')) return <span className="text-xl">🔍</span>;
+    if (name.includes('tiktok')) return <span className="text-xl">🎵</span>;
+    return <span className="text-xl">📊</span>;
   };
 
   return (
     <Card className="p-6">
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-2">
-          Configurar Dashboard Reportei - Etapa {step} de 4
+          Configurar Dashboard Reportei - Etapa {step} de 3
         </h3>
         <div className="flex gap-2">
-          {[1, 2, 3, 4].map((s) => (
+          {[1, 2, 3].map((s) => (
             <div 
               key={s} 
               className={`h-1 flex-1 rounded ${s <= step ? 'bg-primary' : 'bg-muted'}`}
@@ -224,46 +274,29 @@ export const ReporteiDashboardConfig = ({
 
       {step === 2 && (
         <div className="space-y-4">
-          <Label>Selecione os Canais</Label>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {integrations.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum canal encontrado</p>
-            ) : (
-              integrations.map((integration) => {
-                const channelName = integration.title || integration.name || `Canal ${integration.id}`;
-                const channelType = integration.network_name || integration.network || '';
-                const widgetCount = integration.widgets_count || 0;
-                
-                return (
-                  <div key={integration.id} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-muted/50">
-                    <Checkbox
-                      id={String(integration.id)}
-                      checked={selectedChannels.includes(String(integration.id))}
-                      onCheckedChange={() => toggleChannel(String(integration.id))}
-                    />
+          <Label>Selecione o Canal</Label>
+          <RadioGroup value={selectedChannel} onValueChange={setSelectedChannel}>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {integrations.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum canal encontrado</p>
+              ) : (
+                integrations.map((integration) => (
+                  <div key={integration.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                    <RadioGroupItem value={String(integration.id)} id={String(integration.id)} />
+                    {getChannelIcon(integration.integration_name)}
                     <Label htmlFor={String(integration.id)} className="cursor-pointer flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{channelName}</span>
-                        {channelType && (
-                          <span className="text-xs text-muted-foreground capitalize">
-                            {channelType}
-                          </span>
-                        )}
-                        {widgetCount > 0 && (
-                          <span className="text-xs text-muted-foreground">
-                            ({widgetCount} métricas)
-                          </span>
-                        )}
-                      </div>
+                      <div className="font-medium">{integration.integration_name}</div>
+                      <div className="text-sm text-muted-foreground">{integration.source_name}</div>
                     </Label>
                   </div>
-                );
-              })
-            )}
-          </div>
+                ))
+              )}
+            </div>
+          </RadioGroup>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
-            <Button onClick={() => setStep(3)} disabled={selectedChannels.length === 0}>
+            <Button onClick={() => setStep(3)} disabled={!selectedChannel || loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Próximo
             </Button>
           </div>
@@ -272,43 +305,56 @@ export const ReporteiDashboardConfig = ({
 
       {step === 3 && (
         <div className="space-y-4">
-          <Label>Escolha um Template</Label>
-          <RadioGroup value={selectedTemplate} onValueChange={setSelectedTemplate}>
-            <div className="space-y-3">
-              {TEMPLATES.map((template) => (
-                <div key={template.id} className="flex items-start space-x-2">
-                  <RadioGroupItem value={template.id} id={template.id} className="mt-1" />
-                  <Label htmlFor={template.id} className="cursor-pointer">
-                    <div className="font-medium">{template.name}</div>
-                    <div className="text-sm text-muted-foreground">{template.description}</div>
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </RadioGroup>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
-            <Button onClick={() => setStep(4)}>Próximo</Button>
+          <div>
+            <Label className="text-base">
+              Métricas disponíveis para {integrations.find(int => String(int.id) === selectedChannel)?.integration_name}
+            </Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              Selecione as métricas que deseja exibir no dashboard
+            </p>
           </div>
-        </div>
-      )}
+          
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto border rounded-lg p-4">
+              {availableWidgets.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma métrica disponível para este canal
+                </p>
+              ) : (
+                availableWidgets.map((widget) => (
+                  <div key={widget.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50">
+                    <Checkbox
+                      id={String(widget.id)}
+                      checked={selectedMetrics.includes(String(widget.id))}
+                      onCheckedChange={() => toggleMetric(String(widget.id))}
+                    />
+                    <Label htmlFor={String(widget.id)} className="cursor-pointer flex-1">
+                      <div className="font-medium">{widget.name}</div>
+                      {widget.description && (
+                        <div className="text-xs text-muted-foreground">{widget.description}</div>
+                      )}
+                    </Label>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
 
-      {step === 4 && (
-        <div className="space-y-4">
-          <div className="p-4 bg-muted rounded-lg space-y-2">
-            <h4 className="font-medium">Resumo da Configuração</h4>
-            <div className="text-sm space-y-1">
-              <p><strong>Projeto:</strong> {reporteiClients.find(c => c.id === selectedClient)?.name}</p>
-              <p><strong>Canais:</strong> {selectedChannels.length} selecionados</p>
-              <p><strong>Template:</strong> {TEMPLATES.find(t => t.id === selectedTemplate)?.name}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {selectedMetrics.length} métrica{selectedMetrics.length !== 1 ? 's' : ''} selecionada{selectedMetrics.length !== 1 ? 's' : ''}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
+              <Button onClick={handleSave} disabled={selectedMetrics.length === 0 || loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar Configuração
+              </Button>
             </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setStep(3)}>Voltar</Button>
-            <Button onClick={handleSave} disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salvar Configuração
-            </Button>
           </div>
         </div>
       )}

@@ -25,7 +25,7 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
   const [chartData, setChartData] = useState<any[]>([]);
 
   useEffect(() => {
-    if (config?.reportei_client_id && config?.selected_channels?.length > 0) {
+    if (config?.reportei_client_id && config?.selected_channel && config?.selected_metrics?.length > 0) {
       fetchDashboardData();
     }
   }, [config, period]);
@@ -33,54 +33,24 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Buscar informações dos canais selecionados
-      const { data: integrationsData, error: intError } = await supabase.functions.invoke('reportei-data', {
+      // Buscar todas as métricas do canal selecionado
+      const { data: widgetsData, error } = await supabase.functions.invoke('reportei-data', {
         body: { 
-          action: 'getIntegrations',
-          clientId: config.reportei_client_id
+          action: 'getWidgets',
+          integrationId: config.selected_channel
         }
       });
 
-      if (intError) throw intError;
+      if (error) throw error;
 
-      const selectedIntegrations = integrationsData.data.filter((int: any) => 
-        config.selected_channels.includes(int.id)
+      // Filtrar apenas as métricas selecionadas
+      const allWidgets = widgetsData?.data || [];
+      const selectedWidgets = allWidgets.filter((widget: any) => 
+        config.selected_metrics.includes(String(widget.id))
       );
 
-      setChannels(selectedIntegrations);
-
-      // Buscar métricas para cada canal SEQUENCIALMENTE para evitar rate limit
-      const metricsMap: any = {};
-      
-      for (let i = 0; i < selectedIntegrations.length; i++) {
-        const channel = selectedIntegrations[i];
-        
-        try {
-          const { data: widgetsData, error } = await supabase.functions.invoke('reportei-data', {
-            body: { 
-              action: 'getWidgets',
-              integrationId: channel.id
-            }
-          });
-
-          if (error) {
-            console.error(`Error fetching widgets for channel ${channel.id}:`, error);
-            metricsMap[channel.id] = [];
-          } else {
-            metricsMap[channel.id] = widgetsData?.data || [];
-          }
-
-          // Adicionar delay entre requests para evitar rate limit (exceto no último)
-          if (i < selectedIntegrations.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        } catch (err) {
-          console.error(`Error fetching widgets for channel ${channel.id}:`, err);
-          metricsMap[channel.id] = [];
-        }
-      }
-
-      setMetricsData(metricsMap);
+      setChannels([config.channel_info]);
+      setMetricsData({ [config.selected_channel]: selectedWidgets });
 
       // Dados de exemplo para gráficos (será substituído por dados reais)
       setChartData([
@@ -108,7 +78,7 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
     toast.success('Dados atualizados!');
   };
 
-  if (!config?.reportei_client_id || !config?.selected_channels?.length) {
+  if (!config?.reportei_client_id || !config?.selected_channel || !config?.selected_metrics?.length) {
     return (
       <Card className="p-8 text-center">
         <h3 className="text-lg font-semibold mb-2">Dashboard não configurado</h3>
@@ -165,14 +135,12 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
   };
 
   const renderChannelMetrics = (channel: any) => {
-    const channelMetrics = metricsData[channel.id] || [];
-    const relevantMetrics = channelMetrics.slice(0, 4); // Mostrar apenas 4 métricas principais
+    const channelMetrics = metricsData[config.selected_channel] || [];
 
-    // Se não houver métricas, mostrar mensagem
-    if (relevantMetrics.length === 0) {
+    if (channelMetrics.length === 0) {
       return (
         <div className="text-center py-8 text-muted-foreground">
-          Nenhuma métrica disponível para este canal
+          Nenhuma métrica disponível
         </div>
       );
     }
@@ -180,14 +148,14 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {relevantMetrics.map((metric: any, index: number) => {
+          {channelMetrics.map((metric: any, index: number) => {
             const Icon = getMetricIcon(metric?.name);
             return (
               <ReporteiMetricCard
                 key={metric?.id || index}
                 title={metric?.name || "Métrica"}
                 value={metric?.value || "0"}
-                trend={Math.random() * 20 - 5} // Dados de exemplo
+                trend={Math.random() * 20 - 5}
                 icon={Icon}
               />
             );
@@ -195,7 +163,7 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
         </div>
 
         <Card className="p-6">
-          <h4 className="text-lg font-semibold mb-4">Evolução - {channel.name}</h4>
+          <h4 className="text-lg font-semibold mb-4">Evolução - {config.channel_info?.name}</h4>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -223,7 +191,7 @@ export const ReporteiDashboard = ({ dashboardId, config, onConfigure }: Reportei
         <div>
           <h3 className="text-lg font-semibold">Dashboard Reportei</h3>
           <p className="text-sm text-muted-foreground">
-            Template: {config.template.replace('_', ' ').toUpperCase()}
+            {config.channel_info?.name} - {config.channel_info?.account}
           </p>
         </div>
         <div className="flex gap-2">
