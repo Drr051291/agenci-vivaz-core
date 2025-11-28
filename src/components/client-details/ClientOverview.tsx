@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FolderKanban, CheckSquare, FileText, BarChart3 } from "lucide-react";
+import { AlertCircle, CheckSquare, FileText, BarChart3 } from "lucide-react";
 
 interface ClientOverviewProps {
   clientId: string;
@@ -22,18 +22,33 @@ export function ClientOverview({ clientId }: ClientOverviewProps) {
 
   const fetchStats = async () => {
     try {
-      const [projectsData, tasksData, meetingsData, dashboardsData] = await Promise.all([
-        supabase.from("projects").select("id", { count: "exact" }).eq("client_id", clientId),
-        supabase.from("tasks").select("id", { count: "exact" }).eq("client_id", clientId),
-        supabase.from("meeting_minutes").select("id", { count: "exact" }).eq("client_id", clientId),
-        supabase.from("client_dashboards").select("id", { count: "exact" }).eq("client_id", clientId),
-      ]);
+      const [tasksCount, pendingTasksCount, meetingsCount, dashboardsCount] =
+        await Promise.all([
+          supabase
+            .from("tasks")
+            .select("*", { count: "exact", head: true })
+            .eq("client_id", clientId),
+          supabase
+            .from("tasks")
+            .select("*", { count: "exact", head: true })
+            .eq("client_id", clientId)
+            .eq("status", "pending"),
+          supabase
+            .from("meeting_minutes")
+            .select("*", { count: "exact", head: true })
+            .eq("client_id", clientId),
+          supabase
+            .from("client_dashboards")
+            .select("*", { count: "exact", head: true })
+            .eq("client_id", clientId)
+            .eq("is_active", true),
+        ]);
 
       setStats({
-        projects: projectsData.count || 0,
-        tasks: tasksData.count || 0,
-        meetings: meetingsData.count || 0,
-        dashboards: dashboardsData.count || 0,
+        projects: pendingTasksCount.count || 0,
+        tasks: tasksCount.count || 0,
+        meetings: meetingsCount.count || 0,
+        dashboards: dashboardsCount.count || 0,
       });
     } catch (error) {
       console.error("Erro ao buscar estatísticas:", error);
@@ -44,13 +59,13 @@ export function ClientOverview({ clientId }: ClientOverviewProps) {
 
   const statCards = [
     {
-      title: "Projetos",
+      title: "Atividades Pendentes",
       value: stats.projects,
-      icon: FolderKanban,
-      color: "text-blue-500",
+      icon: AlertCircle,
+      color: "text-orange-500",
     },
     {
-      title: "Atividades",
+      title: "Total de Atividades",
       value: stats.tasks,
       icon: CheckSquare,
       color: "text-green-500",
@@ -62,10 +77,10 @@ export function ClientOverview({ clientId }: ClientOverviewProps) {
       color: "text-purple-500",
     },
     {
-      title: "Dashboards",
+      title: "Dashboards Ativos",
       value: stats.dashboards,
       icon: BarChart3,
-      color: "text-orange-500",
+      color: "text-blue-500",
     },
   ];
 

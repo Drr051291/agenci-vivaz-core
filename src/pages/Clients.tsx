@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Building2, Globe, Pencil } from "lucide-react";
+import { Plus, Building2, Globe, Pencil, User, Phone, Mail, Filter } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface Client {
   id: string;
@@ -34,6 +35,12 @@ interface Client {
   website: string | null;
   notes: string | null;
   status: string;
+  segment: string;
+  contract_start: string | null;
+  monthly_fee: number | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
 }
 
 const Clients = () => {
@@ -49,6 +56,12 @@ const Clients = () => {
     website: "",
     notes: "",
     status: "prospecting",
+    segment: "local_business",
+    contract_start: "",
+    monthly_fee: "",
+    contact_name: "",
+    contact_phone: "",
+    contact_email: "",
   });
   const { toast } = useToast();
 
@@ -89,11 +102,27 @@ const Clients = () => {
       return;
     }
 
+    // Prepare data with proper types
+    const submitData: any = {
+      company_name: formData.company_name,
+      cnpj: formData.cnpj || null,
+      address: formData.address || null,
+      website: formData.website || null,
+      notes: formData.notes || null,
+      status: formData.status,
+      segment: formData.segment as "inside_sales" | "ecommerce" | "marketplace" | "local_business",
+      contract_start: formData.contract_start || null,
+      monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : null,
+      contact_name: formData.contact_name || null,
+      contact_phone: formData.contact_phone || null,
+      contact_email: formData.contact_email || null,
+    };
+
     if (editingClient) {
       // Atualizar cliente existente
       const { error } = await supabase
         .from("clients")
-        .update(formData)
+        .update(submitData)
         .eq("id", editingClient.id);
 
       if (error) {
@@ -113,7 +142,7 @@ const Clients = () => {
     } else {
       // Criar novo cliente
       const { error } = await supabase.from("clients").insert([{
-        ...formData,
+        ...submitData,
         user_id: user.id
       }]);
 
@@ -143,6 +172,12 @@ const Clients = () => {
       website: client.website || "",
       notes: client.notes || "",
       status: client.status,
+      segment: client.segment,
+      contract_start: client.contract_start || "",
+      monthly_fee: client.monthly_fee?.toString() || "",
+      contact_name: client.contact_name || "",
+      contact_phone: client.contact_phone || "",
+      contact_email: client.contact_email || "",
     });
     setDialogOpen(true);
   };
@@ -157,6 +192,12 @@ const Clients = () => {
       website: "",
       notes: "",
       status: "prospecting",
+      segment: "local_business",
+      contract_start: "",
+      monthly_fee: "",
+      contact_name: "",
+      contact_phone: "",
+      contact_email: "",
     });
   };
 
@@ -176,6 +217,26 @@ const Clients = () => {
       prospecting: "Prospecção",
     };
     return labels[status as keyof typeof labels] || status;
+  };
+
+  const getSegmentColor = (segment: string) => {
+    const colors = {
+      inside_sales: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+      ecommerce: "bg-green-500/10 text-green-500 border-green-500/20",
+      marketplace: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+      local_business: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+    };
+    return colors[segment as keyof typeof colors] || colors.local_business;
+  };
+
+  const getSegmentLabel = (segment: string) => {
+    const labels = {
+      inside_sales: "Inside Sales",
+      ecommerce: "E-commerce",
+      marketplace: "Marketplace",
+      local_business: "Negócio Local",
+    };
+    return labels[segment as keyof typeof labels] || segment;
   };
 
   return (
@@ -267,6 +328,81 @@ const Clients = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="segment">Segmento *</Label>
+                    <Select
+                      value={formData.segment}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, segment: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="inside_sales">Inside Sales</SelectItem>
+                        <SelectItem value="ecommerce">E-commerce</SelectItem>
+                        <SelectItem value="marketplace">Marketplace</SelectItem>
+                        <SelectItem value="local_business">Negócio Local</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact_name">Nome do Contato</Label>
+                    <Input
+                      id="contact_name"
+                      value={formData.contact_name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, contact_name: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact_phone">Telefone do Contato</Label>
+                    <Input
+                      id="contact_phone"
+                      value={formData.contact_phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, contact_phone: e.target.value })
+                      }
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact_email">Email do Contato</Label>
+                    <Input
+                      id="contact_email"
+                      type="email"
+                      value={formData.contact_email}
+                      onChange={(e) =>
+                        setFormData({ ...formData, contact_email: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contract_start">Início do Contrato</Label>
+                    <Input
+                      id="contract_start"
+                      type="date"
+                      value={formData.contract_start}
+                      onChange={(e) =>
+                        setFormData({ ...formData, contract_start: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="monthly_fee">Mensalidade (R$)</Label>
+                    <Input
+                      id="monthly_fee"
+                      type="number"
+                      step="0.01"
+                      value={formData.monthly_fee}
+                      onChange={(e) =>
+                        setFormData({ ...formData, monthly_fee: e.target.value })
+                      }
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="notes">Observações</Label>
                     <Textarea
                       id="notes"
@@ -312,7 +448,12 @@ const Clients = () => {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-lg">{client.company_name}</CardTitle>
+                      <div className="flex items-center gap-2 mb-2">
+                        <CardTitle className="text-lg">{client.company_name}</CardTitle>
+                        <Badge className={getSegmentColor(client.segment)}>
+                          {getSegmentLabel(client.segment)}
+                        </Badge>
+                      </div>
                       {client.cnpj && (
                         <CardDescription className="text-xs mt-1">
                           CNPJ: {client.cnpj}
@@ -342,6 +483,29 @@ const Clients = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
+                  {client.contact_name && (
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <User className="h-4 w-4 mr-2" />
+                      <span>{client.contact_name}</span>
+                    </div>
+                  )}
+                  {client.contact_phone && (
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Phone className="h-4 w-4 mr-2" />
+                      <span>{client.contact_phone}</span>
+                    </div>
+                  )}
+                  {client.contact_email && (
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Mail className="h-4 w-4 mr-2" />
+                      <span>{client.contact_email}</span>
+                    </div>
+                  )}
+                  {client.monthly_fee && (
+                    <div className="text-sm font-medium text-primary">
+                      R$ {client.monthly_fee.toFixed(2)}/mês
+                    </div>
+                  )}
                   {client.website && (
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Globe className="h-4 w-4 mr-2" />
@@ -350,15 +514,11 @@ const Clients = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:text-primary truncate"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {client.website}
                       </a>
                     </div>
-                  )}
-                  {client.address && (
-                    <p className="text-sm text-muted-foreground truncate">
-                      {client.address}
-                    </p>
                   )}
                   {client.notes && (
                     <p className="text-sm text-muted-foreground line-clamp-2">
