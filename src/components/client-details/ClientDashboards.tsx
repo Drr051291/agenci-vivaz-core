@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, ExternalLink, Maximize2, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ReporteiDashboard } from "./ReporteiDashboard";
+import { ReporteiDashboardConfig } from "./ReporteiDashboardConfig";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ interface Dashboard {
   embed_url?: string;
   is_active: boolean;
   created_at: string;
+  config?: any;
 }
 
 interface ClientDashboardsProps {
@@ -43,6 +45,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
   const [editingDashboard, setEditingDashboard] = useState<Dashboard | null>(null);
   const [selectedDashboard, setSelectedDashboard] = useState<Dashboard | null>(null);
   const [iframeLoading, setIframeLoading] = useState(false);
+  const [isConfiguring, setIsConfiguring] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     dashboard_type: "analytics",
@@ -338,10 +341,25 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 p-0 relative">
-                  {selectedDashboard.dashboard_type === 'reportei_api' ? (
+                  {isConfiguring && selectedDashboard.dashboard_type === 'reportei_api' ? (
+                    <div className="p-6 h-full overflow-auto">
+                      <ReporteiDashboardConfig
+                        dashboardId={selectedDashboard.id}
+                        clientId={clientId}
+                        currentConfig={selectedDashboard.config}
+                        onSave={() => {
+                          setIsConfiguring(false);
+                          fetchDashboards();
+                        }}
+                        onCancel={() => setIsConfiguring(false)}
+                      />
+                    </div>
+                  ) : selectedDashboard.dashboard_type === 'reportei_api' ? (
                     <div className="p-6 h-full overflow-auto">
                       <ReporteiDashboard
-                        reportId={selectedDashboard.embed_url}
+                        dashboardId={selectedDashboard.id}
+                        config={selectedDashboard.config}
+                        onConfigure={() => setIsConfiguring(true)}
                       />
                     </div>
                   ) : selectedDashboard.embed_url ? (
