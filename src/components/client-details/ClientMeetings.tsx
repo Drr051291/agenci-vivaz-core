@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Users } from "lucide-react";
+import { Plus, Calendar, Users, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -34,6 +34,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const [meetings, setMeetings] = useState<MeetingMinute[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     meeting_date: "",
@@ -64,6 +65,29 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     }
   };
 
+  const handleOpenDialog = (meeting?: MeetingMinute) => {
+    if (meeting) {
+      setEditingId(meeting.id);
+      setFormData({
+        title: meeting.title,
+        meeting_date: meeting.meeting_date,
+        participants: meeting.participants?.join(", ") || "",
+        content: meeting.content,
+        action_items: meeting.action_items?.join(", ") || "",
+      });
+    } else {
+      setEditingId(null);
+      setFormData({
+        title: "",
+        meeting_date: "",
+        participants: "",
+        content: "",
+        action_items: "",
+      });
+    }
+    setDialogOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -80,20 +104,35 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         .map((item) => item.trim())
         .filter((item) => item);
 
-      const { error } = await supabase.from("meeting_minutes").insert({
-        client_id: clientId,
+      const meetingData = {
         title: formData.title,
         meeting_date: formData.meeting_date,
         participants: participants.length > 0 ? participants : null,
         content: formData.content,
         action_items: actionItems.length > 0 ? actionItems : null,
-        created_by: user?.id,
-      });
+      };
 
-      if (error) throw error;
+      if (editingId) {
+        const { error } = await supabase
+          .from("meeting_minutes")
+          .update(meetingData)
+          .eq("id", editingId);
 
-      toast.success("Ata criada com sucesso!");
+        if (error) throw error;
+        toast.success("Ata atualizada com sucesso!");
+      } else {
+        const { error } = await supabase.from("meeting_minutes").insert({
+          ...meetingData,
+          client_id: clientId,
+          created_by: user?.id,
+        });
+
+        if (error) throw error;
+        toast.success("Ata criada com sucesso!");
+      }
+
       setDialogOpen(false);
+      setEditingId(null);
       setFormData({
         title: "",
         meeting_date: "",
@@ -103,8 +142,8 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       });
       fetchMeetings();
     } catch (error) {
-      console.error("Erro ao criar ata:", error);
-      toast.error("Erro ao criar ata de reunião");
+      console.error("Erro ao salvar ata:", error);
+      toast.error(editingId ? "Erro ao atualizar ata" : "Erro ao criar ata de reunião");
     }
   };
 
@@ -120,7 +159,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Atas de Reunião</h2>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button onClick={() => handleOpenDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           Nova Ata
         </Button>
@@ -130,7 +169,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center h-64">
             <p className="text-muted-foreground mb-4">Nenhuma ata encontrada</p>
-            <Button onClick={() => setDialogOpen(true)}>
+            <Button onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" />
               Criar Primeira Ata
             </Button>
@@ -141,7 +180,16 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
           {meetings.map((meeting) => (
             <Card key={meeting.id}>
               <CardHeader>
-                <CardTitle className="text-lg">{meeting.title}</CardTitle>
+                <div className="flex items-start justify-between">
+                  <CardTitle className="text-lg">{meeting.title}</CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleOpenDialog(meeting)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -178,9 +226,12 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nova Ata de Reunião</DialogTitle>
+            <DialogTitle>{editingId ? "Editar Ata de Reunião" : "Nova Ata de Reunião"}</DialogTitle>
             <DialogDescription>
-              Registre os detalhes da reunião com o cliente. Use o editor para formatar texto, adicionar imagens e vídeos.
+              {editingId 
+                ? "Atualize os detalhes da reunião. Use o editor para formatar texto, adicionar imagens e vídeos."
+                : "Registre os detalhes da reunião com o cliente. Use o editor para formatar texto, adicionar imagens e vídeos."
+              }
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -246,7 +297,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
               />
             </div>
             <Button type="submit" className="w-full">
-              Criar Ata
+              {editingId ? "Atualizar Ata" : "Criar Ata"}
             </Button>
           </form>
         </DialogContent>
