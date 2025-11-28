@@ -177,16 +177,17 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
   };
 
   const getDashboardInstructions = (type: string) => {
-    const instructions: Record<string, { title: string; steps: string[] }> = {
+    const instructions: Record<string, { title: string; steps: string[]; example?: string }> = {
       reportei: {
         title: "Como obter o embed do Reportei",
         steps: [
           "1. Acesse seu dashboard no Reportei",
-          "2. Clique no botão de compartilhar no canto superior direito",
-          "3. Ative a opção 'Permitir visualização pública'",
-          "4. Copie o link público gerado",
-          "5. Cole o link no campo 'URL de Embed' abaixo",
+          "2. Clique no botão 'Compartilhar' no canto superior direito",
+          "3. Na aba 'Incorporar', copie a URL que está dentro do código iframe",
+          "4. A URL deve ter o formato: app.reportei.com/embed/...",
+          "5. Cole apenas a URL completa no campo abaixo",
         ],
+        example: "https://app.reportei.com/embed/a1ANxlc8dUorNg9QtXUc1NqS867ctHLP",
       },
       pipedrive: {
         title: "Como obter o embed do Pipedrive",
@@ -198,6 +199,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
           "5. Copie o link público gerado",
           "6. Cole o link no campo 'URL de Embed' abaixo",
         ],
+        example: "https://app.pipedrive.com/insights/share/...",
       },
     };
     return instructions[type];
@@ -425,15 +427,23 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
             {getDashboardInstructions(formData.dashboard_type) && (
               <Card className="bg-muted/50 border-primary/20">
                 <CardContent className="pt-4 pb-4">
-                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
                     <span className="text-primary">ℹ️</span>
                     {getDashboardInstructions(formData.dashboard_type)?.title}
                   </h4>
-                  <ol className="text-xs text-muted-foreground space-y-1.5 ml-6">
+                  <ol className="text-xs text-muted-foreground space-y-1.5 ml-6 mb-3">
                     {getDashboardInstructions(formData.dashboard_type)?.steps.map((step, index) => (
                       <li key={index} className="leading-relaxed">{step}</li>
                     ))}
                   </ol>
+                  {getDashboardInstructions(formData.dashboard_type)?.example && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Exemplo de URL:</p>
+                      <code className="text-xs bg-background px-2 py-1 rounded border border-border block break-all">
+                        {getDashboardInstructions(formData.dashboard_type)?.example}
+                      </code>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -449,7 +459,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                 }
                 placeholder={
                   formData.dashboard_type === "reportei"
-                    ? "https://app.reportei.com/public/..."
+                    ? "https://app.reportei.com/embed/..."
                     : formData.dashboard_type === "pipedrive"
                     ? "https://app.pipedrive.com/insights/share/..."
                     : "https://..."
@@ -460,7 +470,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                 {formData.dashboard_type === "reportei" && (
                   <span className="flex items-center gap-1">
                     <span className="text-primary">💡</span>
-                    Cole o link público gerado pelo Reportei
+                    Cole a URL do embed (deve começar com app.reportei.com/embed/)
                   </span>
                 )}
                 {formData.dashboard_type === "pipedrive" && (
