@@ -10,7 +10,6 @@ import {
   LogOut,
   Menu,
   UserCog,
-  TrendingUp,
   FileText,
   CheckSquare,
   BarChart3,
@@ -36,7 +35,6 @@ const adminMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Colaboradores", url: "/colaboradores", icon: Briefcase },
-  { title: "CRM Integrações", url: "/crm-integracoes", icon: TrendingUp },
   { title: "Mensagens", url: "/mensagens", icon: MessageSquare },
   { title: "Usuários", url: "/usuarios", icon: UserCog, adminOnly: true },
 ];

@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { ClientOverview } from "@/components/client-details/ClientOverview";
 import { ClientTasks } from "@/components/client-details/ClientTasks";
 import { ClientMeetings } from "@/components/client-details/ClientMeetings";
-import { ClientDashboards } from "@/components/client-details/ClientDashboards";
+import { ClientDashboardsNew } from "@/components/client-details/ClientDashboardsNew";
 
 interface Client {
   id: string;
@@ -230,7 +230,7 @@ export default function ClientDetails() {
           </TabsContent>
 
           <TabsContent value="dashboards" className="mt-4">
-            <ClientDashboards clientId={client.id} />
+            <ClientDashboardsNew clientId={client.id} />
           </TabsContent>
         </Tabs>
       </div>
