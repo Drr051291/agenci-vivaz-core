@@ -36,8 +36,15 @@ interface UserWithRole {
   user_roles: { role: string }[];
 }
 
+interface Client {
+  id: string;
+  company_name: string;
+  segment: string;
+}
+
 const Users = () => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -46,12 +53,14 @@ const Users = () => {
     email: "",
     password: "",
     role: "client",
+    client_id: "",
   });
   const { toast } = useToast();
 
   useEffect(() => {
     checkAdminStatus();
     fetchUsers();
+    fetchClients();
   }, []);
 
   const checkAdminStatus = async () => {
@@ -90,8 +99,35 @@ const Users = () => {
     setLoading(false);
   };
 
+  const fetchClients = async () => {
+    const { data, error } = await supabase
+      .from("clients")
+      .select("id, company_name, segment")
+      .order("company_name");
+
+    if (error) {
+      toast({
+        title: "Erro ao carregar clientes",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setClients(data || []);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validar se cliente foi selecionado quando role for client
+    if (formData.role === "client" && !formData.client_id) {
+      toast({
+        title: "Cliente não selecionado",
+        description: "Por favor, selecione um cliente para vincular o usuário.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Criar usuário no Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -115,6 +151,23 @@ const Users = () => {
       return;
     }
 
+    // Se for cliente, vincular user_id ao cliente
+    if (formData.role === "client" && formData.client_id && authData.user) {
+      const { error: clientError } = await supabase
+        .from("clients")
+        .update({ user_id: authData.user.id })
+        .eq("id", formData.client_id);
+
+      if (clientError) {
+        toast({
+          title: "Erro ao vincular cliente",
+          description: clientError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     toast({
       title: "Usuário criado!",
       description: "O usuário foi cadastrado com sucesso.",
@@ -126,6 +179,7 @@ const Users = () => {
       email: "",
       password: "",
       role: "client",
+      client_id: "",
     });
     
     // Aguardar um pouco para o trigger criar o perfil
@@ -239,7 +293,7 @@ const Users = () => {
                     <Select
                       value={formData.role}
                       onValueChange={(value) =>
-                        setFormData({ ...formData, role: value })
+                        setFormData({ ...formData, role: value, client_id: "" })
                       }
                     >
                       <SelectTrigger>
@@ -252,6 +306,29 @@ const Users = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  
+                  {formData.role === "client" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="client_id">Cliente a Vincular *</Label>
+                      <Select
+                        value={formData.client_id}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, client_id: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.company_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button type="submit">Criar Usuário</Button>
