@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Collaborators from "./pages/Collaborators";
 import Messages from "./pages/Messages";
+import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/clientes" element={<Clients />} />
           <Route path="/colaboradores" element={<Collaborators />} />
           <Route path="/mensagens" element={<Messages />} />
+          <Route path="/usuarios" element={<Users />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
