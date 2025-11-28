@@ -134,6 +134,7 @@ export type Database = {
           meeting_date: string
           participants: string[] | null
           project_id: string | null
+          share_token: string | null
           title: string
           updated_at: string
         }
@@ -147,6 +148,7 @@ export type Database = {
           meeting_date: string
           participants?: string[] | null
           project_id?: string | null
+          share_token?: string | null
           title: string
           updated_at?: string
         }
@@ -160,6 +162,7 @@ export type Database = {
           meeting_date?: string
           participants?: string[] | null
           project_id?: string | null
+          share_token?: string | null
           title?: string
           updated_at?: string
         }
