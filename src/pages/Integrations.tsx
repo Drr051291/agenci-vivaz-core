@@ -8,8 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CheckCircle2, Settings, ExternalLink } from "lucide-react";
+import { CheckCircle2, Settings, ExternalLink, Plus, Pencil, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const CRM_PLATFORMS = [
   {
@@ -58,11 +65,26 @@ const CRM_PLATFORMS = [
   },
 ];
 
+interface Dashboard {
+  id: string;
+  name: string;
+  dashboard_type: string;
+  embed_url?: string;
+  is_active: boolean;
+}
+
 export default function Integrations() {
   const { id: clientId } = useParams();
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [clientName, setClientName] = useState<string>("");
+  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingDashboard, setEditingDashboard] = useState<Dashboard | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    embed_url: "",
+  });
   const [pipedriveConfig, setPipedriveConfig] = useState({
     apiKey: "",
     domain: "api.pipedrive.com",
@@ -74,6 +96,7 @@ export default function Integrations() {
     if (clientId) {
       checkExistingIntegrations();
       fetchClientName();
+      fetchDashboards();
     }
   }, [clientId]);
 
@@ -90,6 +113,22 @@ export default function Integrations() {
       }
     } catch (error) {
       console.error("Erro ao buscar nome do cliente:", error);
+    }
+  };
+
+  const fetchDashboards = async () => {
+    if (!clientId) return;
+    try {
+      const { data, error } = await supabase
+        .from("client_dashboards")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setDashboards(data || []);
+    } catch (error) {
+      console.error("Erro ao buscar dashboards:", error);
     }
   };
 
@@ -365,25 +404,200 @@ export default function Integrations() {
         {selectedPlatform === "reportei" && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Configuração Reportei
-              </CardTitle>
-              <CardDescription>
-                Os dashboards do Reportei são configurados na aba "Dashboards" do cliente
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Configuração Reportei - Dashboards
+                  </CardTitle>
+                  <CardDescription>
+                    Gerencie os embeds de dashboards do Reportei para este cliente
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={() => {
+                    setEditingDashboard(null);
+                    setFormData({ name: "", embed_url: "" });
+                    setDialogOpen(true);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo Dashboard
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                O Reportei funciona através de embeds de iframe. Acesse a página do cliente e
-                navegue até a aba "Dashboards" para adicionar URLs de embed do Reportei.
-              </p>
-              <Button variant="outline" onClick={() => setSelectedPlatform(null)}>
-                Voltar
-              </Button>
+              {dashboards.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">
+                    Nenhum dashboard configurado para este cliente
+                  </p>
+                  <Button onClick={() => setDialogOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Adicionar Primeiro Dashboard
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {dashboards.map((dashboard) => (
+                    <Card key={dashboard.id} className="border-muted">
+                      <CardContent className="flex items-center justify-between p-4">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium mb-1">{dashboard.name}</h4>
+                          {dashboard.embed_url && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              {dashboard.embed_url}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          {dashboard.embed_url && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              asChild
+                              title="Abrir em Nova Aba"
+                            >
+                              <a
+                                href={dashboard.embed_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingDashboard(dashboard);
+                              setFormData({
+                                name: dashboard.name,
+                                embed_url: dashboard.embed_url || "",
+                              });
+                              setDialogOpen(true);
+                            }}
+                            title="Editar"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              if (!confirm("Tem certeza que deseja deletar este dashboard?")) return;
+                              try {
+                                const { error } = await supabase
+                                  .from("client_dashboards")
+                                  .delete()
+                                  .eq("id", dashboard.id);
+
+                                if (error) throw error;
+                                toast.success("Dashboard deletado!");
+                                fetchDashboards();
+                              } catch (error) {
+                                console.error("Erro ao deletar:", error);
+                                toast.error("Erro ao deletar dashboard");
+                              }
+                            }}
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
+
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {editingDashboard ? "Editar Dashboard" : "Novo Dashboard"}
+              </DialogTitle>
+              <DialogDescription>
+                Configure um embed do Reportei para visualização na aba Dashboards do cliente
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!clientId) return;
+
+                try {
+                  if (editingDashboard) {
+                    const { error } = await supabase
+                      .from("client_dashboards")
+                      .update({
+                        name: formData.name,
+                        embed_url: formData.embed_url || null,
+                      })
+                      .eq("id", editingDashboard.id);
+
+                    if (error) throw error;
+                    toast.success("Dashboard atualizado!");
+                  } else {
+                    const { error } = await supabase.from("client_dashboards").insert({
+                      client_id: clientId,
+                      name: formData.name,
+                      dashboard_type: "reportei",
+                      embed_url: formData.embed_url || null,
+                      is_active: true,
+                    });
+
+                    if (error) throw error;
+                    toast.success("Dashboard criado!");
+                  }
+
+                  setDialogOpen(false);
+                  setEditingDashboard(null);
+                  setFormData({ name: "", embed_url: "" });
+                  fetchDashboards();
+                } catch (error) {
+                  console.error("Erro ao salvar:", error);
+                  toast.error("Erro ao salvar dashboard");
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <Label htmlFor="dashboard-name">Nome do Dashboard *</Label>
+                <Input
+                  id="dashboard-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Ex: Dashboard de Vendas Mensal"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="dashboard-embed-url">URL de Embed do Reportei *</Label>
+                <Input
+                  id="dashboard-embed-url"
+                  value={formData.embed_url}
+                  onChange={(e) => setFormData({ ...formData, embed_url: e.target.value })}
+                  placeholder="https://app.reportei.com/embed/..."
+                  required
+                />
+                <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                  <ExternalLink className="h-3 w-3" />
+                  No Reportei: Dashboard → Compartilhar → Copiar URL de Embed
+                </p>
+              </div>
+
+              <Button type="submit" className="w-full">
+                {editingDashboard ? "Salvar Alterações" : "Criar Dashboard"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
