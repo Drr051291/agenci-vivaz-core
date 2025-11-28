@@ -3,10 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ExternalLink, Maximize2, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, ExternalLink, Maximize2, Pencil, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { ReporteiDashboard } from "./ReporteiDashboard";
-import { ReporteiDashboardConfig } from "./ReporteiDashboardConfig";
 import {
   Dialog,
   DialogContent,
@@ -45,10 +43,10 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
   const [editingDashboard, setEditingDashboard] = useState<Dashboard | null>(null);
   const [selectedDashboard, setSelectedDashboard] = useState<Dashboard | null>(null);
   const [iframeLoading, setIframeLoading] = useState(false);
-  const [isConfiguring, setIsConfiguring] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
   const [formData, setFormData] = useState({
     name: "",
-    dashboard_type: "analytics",
+    dashboard_type: "reportei",
     embed_url: "",
   });
 
@@ -158,6 +156,12 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
   const handleSelectDashboard = (dashboard: Dashboard) => {
     setIframeLoading(true);
     setSelectedDashboard(dashboard);
+    setIframeKey(prev => prev + 1);
+  };
+
+  const handleRefreshIframe = () => {
+    setIframeLoading(true);
+    setIframeKey(prev => prev + 1);
   };
 
   const handleFullscreen = () => {
@@ -168,45 +172,21 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
   };
 
   const getDashboardTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      pipedrive: "Pipedrive",
-      reportei: "Reportei",
-      analytics: "Analytics",
-      social_media: "Redes Sociais",
-      financial: "Financeiro",
-      performance: "Performance",
-      custom: "Personalizado",
-    };
-    return labels[type] || type;
+    return "Reportei";
   };
 
-  const getDashboardInstructions = (type: string) => {
-    const instructions: Record<string, { title: string; steps: string[]; example?: string }> = {
-      reportei: {
-        title: "Como obter o embed do Reportei",
-        steps: [
-          "1. Acesse seu dashboard no Reportei",
-          "2. Clique no botão 'Compartilhar' no canto superior direito",
-          "3. Na aba 'Incorporar', copie a URL que está dentro do código iframe",
-          "4. A URL deve ter o formato: app.reportei.com/embed/...",
-          "5. Cole apenas a URL completa no campo abaixo",
-        ],
-        example: "https://app.reportei.com/embed/a1ANxlc8dUorNg9QtXUc1NqS867ctHLP",
-      },
-      pipedrive: {
-        title: "Como obter o embed do Pipedrive",
-        steps: [
-          "1. No Pipedrive, acesse Insights > Relatórios",
-          "2. Selecione o relatório que deseja compartilhar",
-          "3. Clique em 'Compartilhar' ou 'Share'",
-          "4. Ative 'Compartilhar publicamente' ou 'Share publicly'",
-          "5. Copie o link público gerado",
-          "6. Cole o link no campo 'URL de Embed' abaixo",
-        ],
-        example: "https://app.pipedrive.com/insights/share/...",
-      },
+  const getDashboardInstructions = () => {
+    return {
+      title: "Como obter a URL de Embed do Reportei",
+      steps: [
+        "1. Acesse seu dashboard no Reportei",
+        "2. Clique no botão 'Compartilhar' no canto superior direito",
+        "3. Na aba 'Incorporar', copie a URL que está dentro do código iframe",
+        "4. A URL deve ter o formato: app.reportei.com/embed/...",
+        "5. Cole apenas a URL completa no campo abaixo",
+      ],
+      example: "https://app.reportei.com/embed/a1ANxlc8dUorNg9QtXUc1NqS867ctHLP",
     };
-    return instructions[type];
   };
 
   if (loading) {
@@ -223,7 +203,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
         <h2 className="text-2xl font-bold">Dashboards</h2>
         <Button onClick={() => {
           setEditingDashboard(null);
-          setFormData({ name: "", dashboard_type: "analytics", embed_url: "" });
+          setFormData({ name: "", dashboard_type: "reportei", embed_url: "" });
           setDialogOpen(true);
         }}>
           <Plus className="mr-2 h-4 w-4" />
@@ -316,6 +296,14 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={handleRefreshIframe}
+                        title="Atualizar Dashboard"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={handleFullscreen}
                         title="Tela Cheia"
                       >
@@ -341,28 +329,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 p-0 relative">
-                  {isConfiguring && selectedDashboard.dashboard_type === 'reportei_api' ? (
-                    <div className="p-6 h-full overflow-auto">
-                      <ReporteiDashboardConfig
-                        dashboardId={selectedDashboard.id}
-                        clientId={clientId}
-                        currentConfig={selectedDashboard.config}
-                        onSave={() => {
-                          setIsConfiguring(false);
-                          fetchDashboards();
-                        }}
-                        onCancel={() => setIsConfiguring(false)}
-                      />
-                    </div>
-                  ) : selectedDashboard.dashboard_type === 'reportei_api' ? (
-                    <div className="p-6 h-full overflow-auto">
-                      <ReporteiDashboard
-                        dashboardId={selectedDashboard.id}
-                        config={selectedDashboard.config}
-                        onConfigure={() => setIsConfiguring(true)}
-                      />
-                    </div>
-                  ) : selectedDashboard.embed_url ? (
+                  {selectedDashboard.embed_url ? (
                     <>
                       {iframeLoading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
@@ -370,6 +337,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
                         </div>
                       )}
                       <iframe
+                        key={iframeKey}
                         id="dashboard-iframe"
                         src={selectedDashboard.embed_url}
                         className="w-full h-full border-0 rounded-b-lg"
@@ -422,111 +390,36 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
             </div>
 
             <div>
-              <Label htmlFor="dashboard_type">Plataforma *</Label>
-              <Select
-                value={formData.dashboard_type}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, dashboard_type: value })
+              <Label htmlFor="embed_url">URL de Embed do Reportei *</Label>
+              <Input
+                id="embed_url"
+                value={formData.embed_url}
+                onChange={(e) =>
+                  setFormData({ ...formData, embed_url: e.target.value })
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a plataforma" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="reportei">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">Reportei (Embed)</span>
-                      <Badge variant="secondary" className="text-xs">Iframe</Badge>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="reportei_api">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">Reportei API</span>
-                      <Badge variant="default" className="text-xs">Recomendado</Badge>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="pipedrive">Pipedrive</SelectItem>
-                  <SelectItem value="analytics">Google Analytics</SelectItem>
-                  <SelectItem value="social_media">Redes Sociais</SelectItem>
-                  <SelectItem value="financial">Financeiro</SelectItem>
-                  <SelectItem value="performance">Performance</SelectItem>
-                  <SelectItem value="custom">Personalizado</SelectItem>
-                </SelectContent>
-              </Select>
+                placeholder="https://app.reportei.com/embed/..."
+                required
+              />
             </div>
 
-            {formData.dashboard_type === 'reportei_api' && (
-              <Card className="bg-primary/5 border-primary/20">
-                <CardContent className="pt-4 pb-4">
-                  <p className="text-sm text-muted-foreground">
-                    ℹ️ A configuração será feita na próxima etapa após criar o dashboard.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {getDashboardInstructions(formData.dashboard_type) && (
-              <Card className="bg-muted/50 border-primary/20">
-                <CardContent className="pt-4 pb-4">
-                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                    <span className="text-primary">ℹ️</span>
-                    {getDashboardInstructions(formData.dashboard_type)?.title}
-                  </h4>
-                  <ol className="text-xs text-muted-foreground space-y-1.5 ml-6 mb-3">
-                    {getDashboardInstructions(formData.dashboard_type)?.steps.map((step, index) => (
-                      <li key={index} className="leading-relaxed">{step}</li>
-                    ))}
-                  </ol>
-                  {getDashboardInstructions(formData.dashboard_type)?.example && (
-                    <div className="mt-3 pt-3 border-t border-border">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Exemplo de URL:</p>
-                      <code className="text-xs bg-background px-2 py-1 rounded border border-border block break-all">
-                        {getDashboardInstructions(formData.dashboard_type)?.example}
-                      </code>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {formData.dashboard_type !== 'reportei_api' && (
-              <div>
-                <Label htmlFor="embed_url">URL de Embed *</Label>
-                <Input
-                  id="embed_url"
-                  type="url"
-                  value={formData.embed_url}
-                  onChange={(e) =>
-                    setFormData({ ...formData, embed_url: e.target.value })
-                  }
-                  placeholder={
-                    formData.dashboard_type === "reportei"
-                      ? "https://app.reportei.com/embed/..."
-                      : formData.dashboard_type === "pipedrive"
-                      ? "https://app.pipedrive.com/insights/share/..."
-                      : "https://..."
-                  }
-                  required={formData.dashboard_type !== 'custom'}
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  {formData.dashboard_type === "reportei" && (
-                    <span className="flex items-center gap-1">
-                      <span className="text-primary">💡</span>
-                      Cole a URL do embed (deve começar com app.reportei.com/embed/)
-                    </span>
-                  )}
-                  {formData.dashboard_type === "pipedrive" && (
-                    <span className="flex items-center gap-1">
-                      <span className="text-primary">💡</span>
-                      Cole o link de compartilhamento público do Pipedrive
-                    </span>
-                  )}
-                  {!["reportei", "pipedrive"].includes(formData.dashboard_type) && (
-                    "Cole a URL pública ou de embed da ferramenta"
-                  )}
-                </p>
-              </div>
-            )}
+            <Card className="bg-muted/50 border-primary/20">
+              <CardContent className="pt-4 pb-4">
+                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <span className="text-primary">ℹ️</span>
+                  {getDashboardInstructions().title}
+                </h4>
+                <div className="space-y-1.5 text-xs text-muted-foreground">
+                  {getDashboardInstructions().steps.map((step, idx) => (
+                    <p key={idx}>{step}</p>
+                  ))}
+                </div>
+                {getDashboardInstructions().example && (
+                  <div className="mt-3 p-2 bg-background/60 rounded border text-xs font-mono break-all">
+                    {getDashboardInstructions().example}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <Button type="submit" className="w-full">
               {editingDashboard ? "Salvar Alterações" : "Criar Dashboard"}
