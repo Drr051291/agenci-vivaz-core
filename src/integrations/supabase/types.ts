@@ -63,9 +63,15 @@ export type Database = {
           address: string | null
           cnpj: string | null
           company_name: string
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          contract_start: string | null
           created_at: string
           id: string
+          monthly_fee: number | null
           notes: string | null
+          segment: Database["public"]["Enums"]["client_segment"]
           status: string
           updated_at: string
           user_id: string | null
@@ -75,9 +81,15 @@ export type Database = {
           address?: string | null
           cnpj?: string | null
           company_name: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contract_start?: string | null
           created_at?: string
           id?: string
+          monthly_fee?: number | null
           notes?: string | null
+          segment?: Database["public"]["Enums"]["client_segment"]
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -87,9 +99,15 @@ export type Database = {
           address?: string | null
           cnpj?: string | null
           company_name?: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contract_start?: string | null
           created_at?: string
           id?: string
+          monthly_fee?: number | null
           notes?: string | null
+          segment?: Database["public"]["Enums"]["client_segment"]
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -418,6 +436,11 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "collaborator" | "client"
+      client_segment:
+        | "inside_sales"
+        | "ecommerce"
+        | "marketplace"
+        | "local_business"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status:
         | "pending"
@@ -553,6 +576,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "collaborator", "client"],
+      client_segment: [
+        "inside_sales",
+        "ecommerce",
+        "marketplace",
+        "local_business",
+      ],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: [
         "pending",
