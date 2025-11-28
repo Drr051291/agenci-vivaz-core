@@ -61,6 +61,13 @@ export function DashboardList({ clientId }: DashboardListProps) {
 
   const selectedDashboard = dashboards.find(d => d.id === selectedDashboardId);
 
+  // Convert dashboard URL to embed URL for Reportei
+  const getEmbedUrl = (url?: string) => {
+    if (!url) return url;
+    // Convert https://app.reportei.com/dashboard/xxx to https://app.reportei.com/embed/xxx
+    return url.replace('/dashboard/', '/embed/');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-250px)]">
@@ -127,7 +134,7 @@ export function DashboardList({ clientId }: DashboardListProps) {
         {selectedDashboard?.embed_url ? (
           <iframe
             key={iframeKey}
-            src={selectedDashboard.embed_url}
+            src={getEmbedUrl(selectedDashboard.embed_url)}
             className="w-full h-full border-0 rounded-lg"
             title={selectedDashboard.name}
             allow="fullscreen"

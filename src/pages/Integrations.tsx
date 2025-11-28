@@ -583,12 +583,12 @@ export default function Integrations() {
                   id="dashboard-embed-url"
                   value={formData.embed_url}
                   onChange={(e) => setFormData({ ...formData, embed_url: e.target.value })}
-                  placeholder="https://app.reportei.com/embed/..."
+                  placeholder="https://app.reportei.com/embed/xxx"
                   required
                 />
                 <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                   <ExternalLink className="h-3 w-3" />
-                  No Reportei: Dashboard → Compartilhar → Copiar URL de Embed
+                  Use o formato: https://app.reportei.com/embed/[id]
                 </p>
               </div>
 
