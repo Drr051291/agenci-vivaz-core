@@ -75,7 +75,21 @@ const Clients = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const { error } = await supabase.from("clients").insert([formData]);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      toast({
+        title: "Erro de autenticação",
+        description: "Você precisa estar logado para adicionar clientes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase.from("clients").insert([{
+      ...formData,
+      user_id: user.id
+    }]);
 
     if (error) {
       toast({
