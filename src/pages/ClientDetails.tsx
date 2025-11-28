@@ -117,7 +117,7 @@ export default function ClientDetails() {
   return (
     <DashboardLayout>
       <div className="space-y-4">
-        {/* Header compacto */}
+        {/* Header mínimo */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button
@@ -137,86 +137,15 @@ export default function ClientDetails() {
               <p className="text-sm text-muted-foreground">Detalhes e gestão do cliente</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/integracoes/${client.id}`)}
-            >
-              <Plug className="h-4 w-4 mr-2" />
-              Configurar Integrações
-            </Button>
-            <Badge className={getStatusColor(client.status)}>
-              {getStatusLabel(client.status)}
-            </Badge>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/integracoes/${client.id}`)}
+          >
+            <Plug className="h-4 w-4 mr-2" />
+            Configurar Integrações
+          </Button>
         </div>
-
-        {/* Informações compactadas em uma linha */}
-        <Card className="border-muted">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
-              {client.cnpj && (
-                <div className="flex items-start gap-2">
-                  <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">CNPJ</p>
-                    <p className="font-medium truncate">{client.cnpj}</p>
-                  </div>
-                </div>
-              )}
-              {client.contact_name && (
-                <div className="flex items-start gap-2">
-                  <User className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Contato</p>
-                    <p className="font-medium truncate">{client.contact_name}</p>
-                  </div>
-                </div>
-              )}
-              {client.contact_phone && (
-                <div className="flex items-start gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Telefone</p>
-                    <p className="font-medium truncate">{client.contact_phone}</p>
-                  </div>
-                </div>
-              )}
-              {client.contact_email && (
-                <div className="flex items-start gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="font-medium truncate">{client.contact_email}</p>
-                  </div>
-                </div>
-              )}
-              {client.contract_start && (
-                <div className="flex items-start gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Início</p>
-                    <p className="font-medium">
-                      {new Date(client.contract_start).toLocaleDateString("pt-BR")}
-                    </p>
-                  </div>
-                </div>
-              )}
-              {client.monthly_fee && (
-                <div className="flex items-start gap-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Mensalidade</p>
-                    <p className="font-semibold text-primary">
-                      R$ {client.monthly_fee.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Tabs com foco no conteúdo */}
         <Tabs defaultValue="tasks" className="w-full">
@@ -228,7 +157,7 @@ export default function ClientDetails() {
           </TabsList>
 
           <TabsContent value="overview" className="mt-4">
-            <ClientOverview clientId={client.id} />
+            <ClientOverview clientId={client.id} client={client} />
           </TabsContent>
 
           <TabsContent value="tasks" className="mt-4">
