@@ -198,19 +198,7 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
   }
 
   return (
-    <div className="flex flex-col h-full space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Dashboards</h2>
-        <Button onClick={() => {
-          setEditingDashboard(null);
-          setFormData({ name: "", dashboard_type: "reportei", embed_url: "" });
-          setDialogOpen(true);
-        }}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Dashboard
-        </Button>
-      </div>
-
+    <div className="flex flex-col h-full space-y-2">
       {dashboards.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center h-64">
@@ -222,147 +210,134 @@ export function ClientDashboards({ clientId }: ClientDashboardsProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="flex gap-4 h-[calc(100vh-280px)] min-h-[500px]">
-          {/* Sidebar com lista de dashboards */}
-          <Card className="w-64 flex-shrink-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Meus Dashboards</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 p-3">
-              {dashboards.map((dashboard) => (
-                <div
-                  key={dashboard.id}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    selectedDashboard?.id === dashboard.id
-                      ? "bg-primary/10 border-primary"
-                      : "bg-card hover:bg-muted/50 border-border"
-                  }`}
-                  onClick={() => handleSelectDashboard(dashboard)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
-                        {dashboard.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {getDashboardTypeLabel(dashboard.dashboard_type)}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(dashboard);
-                        }}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(dashboard.id);
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+        <>
+          {/* Barra compacta de controles */}
+          <div className="flex items-center justify-between gap-2 px-2 py-1">
+            <Select
+              value={selectedDashboard?.id || ""}
+              onValueChange={(value) => {
+                const dashboard = dashboards.find((d) => d.id === value);
+                if (dashboard) handleSelectDashboard(dashboard);
+              }}
+            >
+              <SelectTrigger className="w-[280px] h-8">
+                <SelectValue placeholder="Selecione um dashboard" />
+              </SelectTrigger>
+              <SelectContent>
+                {dashboards.map((dashboard) => (
+                  <SelectItem key={dashboard.id} value={dashboard.id}>
+                    {dashboard.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          {/* Área principal do iframe */}
-          <Card className="flex-1 flex flex-col">
-            {selectedDashboard ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8"
+                onClick={handleRefreshIframe}
+                title="Atualizar Dashboard"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8"
+                onClick={handleFullscreen}
+                title="Tela Cheia"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+              {selectedDashboard?.embed_url && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8"
+                  asChild
+                  title="Abrir em Nova Aba"
+                >
+                  <a
+                    href={selectedDashboard.embed_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8"
+                onClick={(e) => {
+                  if (selectedDashboard) {
+                    e.stopPropagation();
+                    handleEdit(selectedDashboard);
+                  }
+                }}
+                title="Editar Dashboard"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8"
+                onClick={(e) => {
+                  if (selectedDashboard) {
+                    e.stopPropagation();
+                    handleDelete(selectedDashboard.id);
+                  }
+                }}
+                title="Excluir Dashboard"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                className="h-8"
+                onClick={() => {
+                  setEditingDashboard(null);
+                  setFormData({ name: "", dashboard_type: "reportei", embed_url: "" });
+                  setDialogOpen(true);
+                }}
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                Novo
+              </Button>
+            </div>
+          </div>
+
+          {/* Iframe em tela cheia */}
+          <div className="flex-1 relative h-[calc(100vh-200px)] min-h-[600px]">
+            {selectedDashboard?.embed_url ? (
               <>
-                <CardHeader className="pb-3 flex-shrink-0">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">
-                        {selectedDashboard.name}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {getDashboardTypeLabel(selectedDashboard.dashboard_type)}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRefreshIframe}
-                        title="Atualizar Dashboard"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleFullscreen}
-                        title="Tela Cheia"
-                      >
-                        <Maximize2 className="h-4 w-4" />
-                      </Button>
-                      {selectedDashboard.embed_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                          title="Abrir em Nova Aba"
-                        >
-                          <a
-                            href={selectedDashboard.embed_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      )}
-                    </div>
+                {iframeLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                </CardHeader>
-                <CardContent className="flex-1 p-0 relative">
-                  {selectedDashboard.embed_url ? (
-                    <>
-                      {iframeLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
-                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        </div>
-                      )}
-                      <iframe
-                        key={iframeKey}
-                        id="dashboard-iframe"
-                        src={selectedDashboard.embed_url}
-                        className="w-full h-full border-0 rounded-b-lg"
-                        title={selectedDashboard.name}
-                        onLoad={() => setIframeLoading(false)}
-                      />
-                    </>
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-muted-foreground">
-                        Nenhuma URL de embed configurada para este dashboard
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
+                )}
+                <iframe
+                  key={iframeKey}
+                  id="dashboard-iframe"
+                  src={selectedDashboard.embed_url}
+                  className="w-full h-full border rounded-lg"
+                  title={selectedDashboard.name}
+                  onLoad={() => setIframeLoading(false)}
+                />
               </>
             ) : (
-              <CardContent className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center h-full border rounded-lg bg-muted/20">
                 <p className="text-muted-foreground">
-                  Selecione um dashboard para visualizar
+                  {selectedDashboard ? "Nenhuma URL de embed configurada" : "Selecione um dashboard"}
                 </p>
-              </CardContent>
+              </div>
             )}
-          </Card>
-        </div>
+          </div>
+        </>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
