@@ -19,7 +19,7 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -30,8 +30,25 @@ const Auth = () => {
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      navigate("/dashboard");
+      setLoading(false);
+      return;
+    }
+
+    // Verificar o role do usuário para redirecionar corretamente
+    if (data.user) {
+      const { data: userRole } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.user.id)
+        .single();
+
+      // Se for cliente, redirecionar para área do cliente
+      if (userRole?.role === "client") {
+        navigate("/area-cliente");
+      } else {
+        // Admin ou colaborador vai para dashboard
+        navigate("/dashboard");
+      }
     }
 
     setLoading(false);
