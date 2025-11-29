@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, CheckSquare, FileText, BarChart3, User, Phone, Mail, Calendar, DollarSign } from "lucide-react";
+import { PipedriveMetrics } from "./PipedriveMetrics";
 
 interface Client {
   id: string;
@@ -127,7 +128,7 @@ export function ClientOverview({ clientId, client }: ClientOverviewProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Informações do Cliente */}
       <Card className="border-muted">
         <CardHeader>
@@ -202,24 +203,33 @@ export function ClientOverview({ clientId, client }: ClientOverviewProps) {
         </CardContent>
       </Card>
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {stat.title}
-                </CardTitle>
-                <Icon className={`h-4 w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      {/* Métricas do Pipedrive */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Métricas do Pipedrive</h3>
+        <PipedriveMetrics clientId={clientId} />
+      </div>
+
+      {/* Estatísticas Gerais */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Estatísticas Gerais</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {statCards.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <Card key={stat.title}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    {stat.title}
+                  </CardTitle>
+                  <Icon className={`h-4 w-4 ${stat.color}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
