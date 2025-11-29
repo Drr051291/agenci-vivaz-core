@@ -18,6 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PipedriveDashboardBuilder } from "@/components/client-details/PipedriveDashboardBuilder";
+import { PipedriveDashboardView } from "@/components/client-details/PipedriveDashboardView";
 
 const CRM_PLATFORMS = [
   {
@@ -401,6 +403,13 @@ export default function Integrations() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {selectedPlatform === "pipedrive" && pipedriveConfig.isActive && (
+          <div className="space-y-6">
+            <PipedriveDashboardView clientId={clientId} />
+            <PipedriveDashboardBuilder clientId={clientId} onSave={fetchDashboards} />
+          </div>
         )}
 
         {selectedPlatform === "reportei" && (
