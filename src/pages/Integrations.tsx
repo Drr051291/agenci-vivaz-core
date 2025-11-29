@@ -442,20 +442,23 @@ export default function Integrations() {
               ) : (
                 <div className="space-y-3">
                   {dashboards.map((dashboard) => {
+                    // Legacy support: convert "analytics" to "reportei"
                     const getPlatformInfo = (type: string) => {
-                      if (type === "reportei") {
+                      const normalizedType = type === "analytics" ? "reportei" : type;
+                      
+                      if (normalizedType === "reportei") {
                         return {
                           name: "Reportei",
                           color: "bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/20",
                         };
-                      } else if (type === "pipedrive") {
+                      } else if (normalizedType === "pipedrive") {
                         return {
                           name: "Pipedrive",
                           color: "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20",
                         };
                       }
                       return {
-                        name: type,
+                        name: normalizedType,
                         color: "bg-muted",
                       };
                     };
