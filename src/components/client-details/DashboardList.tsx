@@ -83,11 +83,15 @@ export function DashboardList({ clientId }: DashboardListProps) {
     };
   };
 
-  // Convert dashboard URL to embed URL for Reportei
-  const getEmbedUrl = (url?: string) => {
-    if (!url) return url;
-    // Convert https://app.reportei.com/dashboard/xxx to https://app.reportei.com/embed/xxx
-    return url.replace('/dashboard/', '/embed/');
+  const getEmbedUrl = (url: string, type: string) => {
+    if (type === "reportei" && url.includes("app.reportei.com")) {
+      return url.replace("/dashboard/", "/public/");
+    }
+    // Pipedrive share URLs são diretas, não precisam transformação
+    if (type === "pipedrive") {
+      return url;
+    }
+    return url;
   };
 
   if (loading) {
@@ -175,7 +179,7 @@ export function DashboardList({ clientId }: DashboardListProps) {
         {selectedDashboard?.embed_url ? (
           <iframe
             key={iframeKey}
-            src={getEmbedUrl(selectedDashboard.embed_url)}
+            src={getEmbedUrl(selectedDashboard.embed_url, selectedDashboard.dashboard_type)}
             className="w-full h-full border-0 rounded-lg"
             title={selectedDashboard.name}
             allow="fullscreen"

@@ -18,8 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PipedriveDashboardBuilder } from "@/components/client-details/PipedriveDashboardBuilder";
-import { PipedriveDashboardView } from "@/components/client-details/PipedriveDashboardView";
 
 const CRM_PLATFORMS = [
   {
@@ -401,15 +399,26 @@ export default function Integrations() {
                   </Button>
                 )}
               </div>
+
+              {pipedriveConfig.isActive && (
+                <div className="mt-6 p-4 bg-muted/30 rounded-lg">
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <ExternalLink className="h-4 w-4" />
+                    Como adicionar dashboards do Pipedrive
+                  </h4>
+                  <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                    <li>Acesse seu Pipedrive e crie/abra um dashboard</li>
+                    <li>Clique em "Compartilhar" ou "Share" no dashboard</li>
+                    <li>Copie o link público de compartilhamento</li>
+                    <li>Cole o link na seção "Dashboards" abaixo</li>
+                  </ol>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Exemplo: https://suaempresa.pipedrive.com/share/xxxxx
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
-
-        {selectedPlatform === "pipedrive" && pipedriveConfig.isActive && (
-          <div className="space-y-6">
-            <PipedriveDashboardView clientId={clientId} />
-            <PipedriveDashboardBuilder clientId={clientId} onSave={fetchDashboards} />
-          </div>
         )}
 
         {selectedPlatform === "reportei" && (
@@ -631,7 +640,7 @@ export default function Integrations() {
 
               <div>
                 <Label htmlFor="dashboard-embed-url">
-                  URL de Embed {formData.dashboard_type === "reportei" ? "do Reportei" : "do Pipedrive"} *
+                  URL {formData.dashboard_type === "reportei" ? "do Reportei" : "de Compartilhamento do Pipedrive"} *
                 </Label>
                 <Input
                   id="dashboard-embed-url"
@@ -639,16 +648,16 @@ export default function Integrations() {
                   onChange={(e) => setFormData({ ...formData, embed_url: e.target.value })}
                   placeholder={
                     formData.dashboard_type === "reportei"
-                      ? "https://app.reportei.com/embed/xxx"
-                      : "https://app.pipedrive.com/dashboard/xxx"
+                      ? "https://app.reportei.com/dashboard/xxx"
+                      : "https://suaempresa.pipedrive.com/share/xxxxx"
                   }
                   required
                 />
                 <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                   <ExternalLink className="h-3 w-3" />
                   {formData.dashboard_type === "reportei"
-                    ? "Use o formato: https://app.reportei.com/embed/[id]"
-                    : "Cole a URL do dashboard do Pipedrive"}
+                    ? "Use o formato: https://app.reportei.com/dashboard/[id]"
+                    : "Cole a URL de compartilhamento público do dashboard do Pipedrive"}
                 </p>
               </div>
 
