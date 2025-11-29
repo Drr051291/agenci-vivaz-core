@@ -81,12 +81,17 @@ export function PipedriveDashboardBuilder({ clientId, onSave }: PipedriveDashboa
       if (data && !error) {
         setDashboardId(data.id);
         const config = data.config as any;
-        if (config?.selected_metrics) {
+        // Garantir que selected_metrics é sempre um array
+        if (config?.selected_metrics && Array.isArray(config.selected_metrics)) {
           setSelectedMetrics(config.selected_metrics);
+        } else {
+          // Se não for array, usar valor padrão
+          setSelectedMetrics(["deals"]);
         }
       }
     } catch (error) {
       console.error("Erro ao carregar configuração:", error);
+      setSelectedMetrics(["deals"]);
     }
   };
 
