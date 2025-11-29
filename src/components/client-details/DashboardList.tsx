@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ExternalLink, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -61,6 +62,24 @@ export function DashboardList({ clientId }: DashboardListProps) {
 
   const selectedDashboard = dashboards.find(d => d.id === selectedDashboardId);
 
+  const getPlatformInfo = (type: string) => {
+    if (type === "reportei") {
+      return {
+        name: "Reportei",
+        color: "bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/20",
+      };
+    } else if (type === "pipedrive") {
+      return {
+        name: "Pipedrive",
+        color: "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20",
+      };
+    }
+    return {
+      name: type,
+      color: "bg-muted",
+    };
+  };
+
   // Convert dashboard URL to embed URL for Reportei
   const getEmbedUrl = (url?: string) => {
     if (!url) return url;
@@ -78,10 +97,13 @@ export function DashboardList({ clientId }: DashboardListProps) {
 
   if (dashboards.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-250px)]">
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-250px)] gap-4">
         <p className="text-muted-foreground">
-          Nenhum dashboard configurado. Configure em Integrações.
+          Nenhum dashboard configurado.
         </p>
+        <Button onClick={() => window.location.href = `/integracoes/${clientId}`}>
+          Ir para Integrações
+        </Button>
       </div>
     );
   }
@@ -89,18 +111,34 @@ export function DashboardList({ clientId }: DashboardListProps) {
   return (
     <div className="flex flex-col h-[calc(100vh-250px)] space-y-3">
       <div className="flex items-center justify-between gap-4">
-        <Select value={selectedDashboardId || ""} onValueChange={setSelectedDashboardId}>
-          <SelectTrigger className="w-[300px]">
-            <SelectValue placeholder="Selecione um dashboard" />
-          </SelectTrigger>
-          <SelectContent>
-            {dashboards.map((dashboard) => (
-              <SelectItem key={dashboard.id} value={dashboard.id}>
-                {dashboard.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          <Select value={selectedDashboardId || ""} onValueChange={setSelectedDashboardId}>
+            <SelectTrigger className="w-[300px]">
+              <SelectValue placeholder="Selecione um dashboard" />
+            </SelectTrigger>
+            <SelectContent>
+              {dashboards.map((dashboard) => {
+                const platform = getPlatformInfo(dashboard.dashboard_type);
+                return (
+                  <SelectItem key={dashboard.id} value={dashboard.id}>
+                    <div className="flex items-center gap-2">
+                      <Badge className={`${platform.color} border text-xs px-1.5 py-0`}>
+                        {platform.name}
+                      </Badge>
+                      {dashboard.name}
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+          
+          {selectedDashboard && (
+            <Badge className={`${getPlatformInfo(selectedDashboard.dashboard_type).color} border`}>
+              {getPlatformInfo(selectedDashboard.dashboard_type).name}
+            </Badge>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <Button
