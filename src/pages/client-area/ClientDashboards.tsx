@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart3 } from "lucide-react";
-import { PipedriveMetrics } from "@/components/client-details/PipedriveMetrics";
+import { DashboardList } from "@/components/client-details/DashboardList";
 
 const ClientDashboards = () => {
   const [loading, setLoading] = useState(true);
@@ -73,8 +73,8 @@ const ClientDashboards = () => {
           </p>
         </div>
 
-{clientId ? (
-          <PipedriveMetrics clientId={clientId} />
+        {clientId ? (
+          <DashboardList clientId={clientId} />
         ) : (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
