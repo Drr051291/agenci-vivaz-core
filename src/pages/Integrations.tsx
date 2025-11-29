@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CheckCircle2, Settings, ExternalLink, Plus, Pencil, Trash2 } from "lucide-react";
@@ -84,6 +85,7 @@ export default function Integrations() {
   const [formData, setFormData] = useState({
     name: "",
     embed_url: "",
+    dashboard_type: "reportei",
   });
   const [pipedriveConfig, setPipedriveConfig] = useState({
     apiKey: "",
@@ -417,7 +419,7 @@ export default function Integrations() {
                 <Button
                   onClick={() => {
                     setEditingDashboard(null);
-                    setFormData({ name: "", embed_url: "" });
+                    setFormData({ name: "", embed_url: "", dashboard_type: "reportei" });
                     setDialogOpen(true);
                   }}
                 >
@@ -439,76 +441,97 @@ export default function Integrations() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {dashboards.map((dashboard) => (
-                    <Card key={dashboard.id} className="border-muted">
-                      <CardContent className="flex items-center justify-between p-4">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium mb-1">{dashboard.name}</h4>
-                          {dashboard.embed_url && (
-                            <p className="text-xs text-muted-foreground truncate">
-                              {dashboard.embed_url}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          {dashboard.embed_url && (
+                  {dashboards.map((dashboard) => {
+                    const getPlatformInfo = (type: string) => {
+                      if (type === "reportei") {
+                        return {
+                          name: "Reportei",
+                          color: "bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/20",
+                        };
+                      } else if (type === "pipedrive") {
+                        return {
+                          name: "Pipedrive",
+                          color: "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20",
+                        };
+                      }
+                      return {
+                        name: type,
+                        color: "bg-muted",
+                      };
+                    };
+
+                    const platform = getPlatformInfo(dashboard.dashboard_type);
+
+                    return (
+                      <Card key={dashboard.id} className="border-muted">
+                        <CardContent className="flex items-center justify-between p-4">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <Badge className={`${platform.color} border shrink-0`}>
+                              {platform.name}
+                            </Badge>
+                            <h4 className="font-medium truncate">{dashboard.name}</h4>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            {dashboard.embed_url && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                asChild
+                                title="Abrir em Nova Aba"
+                              >
+                                <a
+                                  href={dashboard.embed_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
-                              asChild
-                              title="Abrir em Nova Aba"
+                              onClick={() => {
+                                setEditingDashboard(dashboard);
+                                setFormData({
+                                  name: dashboard.name,
+                                  embed_url: dashboard.embed_url || "",
+                                  dashboard_type: dashboard.dashboard_type || "reportei",
+                                });
+                                setDialogOpen(true);
+                              }}
+                              title="Editar"
                             >
-                              <a
-                                href={dashboard.embed_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
+                              <Pencil className="h-4 w-4" />
                             </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEditingDashboard(dashboard);
-                              setFormData({
-                                name: dashboard.name,
-                                embed_url: dashboard.embed_url || "",
-                              });
-                              setDialogOpen(true);
-                            }}
-                            title="Editar"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={async () => {
-                              if (!confirm("Tem certeza que deseja deletar este dashboard?")) return;
-                              try {
-                                const { error } = await supabase
-                                  .from("client_dashboards")
-                                  .delete()
-                                  .eq("id", dashboard.id);
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                if (!confirm("Tem certeza que deseja deletar este dashboard?")) return;
+                                try {
+                                  const { error } = await supabase
+                                    .from("client_dashboards")
+                                    .delete()
+                                    .eq("id", dashboard.id);
 
-                                if (error) throw error;
-                                toast.success("Dashboard deletado!");
-                                fetchDashboards();
-                              } catch (error) {
-                                console.error("Erro ao deletar:", error);
-                                toast.error("Erro ao deletar dashboard");
-                              }
-                            }}
-                            title="Excluir"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                                  if (error) throw error;
+                                  toast.success("Dashboard deletado!");
+                                  fetchDashboards();
+                                } catch (error) {
+                                  console.error("Erro ao deletar:", error);
+                                  toast.error("Erro ao deletar dashboard");
+                                }
+                              }}
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -522,7 +545,7 @@ export default function Integrations() {
                 {editingDashboard ? "Editar Dashboard" : "Novo Dashboard"}
               </DialogTitle>
               <DialogDescription>
-                Configure um embed do Reportei para visualização na aba Dashboards do cliente
+                Configure um dashboard do Reportei ou Pipedrive para visualização
               </DialogDescription>
             </DialogHeader>
             <form
@@ -536,6 +559,7 @@ export default function Integrations() {
                       .from("client_dashboards")
                       .update({
                         name: formData.name,
+                        dashboard_type: formData.dashboard_type,
                         embed_url: formData.embed_url || null,
                       })
                       .eq("id", editingDashboard.id);
@@ -546,7 +570,7 @@ export default function Integrations() {
                     const { error } = await supabase.from("client_dashboards").insert({
                       client_id: clientId,
                       name: formData.name,
-                      dashboard_type: "reportei",
+                      dashboard_type: formData.dashboard_type,
                       embed_url: formData.embed_url || null,
                       is_active: true,
                     });
@@ -557,7 +581,7 @@ export default function Integrations() {
 
                   setDialogOpen(false);
                   setEditingDashboard(null);
-                  setFormData({ name: "", embed_url: "" });
+                  setFormData({ name: "", embed_url: "", dashboard_type: "reportei" });
                   fetchDashboards();
                 } catch (error) {
                   console.error("Erro ao salvar:", error);
@@ -578,17 +602,41 @@ export default function Integrations() {
               </div>
 
               <div>
-                <Label htmlFor="dashboard-embed-url">URL de Embed do Reportei *</Label>
+                <Label htmlFor="dashboard-platform">Plataforma *</Label>
+                <Select
+                  value={formData.dashboard_type}
+                  onValueChange={(value) => setFormData({ ...formData, dashboard_type: value })}
+                >
+                  <SelectTrigger id="dashboard-platform">
+                    <SelectValue placeholder="Selecione a plataforma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reportei">Reportei</SelectItem>
+                    <SelectItem value="pipedrive">Pipedrive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="dashboard-embed-url">
+                  URL de Embed {formData.dashboard_type === "reportei" ? "do Reportei" : "do Pipedrive"} *
+                </Label>
                 <Input
                   id="dashboard-embed-url"
                   value={formData.embed_url}
                   onChange={(e) => setFormData({ ...formData, embed_url: e.target.value })}
-                  placeholder="https://app.reportei.com/embed/xxx"
+                  placeholder={
+                    formData.dashboard_type === "reportei"
+                      ? "https://app.reportei.com/embed/xxx"
+                      : "https://app.pipedrive.com/dashboard/xxx"
+                  }
                   required
                 />
                 <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                   <ExternalLink className="h-3 w-3" />
-                  Use o formato: https://app.reportei.com/embed/[id]
+                  {formData.dashboard_type === "reportei"
+                    ? "Use o formato: https://app.reportei.com/embed/[id]"
+                    : "Cole a URL do dashboard do Pipedrive"}
                 </p>
               </div>
 
