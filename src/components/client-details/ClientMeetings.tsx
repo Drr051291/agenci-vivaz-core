@@ -134,7 +134,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         .from("meeting_minutes")
         .insert({
           client_id: clientId,
-          title: `Vivaz - ${clientName} - ${format(now, "dd/MM/yyyy", { locale: ptBR })}`,
+          title: `Vivaz - ${clientName} - Nova Reunião`,
           meeting_date: localDateTime,
           content: INITIAL_TEMPLATE,
           created_by: user?.id,
