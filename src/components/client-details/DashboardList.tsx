@@ -2,15 +2,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { ExternalLink, BarChart3, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { DashboardViewerDialog } from "./DashboardViewerDialog";
 
 interface Dashboard {
   id: string;
@@ -28,18 +23,12 @@ interface DashboardListProps {
 export function DashboardList({ clientId }: DashboardListProps) {
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDashboardId, setSelectedDashboardId] = useState<string | null>(null);
-  const [iframeKey, setIframeKey] = useState(0);
 
   useEffect(() => {
     fetchDashboards();
   }, [clientId]);
-
-  useEffect(() => {
-    if (dashboards.length > 0 && !selectedDashboardId) {
-      setSelectedDashboardId(dashboards[0].id);
-    }
-  }, [dashboards, selectedDashboardId]);
 
   const fetchDashboards = async () => {
     try {
@@ -60,38 +49,32 @@ export function DashboardList({ clientId }: DashboardListProps) {
     }
   };
 
-  const selectedDashboard = dashboards.find(d => d.id === selectedDashboardId);
-
   const getPlatformInfo = (type: string) => {
-    // Legacy support: "analytics" should be treated as "reportei"
     const normalizedType = type === "analytics" ? "reportei" : type;
     
     if (normalizedType === "reportei") {
       return {
         name: "Reportei",
-        color: "bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/20",
+        color: "bg-green-500/10 text-green-600 border-green-500/20",
+        icon: TrendingUp,
       };
     } else if (normalizedType === "pipedrive") {
       return {
         name: "Pipedrive",
-        color: "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20",
+        color: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+        icon: BarChart3,
       };
     }
     return {
       name: normalizedType,
       color: "bg-muted",
+      icon: BarChart3,
     };
   };
 
-  const getEmbedUrl = (url: string, type: string) => {
-    if (type === "reportei" && url.includes("app.reportei.com")) {
-      return url.replace("/dashboard/", "/public/");
-    }
-    // Pipedrive share URLs são diretas, não precisam transformação
-    if (type === "pipedrive") {
-      return url;
-    }
-    return url;
+  const handleViewDashboard = (dashboardId: string) => {
+    setSelectedDashboardId(dashboardId);
+    setDialogOpen(true);
   };
 
   if (loading) {
@@ -108,88 +91,75 @@ export function DashboardList({ clientId }: DashboardListProps) {
         <p className="text-muted-foreground">
           Nenhum dashboard configurado.
         </p>
-        <Button onClick={() => window.location.href = `/integracoes/${clientId}`}>
-          Ir para Integrações
-        </Button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-250px)] space-y-3">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Select value={selectedDashboardId || ""} onValueChange={setSelectedDashboardId}>
-            <SelectTrigger className="w-[300px]">
-              <SelectValue placeholder="Selecione um dashboard" />
-            </SelectTrigger>
-            <SelectContent>
-              {dashboards.map((dashboard) => {
-                const platform = getPlatformInfo(dashboard.dashboard_type);
-                return (
-                  <SelectItem key={dashboard.id} value={dashboard.id}>
-                    <div className="flex items-center gap-2">
-                      <Badge className={`${platform.color} border text-xs px-1.5 py-0`}>
-                        {platform.name}
-                      </Badge>
-                      {dashboard.name}
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+        {dashboards.map((dashboard) => {
+          const platform = getPlatformInfo(dashboard.dashboard_type);
+          const Icon = platform.icon;
+
+          return (
+            <Card key={dashboard.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${platform.color}`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-base">{dashboard.name}</h3>
+                        <Badge className={`${platform.color} border text-xs mt-1`}>
+                          {platform.name}
+                        </Badge>
+                      </div>
                     </div>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-          
-          {selectedDashboard && (
-            <Badge className={`${getPlatformInfo(selectedDashboard.dashboard_type).color} border`}>
-              {getPlatformInfo(selectedDashboard.dashboard_type).name}
-            </Badge>
-          )}
-        </div>
+                  </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIframeKey(prev => prev + 1)}
-            title="Atualizar"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          {selectedDashboard?.embed_url && (
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              title="Abrir em Nova Aba"
-            >
-              <a
-                href={selectedDashboard.embed_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            </Button>
-          )}
-        </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleViewDashboard(dashboard.id)}
+                      className="flex-1"
+                    >
+                      Visualizar
+                    </Button>
+                    {dashboard.embed_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        title="Abrir em Nova Aba"
+                      >
+                        <a
+                          href={dashboard.embed_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      <div className="flex-1">
-        {selectedDashboard?.embed_url ? (
-          <iframe
-            key={iframeKey}
-            src={getEmbedUrl(selectedDashboard.embed_url, selectedDashboard.dashboard_type)}
-            className="w-full h-full border-0 rounded-lg"
-            title={selectedDashboard.name}
-            allow="fullscreen"
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full border rounded-lg bg-muted/20">
-            <p className="text-muted-foreground">Dashboard sem URL configurada</p>
-          </div>
-        )}
-      </div>
-    </div>
+      {selectedDashboardId && (
+        <DashboardViewerDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          dashboards={dashboards}
+          initialDashboardId={selectedDashboardId}
+        />
+      )}
+    </>
   );
 }
