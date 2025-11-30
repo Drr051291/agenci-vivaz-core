@@ -127,25 +127,6 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
     return invoices?.find(inv => inv.payment_id === paymentId);
   };
 
-  // Calcular métricas (sempre chamado, mesmo se não houver link)
-  const totalReceived = useMemo(() => {
-    return payments?.filter((p: any) => 
-      p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH'
-    ).reduce((sum: number, p: any) => sum + (p.value || 0), 0) || 0;
-  }, [payments]);
-
-  const totalPending = useMemo(() => {
-    return payments?.filter((p: any) => 
-      p.status === 'PENDING'
-    ).reduce((sum: number, p: any) => sum + (p.value || 0), 0) || 0;
-  }, [payments]);
-
-  const totalOverdue = useMemo(() => {
-    return payments?.filter((p: any) => 
-      p.status === 'OVERDUE'
-    ).reduce((sum: number, p: any) => sum + (p.value || 0), 0) || 0;
-  }, [payments]);
-
   // Aplicar filtros nas cobranças (sempre chamado)
   const filteredPayments = useMemo(() => {
     if (!payments) return [];
@@ -258,44 +239,6 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
           </div>
         </CardContent>
       </Card>
-
-      {/* Métricas */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recebido</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ {totalReceived.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Total confirmado</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendente</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ {totalPending.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Aguardando pagamento</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vencido</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              R$ {totalOverdue.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground">Em atraso</p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Tabs de Assinaturas e Cobranças */}
       <Tabs defaultValue="payments" className="w-full">
