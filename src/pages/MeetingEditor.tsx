@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar, Users, CheckSquare, LayoutDashboard, Presentation, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Save, Calendar, Users, CheckSquare, LayoutDashboard, Presentation, X, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,9 @@ const AUTOSAVE_DELAY = 3000;
 export default function MeetingEditor() {
   const { clientId, meetingId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get("mode") || "view";
+  const isEditMode = mode === "edit";
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
@@ -53,14 +56,14 @@ export default function MeetingEditor() {
   });
 
   useEffect(() => {
-    if (!meetingId || loading) return;
+    if (!meetingId || loading || !isEditMode) return;
 
     const timer = setTimeout(() => {
       handleAutoSave();
     }, AUTOSAVE_DELAY);
 
     return () => clearTimeout(timer);
-  }, [meetingData, selectedDashboards, selectedTasks]);
+  }, [meetingData, selectedDashboards, selectedTasks, isEditMode]);
 
   useEffect(() => {
     if (clientId && meetingId) {
@@ -481,12 +484,14 @@ export default function MeetingEditor() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <span className={cn(
-                "text-sm",
-                isSaving ? "text-muted-foreground animate-pulse" : "text-emerald-600"
-              )}>
-                {isSaving ? "Salvando..." : "✓ Salvo"}
-              </span>
+              {isEditMode && (
+                <span className={cn(
+                  "text-sm",
+                  isSaving ? "text-muted-foreground animate-pulse" : "text-emerald-600"
+                )}>
+                  {isSaving ? "Salvando..." : "✓ Salvo"}
+                </span>
+              )}
               <Button
                 onClick={() => setIsPresentationMode(true)}
                 variant="outline"
@@ -494,10 +499,17 @@ export default function MeetingEditor() {
                 <Presentation className="h-4 w-4 mr-2" />
                 Modo Apresentação
               </Button>
-              <Button onClick={handleSave}>
-                <Save className="mr-2 h-4 w-4" />
-                Salvar
-              </Button>
+              {isEditMode ? (
+                <Button onClick={handleSave}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar
+                </Button>
+              ) : (
+                <Button onClick={() => navigate(`/clientes/${clientId}/reunioes/${meetingId}?mode=edit`)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -513,16 +525,22 @@ export default function MeetingEditor() {
                 <Calendar className="h-4 w-4" />
                 Data da Reunião
               </label>
-              <Input
-                type="date"
-                value={meetingData.meeting_date}
-                onChange={(e) =>
-                  setMeetingData({
-                    ...meetingData,
-                    meeting_date: e.target.value,
-                  })
-                }
-              />
+              {isEditMode ? (
+                <Input
+                  type="date"
+                  value={meetingData.meeting_date}
+                  onChange={(e) =>
+                    setMeetingData({
+                      ...meetingData,
+                      meeting_date: e.target.value,
+                    })
+                  }
+                />
+              ) : (
+                <p className="text-sm py-2">
+                  {format(new Date(meetingData.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                </p>
+              )}
             </div>
 
             <div>
@@ -530,19 +548,25 @@ export default function MeetingEditor() {
                 <Users className="h-4 w-4" />
                 Participantes
               </label>
-              <Input
-                placeholder="João Silva, Maria Santos..."
-                value={meetingData.participants.join(", ")}
-                onChange={(e) =>
-                  setMeetingData({
-                    ...meetingData,
-                    participants: e.target.value
-                      .split(",")
-                      .map((p) => p.trim())
-                      .filter(Boolean),
-                  })
-                }
-              />
+              {isEditMode ? (
+                <Input
+                  placeholder="João Silva, Maria Santos..."
+                  value={meetingData.participants.join(", ")}
+                  onChange={(e) =>
+                    setMeetingData({
+                      ...meetingData,
+                      participants: e.target.value
+                        .split(",")
+                        .map((p) => p.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                />
+              ) : (
+                <p className="text-sm py-2">
+                  {meetingData.participants.length > 0 ? meetingData.participants.join(", ") : "—"}
+                </p>
+              )}
             </div>
 
             <div>
@@ -550,20 +574,26 @@ export default function MeetingEditor() {
                 <CheckSquare className="h-4 w-4" />
                 Itens de Ação
               </label>
-              <Textarea
-                placeholder="Enviar proposta, Agendar follow-up..."
-                value={meetingData.action_items.join(", ")}
-                onChange={(e) =>
-                  setMeetingData({
-                    ...meetingData,
-                    action_items: e.target.value
-                      .split(",")
-                      .map((item) => item.trim())
-                      .filter(Boolean),
-                  })
-                }
-                rows={2}
-              />
+              {isEditMode ? (
+                <Textarea
+                  placeholder="Enviar proposta, Agendar follow-up..."
+                  value={meetingData.action_items.join(", ")}
+                  onChange={(e) =>
+                    setMeetingData({
+                      ...meetingData,
+                      action_items: e.target.value
+                        .split(",")
+                        .map((item) => item.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  rows={2}
+                />
+              ) : (
+                <p className="text-sm py-2">
+                  {meetingData.action_items.length > 0 ? meetingData.action_items.join(", ") : "—"}
+                </p>
+              )}
             </div>
           </div>
         </Card>
@@ -583,7 +613,7 @@ export default function MeetingEditor() {
                 type={dashboard.dashboard_type}
                 embedUrl={dashboard.embed_url || undefined}
                 isSelected={selectedDashboards.includes(dashboard.id)}
-                onToggle={handleDashboardToggle}
+                onToggle={isEditMode ? handleDashboardToggle : undefined}
               />
             ))}
           </div>
@@ -591,18 +621,22 @@ export default function MeetingEditor() {
 
         {/* Main Content Area */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Rich Text Editor - 2/3 */}
+          {/* Rich Text Editor/Viewer - 2/3 */}
           <Card className="p-6 lg:col-span-2">
             <label className="text-sm font-medium mb-4 block">
               📝 Conteúdo da Reunião
             </label>
-            <RichTextEditor
-              content={meetingData.content}
-              onChange={(content) =>
-                setMeetingData({ ...meetingData, content })
-              }
-              placeholder="Descreva o que foi discutido na reunião..."
-            />
+            {isEditMode ? (
+              <RichTextEditor
+                content={meetingData.content}
+                onChange={(content) =>
+                  setMeetingData({ ...meetingData, content })
+                }
+                placeholder="Descreva o que foi discutido na reunião..."
+              />
+            ) : (
+              <MeetingViewer content={meetingData.content} />
+            )}
           </Card>
 
           {/* Tasks - 1/3 */}
@@ -617,10 +651,12 @@ export default function MeetingEditor() {
                   key={task.id}
                   className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors border"
                 >
-                  <Checkbox
-                    checked={selectedTasks.includes(task.id)}
-                    onCheckedChange={() => handleTaskToggle(task.id)}
-                  />
+                  {isEditMode && (
+                    <Checkbox
+                      checked={selectedTasks.includes(task.id)}
+                      onCheckedChange={() => handleTaskToggle(task.id)}
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{task.title}</p>
                     <Badge variant="secondary" className="text-xs mt-1">

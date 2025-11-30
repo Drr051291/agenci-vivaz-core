@@ -146,15 +146,20 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       if (error) throw error;
 
       toast.success("Reunião criada! Redirecionando para edição...");
-      navigate(`/clientes/${clientId}/reunioes/${newMeeting.id}`);
+      navigate(`/clientes/${clientId}/reunioes/${newMeeting.id}?mode=edit`);
     } catch (error) {
       console.error("Erro ao criar reunião:", error);
       toast.error("Erro ao criar reunião");
     }
   };
 
-  const handleEditMeeting = (meetingId: string) => {
-    navigate(`/clientes/${clientId}/reunioes/${meetingId}`);
+  const handleViewMeeting = (meetingId: string) => {
+    navigate(`/clientes/${clientId}/reunioes/${meetingId}?mode=view`);
+  };
+
+  const handleEditMeeting = (meetingId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/clientes/${clientId}/reunioes/${meetingId}?mode=edit`);
   };
 
   const handleShare = (meeting: MeetingMinute) => {
@@ -300,7 +305,11 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {meetings.map((meeting) => (
-            <Card key={meeting.id} className="hover:shadow-md transition-shadow">
+            <Card 
+              key={meeting.id} 
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => handleViewMeeting(meeting.id)}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
@@ -364,7 +373,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => handleEditMeeting(meeting.id)}
+                    onClick={(e) => handleEditMeeting(meeting.id, e)}
                   >
                     <Pencil className="h-3 w-3 mr-1" />
                     Editar
@@ -372,7 +381,10 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleShare(meeting)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShare(meeting);
+                    }}
                     title="Compartilhar"
                   >
                     <Share2 className="h-3 w-3" />
@@ -380,7 +392,10 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDownloadPDF(meeting)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownloadPDF(meeting);
+                    }}
                     disabled={downloadingId === meeting.id}
                     title="Baixar PDF"
                   >
@@ -389,7 +404,10 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDeleteClick(meeting)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(meeting);
+                    }}
                     title="Deletar"
                   >
                     <Trash2 className="h-3 w-3" />
