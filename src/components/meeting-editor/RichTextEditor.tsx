@@ -5,6 +5,7 @@ import Youtube from '@tiptap/extension-youtube';
 import Placeholder from '@tiptap/extension-placeholder';
 import { ChartExtension } from './extensions/ChartExtension';
 import { createSlashCommandExtension } from './extensions/SlashCommands';
+import { ColumnGroup, Column } from './extensions/ColumnsExtension';
 import { Button } from '@/components/ui/button';
 import {
   Bold,
@@ -70,6 +71,8 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
         placeholder: placeholder || 'Comece a escrever sua ata... Digite "/" para ver opções',
       }),
       ChartExtension,
+      ColumnGroup,
+      Column,
       createSlashCommandExtension(triggerImageUpload, triggerYoutubeDialog),
     ],
     content,

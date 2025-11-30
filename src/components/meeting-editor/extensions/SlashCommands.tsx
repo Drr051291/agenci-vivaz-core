@@ -12,7 +12,9 @@ import {
   Heading3,
   List,
   ListOrdered,
-  Quote
+  Quote,
+  Columns2,
+  Columns3
 } from 'lucide-react';
 
 interface CommandItem {
@@ -137,6 +139,81 @@ const getSuggestionItems = (triggerImageUpload: () => void, triggerYoutubeDialog
           data: [],
           title: 'Novo Gráfico',
         },
+      }).run();
+    },
+  },
+  {
+    title: '2 Colunas',
+    description: 'Layout de duas colunas lado a lado',
+    icon: Columns2,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).insertContent({
+        type: 'columnGroup',
+        attrs: {
+          columnCount: 2,
+        },
+        content: [
+          {
+            type: 'column',
+            content: [
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'Coluna 1' }],
+              },
+            ],
+          },
+          {
+            type: 'column',
+            content: [
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'Coluna 2' }],
+              },
+            ],
+          },
+        ],
+      }).run();
+    },
+  },
+  {
+    title: '3 Colunas',
+    description: 'Layout de três colunas lado a lado',
+    icon: Columns3,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).insertContent({
+        type: 'columnGroup',
+        attrs: {
+          columnCount: 3,
+        },
+        content: [
+          {
+            type: 'column',
+            content: [
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'Coluna 1' }],
+              },
+            ],
+          },
+          {
+            type: 'column',
+            content: [
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'Coluna 2' }],
+              },
+            ],
+          },
+          {
+            type: 'column',
+            content: [
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'Coluna 3' }],
+              },
+            ],
+          },
+        ],
       }).run();
     },
   },
