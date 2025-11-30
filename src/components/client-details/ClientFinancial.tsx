@@ -4,13 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ExternalLink, Link2Off, DollarSign, FileText, CreditCard, Plus, Upload, Eye, Edit } from "lucide-react";
+import { ExternalLink, Link2Off, DollarSign, FileText, CreditCard, Plus, Upload, Eye, Edit, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CreatePaymentDialog } from "./CreatePaymentDialog";
 import { PaymentFilters, PaymentFilterState } from "./PaymentFilters";
 import { UploadInvoiceDialog } from "./UploadInvoiceDialog";
 import { EditPaymentDialog } from "./EditPaymentDialog";
+import { EditSubscriptionDialog } from "./EditSubscriptionDialog";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -24,6 +25,8 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [editPaymentOpen, setEditPaymentOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [editSubscriptionOpen, setEditSubscriptionOpen] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [paymentFilters, setPaymentFilters] = useState<PaymentFilterState>({
     status: "all",
   });
@@ -411,7 +414,7 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
                 <Card key={sub.id}>
                   <CardContent className="py-4">
                     <div className="flex justify-between items-start">
-                      <div className="space-y-1">
+                      <div className="space-y-1 flex-1">
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold">
                             {sub.description || 'Sem descrição'}
@@ -433,6 +436,17 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
                           )}
                         </div>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSubscription(sub);
+                          setEditSubscriptionOpen(true);
+                        }}
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Editar
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -467,6 +481,13 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
               payment={selectedPayment}
               open={editPaymentOpen}
               onOpenChange={setEditPaymentOpen}
+            />
+          )}
+          {selectedSubscription && (
+            <EditSubscriptionDialog
+              subscription={selectedSubscription}
+              open={editSubscriptionOpen}
+              onOpenChange={setEditSubscriptionOpen}
             />
           )}
         </>
