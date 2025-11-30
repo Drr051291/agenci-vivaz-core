@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExternalLink, Link2Off, DollarSign, FileText, CreditCard, Plus, Upload, Eye, Edit, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { CreatePaymentDialog } from "./CreatePaymentDialog";
 import { PaymentFilters, PaymentFilterState } from "./PaymentFilters";
 import { UploadInvoiceDialog } from "./UploadInvoiceDialog";
@@ -288,7 +289,7 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
                             </span>
                             <span>
                               Venc:{' '}
-                              {format(new Date(payment.dueDate), 'dd/MM/yyyy', {
+                              {format(parseLocalDate(payment.dueDate), 'dd/MM/yyyy', {
                                 locale: ptBR,
                               })}
                             </span>
@@ -372,7 +373,7 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
                           {sub.nextDueDate && (
                             <span>
                               Próx:{' '}
-                              {format(new Date(sub.nextDueDate), 'dd/MM/yyyy', {
+                              {format(parseLocalDate(sub.nextDueDate), 'dd/MM/yyyy', {
                                 locale: ptBR,
                               })}
                             </span>

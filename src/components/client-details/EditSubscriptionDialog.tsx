@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface EditSubscriptionDialogProps {
   subscription: any;
@@ -37,7 +38,7 @@ export function EditSubscriptionDialog({
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     value: subscription?.value || 0,
-    nextDueDate: subscription?.nextDueDate ? format(new Date(subscription.nextDueDate), "yyyy-MM-dd") : "",
+    nextDueDate: subscription?.nextDueDate ? format(parseLocalDate(subscription.nextDueDate), "yyyy-MM-dd") : "",
     description: subscription?.description || "",
     cycle: subscription?.cycle || "MONTHLY",
   });
