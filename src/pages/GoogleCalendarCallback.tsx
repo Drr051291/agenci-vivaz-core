@@ -16,15 +16,19 @@ export default function GoogleCalendarCallback() {
       const code = searchParams.get("code");
       const error = searchParams.get("error");
 
+      console.log('Callback URL params:', { code: code?.substring(0, 10) + '...', error });
+
       if (error) {
+        console.error('OAuth error:', error);
         setStatus("error");
-        setMessage("Autorização negada ou cancelada");
+        setMessage(`Autorização negada: ${error}`);
         return;
       }
 
       if (!code) {
+        console.error('No authorization code received');
         setStatus("error");
-        setMessage("Código de autorização não encontrado");
+        setMessage("Código de autorização não encontrado. Verifique as configurações do Google Cloud Console.");
         return;
       }
 
@@ -49,9 +53,14 @@ export default function GoogleCalendarCallback() {
           }
         );
 
-        if (!response.ok) throw new Error("Failed to process callback");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Edge function error:', errorData);
+          throw new Error(errorData.error || "Failed to process callback");
+        }
 
         const data = await response.json();
+        console.log('Callback response:', data);
 
         if (data.success) {
           setStatus("success");
@@ -60,12 +69,12 @@ export default function GoogleCalendarCallback() {
             navigate("/integracoes");
           }, 2000);
         } else {
-          throw new Error("Falha ao processar autenticação");
+          throw new Error(data.error || "Falha ao processar autenticação");
         }
       } catch (error) {
         console.error("Callback error:", error);
         setStatus("error");
-        setMessage("Erro ao conectar Google Calendar");
+        setMessage(error instanceof Error ? error.message : "Erro ao conectar Google Calendar");
       }
     };
 
