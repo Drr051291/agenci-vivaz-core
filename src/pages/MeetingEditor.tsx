@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/meeting-editor/RichTextEditor";
+import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 import { DashboardCard } from "@/components/meeting-editor/DashboardCard";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar, Users, CheckSquare, LayoutDashboard } from "lucide-react";
+import { ArrowLeft, Save, Calendar, Users, CheckSquare, LayoutDashboard, Presentation, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ export default function MeetingEditor() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [clientName, setClientName] = useState("");
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -63,6 +65,17 @@ export default function MeetingEditor() {
       loadMeetingData();
     }
   }, [clientId, meetingId]);
+
+  // Handle ESC key to exit presentation mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isPresentationMode) {
+        setIsPresentationMode(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPresentationMode]);
 
   const loadMeetingData = async () => {
     try {
@@ -179,6 +192,112 @@ export default function MeetingEditor() {
     );
   }
 
+  // Presentation Mode View
+  if (isPresentationMode) {
+    const linkedDashboardsData = dashboards.filter(d => 
+      selectedDashboards.includes(d.id)
+    );
+
+    return (
+      <div className="fixed inset-0 bg-background z-50 overflow-auto">
+        {/* Exit Button */}
+        <Button
+          onClick={() => setIsPresentationMode(false)}
+          variant="ghost"
+          size="sm"
+          className="fixed top-4 right-4 z-50 bg-background/80 backdrop-blur-sm hover:bg-background"
+        >
+          <X className="h-4 w-4 mr-2" />
+          Sair do Modo Apresentação (ESC)
+        </Button>
+
+        <div className="max-w-[1600px] mx-auto p-8 space-y-8">
+          {/* Header */}
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold">{meetingData.title}</h1>
+            <div className="flex flex-wrap gap-4 text-lg text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                {format(new Date(meetingData.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              </div>
+              {meetingData.participants && meetingData.participants.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  {meetingData.participants.join(", ")}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Dashboards */}
+          {linkedDashboardsData.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-semibold">📊 Dashboards Analisados</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {linkedDashboardsData.map((dashboard) => (
+                  <Card key={dashboard.id} className="overflow-hidden">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg flex items-center justify-between">
+                        <span>{dashboard.name}</span>
+                        {dashboard.embed_url && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(dashboard.embed_url, "_blank")}
+                          >
+                            Abrir Completo →
+                          </Button>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {dashboard.embed_url ? (
+                        <iframe
+                          src={dashboard.embed_url}
+                          className="w-full h-[500px] border-0"
+                          title={dashboard.name}
+                        />
+                      ) : (
+                        <div className="h-[500px] flex items-center justify-center bg-muted">
+                          <p className="text-muted-foreground">Dashboard não disponível</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="space-y-4 border-t pt-8">
+            <h2 className="text-2xl font-semibold">📝 Discussões e Anotações</h2>
+            <div className="prose prose-lg max-w-none">
+              <MeetingViewer content={meetingData.content} />
+            </div>
+          </div>
+
+          {/* Action Items */}
+          {meetingData.action_items && meetingData.action_items.length > 0 && (
+            <div className="space-y-4 border-t pt-8">
+              <h2 className="text-2xl font-semibold">✅ Itens de Ação</h2>
+              <ul className="space-y-3">
+                {meetingData.action_items.map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-3 text-lg">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-sm font-semibold text-primary">{idx + 1}</span>
+                    </div>
+                    <span className="flex-1">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -209,6 +328,13 @@ export default function MeetingEditor() {
               )}>
                 {isSaving ? "Salvando..." : "✓ Salvo"}
               </span>
+              <Button
+                onClick={() => setIsPresentationMode(true)}
+                variant="outline"
+              >
+                <Presentation className="h-4 w-4 mr-2" />
+                Modo Apresentação
+              </Button>
               <Button onClick={handleSave}>
                 <Save className="mr-2 h-4 w-4" />
                 Salvar
