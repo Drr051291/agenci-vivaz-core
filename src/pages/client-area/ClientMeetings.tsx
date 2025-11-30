@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Users, FileText, Download, ExternalLink } from "lucide-react";
+import { Calendar, Users, FileText, Download, ExternalLink, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 import { Badge } from "@/components/ui/badge";
@@ -136,42 +136,41 @@ const ClientMeetings = () => {
               <Card key={meeting.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{meeting.title}</CardTitle>
-                    </div>
-                    <div className="flex gap-2">
-                      {meeting.share_token && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenShareLink(meeting.share_token!)}
-                          title="Abrir em nova aba"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+                    <CardTitle className="text-lg">{meeting.title}</CardTitle>
+                    {meeting.share_token && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenShareLink(meeting.share_token!)}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Abrir
+                      </Button>
+                    )}
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
                     <Calendar className="h-4 w-4" />
                     {new Date(meeting.meeting_date).toLocaleDateString("pt-BR", {
                       dateStyle: "long",
                     })}
                   </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   {meeting.participants && meeting.participants.length > 0 && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="h-4 w-4" />
-                      {meeting.participants.join(", ")}
+                      <span>Participantes: {meeting.participants.join(", ")}</span>
                     </div>
                   )}
-                  <div className="border-t pt-3">
+                  <div className="prose prose-sm max-w-none">
                     <MeetingViewer content={meeting.content} />
                   </div>
                   {meeting.action_items && meeting.action_items.length > 0 && (
                     <div className="border-t pt-3">
-                      <p className="text-sm font-medium mb-2">Itens de Ação:</p>
+                      <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                        <CheckSquare className="h-4 w-4" />
+                        Itens de Ação:
+                      </p>
                       <ul className="list-disc list-inside text-sm space-y-1">
                         {meeting.action_items.map((item, idx) => (
                           <li key={idx} className="text-muted-foreground">
