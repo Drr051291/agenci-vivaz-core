@@ -4,12 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ExternalLink, Link2Off, DollarSign, FileText, CreditCard, Plus, Upload, Eye } from "lucide-react";
+import { ExternalLink, Link2Off, DollarSign, FileText, CreditCard, Plus, Upload, Eye, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CreatePaymentDialog } from "./CreatePaymentDialog";
 import { PaymentFilters, PaymentFilterState } from "./PaymentFilters";
 import { UploadInvoiceDialog } from "./UploadInvoiceDialog";
+import { EditPaymentDialog } from "./EditPaymentDialog";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -21,6 +22,8 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
   const [createPaymentOpen, setCreatePaymentOpen] = useState(false);
   const [uploadInvoiceOpen, setUploadInvoiceOpen] = useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
+  const [editPaymentOpen, setEditPaymentOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [paymentFilters, setPaymentFilters] = useState<PaymentFilterState>({
     status: "all",
   });
@@ -347,6 +350,17 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
                           </div>
                         </div>
                         <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedPayment(payment);
+                              setEditPaymentOpen(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar
+                          </Button>
                           {invoice ? (
                             <Button
                               variant="outline"
@@ -446,6 +460,13 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
               onOpenChange={setUploadInvoiceOpen}
               paymentId={selectedPaymentId}
               clientId={clientId}
+            />
+          )}
+          {selectedPayment && (
+            <EditPaymentDialog
+              payment={selectedPayment}
+              open={editPaymentOpen}
+              onOpenChange={setEditPaymentOpen}
             />
           )}
         </>

@@ -226,6 +226,27 @@ Deno.serve(async (req) => {
       });
     }
 
+    // PUT /payment/:id - Update payment
+    if (action.startsWith('payment-') && req.method === 'PUT') {
+      const paymentId = action.replace('payment-', '');
+      const body = await req.json();
+      
+      const response = await fetch(`${baseUrl}/payments/${paymentId}`, {
+        method: 'PUT',
+        headers: {
+          'access_token': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: response.status,
+      });
+    }
+
     return new Response(
       JSON.stringify({ error: 'Endpoint não encontrado' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
