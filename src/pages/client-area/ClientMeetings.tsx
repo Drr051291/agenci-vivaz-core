@@ -201,10 +201,10 @@ export default function ClientMeetings() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Reuniões</h1>
-          <p className="text-muted-foreground">Visualize suas reuniões e atas</p>
+          <h1 className="text-2xl font-bold mb-1">Reuniões</h1>
+          <p className="text-sm text-muted-foreground">Visualize suas reuniões e atas</p>
         </div>
 
         {meetings.length === 0 ? (
@@ -225,83 +225,84 @@ export default function ClientMeetings() {
               return (
                 <Card 
                   key={meeting.id} 
-                  className="hover:shadow-lg transition-shadow cursor-pointer"
+                  className="hover:shadow-md transition-shadow cursor-pointer"
                   onClick={() => handleViewMeeting(meeting.id)}
                 >
-                  <CardHeader>
-                    <div className="space-y-3">
-                      <h3 className="text-xl font-semibold line-clamp-2">
-                        {meeting.title}
-                      </h3>
-                      
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
-                        {format(new Date(meeting.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                      </div>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <h3 className="text-base font-medium line-clamp-1">
+                          {meeting.title}
+                        </h3>
+                        
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="h-3.5 w-3.5" />
+                            <span>{format(new Date(meeting.meeting_date), "dd MMM yyyy", { locale: ptBR })}</span>
+                          </div>
 
-                      {linkedDashboardNames.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {linkedDashboardNames.slice(0, 2).map((name, idx) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">
-                              📊 {name}
-                            </Badge>
-                          ))}
-                          {linkedDashboardNames.length > 2 && (
-                            <Badge variant="secondary" className="text-xs">
-                              +{linkedDashboardNames.length - 2}
-                            </Badge>
+                          {linkedDashboardNames.length > 0 && (
+                            <div className="flex items-center gap-1.5">
+                              <span>•</span>
+                              <span className="line-clamp-1">
+                                {linkedDashboardNames.slice(0, 2).join(", ")}
+                                {linkedDashboardNames.length > 2 && ` +${linkedDashboardNames.length - 2}`}
+                              </span>
+                            </div>
+                          )}
+
+                          {actionItemsCount > 0 && (
+                            <>
+                              <span>•</span>
+                              <div className="flex items-center gap-1.5">
+                                <CheckSquare className="h-3.5 w-3.5" />
+                                <span>{actionItemsCount} ação{actionItemsCount > 1 ? "ões" : ""}</span>
+                              </div>
+                            </>
+                          )}
+
+                          {meeting.participants && meeting.participants.length > 0 && (
+                            <>
+                              <span>•</span>
+                              <div className="flex items-center gap-1.5">
+                                <Users className="h-3.5 w-3.5" />
+                                <span className="line-clamp-1">
+                                  {meeting.participants.slice(0, 2).join(", ")}
+                                  {meeting.participants.length > 2 && ` +${meeting.participants.length - 2}`}
+                                </span>
+                              </div>
+                            </>
                           )}
                         </div>
-                      )}
+                      </div>
 
-                      {actionItemsCount > 0 && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <CheckSquare className="h-4 w-4 text-primary" />
-                          <span className="text-muted-foreground">
-                            {actionItemsCount} ação{actionItemsCount > 1 ? "ões" : ""} definida{actionItemsCount > 1 ? "s" : ""}
-                          </span>
-                        </div>
-                      )}
-
-                      {meeting.participants && meeting.participants.length > 0 && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Users className="h-4 w-4" />
-                          <span className="line-clamp-1">
-                            {meeting.participants.join(", ")}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </CardHeader>
-
-                  <CardContent>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="default" 
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewMeeting(meeting.id);
-                        }}
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        Visualizar
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadPDF(meeting);
-                        }}
-                        disabled={downloadingId === meeting.id}
-                      >
-                        {downloadingId === meeting.id ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-                        ) : (
-                          <Download className="h-4 w-4" />
-                        )}
-                      </Button>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <Button 
+                          variant="default"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewMeeting(meeting.id);
+                          }}
+                        >
+                          Ver
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadPDF(meeting);
+                          }}
+                          disabled={downloadingId === meeting.id}
+                        >
+                          {downloadingId === meeting.id ? (
+                            <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-primary" />
+                          ) : (
+                            <Download className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

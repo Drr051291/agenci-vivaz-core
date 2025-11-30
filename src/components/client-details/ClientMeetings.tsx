@@ -320,7 +320,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center gap-2">
-        <h2 className="text-2xl font-bold">Reuniões</h2>
+        <h2 className="text-xl font-bold">Reuniões</h2>
         <div className="flex gap-2">
           {isConnected && (
             <ImportEventsDialog 
@@ -356,7 +356,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-base leading-tight mb-2">
+                    <CardTitle className="text-sm font-medium leading-tight mb-2">
                       {meeting.title}
                     </CardTitle>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
