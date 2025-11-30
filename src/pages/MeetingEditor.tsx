@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar, Users, CheckSquare, LayoutDashboard, Presentation, X } from "lucide-react";
+import { ArrowLeft, Save, Calendar, Users, CheckSquare, LayoutDashboard, Presentation, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,7 @@ export default function MeetingEditor() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
+  const [currentSection, setCurrentSection] = useState(0);
   const [clientName, setClientName] = useState("");
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -66,16 +67,42 @@ export default function MeetingEditor() {
     }
   }, [clientId, meetingId]);
 
-  // Handle ESC key to exit presentation mode
+  // Handle keyboard navigation in presentation mode
   useEffect(() => {
+    if (!isPresentationMode) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isPresentationMode) {
+      if (e.key === "Escape") {
         setIsPresentationMode(false);
+        setCurrentSection(0);
+        return;
+      }
+
+      const sections = getSections();
+      
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setCurrentSection(prev => Math.min(prev + 1, sections.length - 1));
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setCurrentSection(prev => Math.max(prev - 1, 0));
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPresentationMode]);
+  }, [isPresentationMode, selectedDashboards, meetingData]);
+
+  // Auto-scroll to active section
+  useEffect(() => {
+    if (isPresentationMode && currentSection >= 0) {
+      const sectionId = `section-${currentSection}`;
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  }, [currentSection, isPresentationMode]);
 
   const loadMeetingData = async () => {
     try {
@@ -184,6 +211,29 @@ export default function MeetingEditor() {
     );
   };
 
+  const getSections = () => {
+    const sections = [];
+    const linkedDashboardsData = dashboards.filter(d => selectedDashboards.includes(d.id));
+    
+    if (linkedDashboardsData.length > 0) {
+      sections.push({ id: 'dashboards', title: '📊 Dashboards Analisados' });
+    }
+    sections.push({ id: 'content', title: '📝 Discussões e Anotações' });
+    if (meetingData.action_items && meetingData.action_items.length > 0) {
+      sections.push({ id: 'actions', title: '✅ Itens de Ação' });
+    }
+    return sections;
+  };
+
+  const handlePrevSection = () => {
+    setCurrentSection(prev => Math.max(prev - 1, 0));
+  };
+
+  const handleNextSection = () => {
+    const sections = getSections();
+    setCurrentSection(prev => Math.min(prev + 1, sections.length - 1));
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -197,21 +247,71 @@ export default function MeetingEditor() {
     const linkedDashboardsData = dashboards.filter(d => 
       selectedDashboards.includes(d.id)
     );
+    const sections = getSections();
+    const currentSectionData = sections[currentSection];
 
     return (
       <div className="fixed inset-0 bg-background z-50 overflow-auto">
-        {/* Exit Button */}
-        <Button
-          onClick={() => setIsPresentationMode(false)}
-          variant="ghost"
-          size="sm"
-          className="fixed top-4 right-4 z-50 bg-background/80 backdrop-blur-sm hover:bg-background"
-        >
-          <X className="h-4 w-4 mr-2" />
-          Sair do Modo Apresentação (ESC)
-        </Button>
+        {/* Navigation Controls */}
+        <div className="fixed top-4 left-0 right-0 z-50 flex items-center justify-between px-4">
+          {/* Section Indicators */}
+          <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-lg px-4 py-2 border">
+            {sections.map((section, idx) => (
+              <button
+                key={section.id}
+                onClick={() => setCurrentSection(idx)}
+                className={cn(
+                  "h-2 rounded-full transition-all",
+                  idx === currentSection 
+                    ? "w-8 bg-primary" 
+                    : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                )}
+                title={section.title}
+              />
+            ))}
+            <span className="ml-2 text-sm text-muted-foreground">
+              {currentSection + 1} / {sections.length}
+            </span>
+          </div>
 
-        <div className="max-w-[1600px] mx-auto p-8 space-y-8">
+          {/* Exit Button */}
+          <Button
+            onClick={() => {
+              setIsPresentationMode(false);
+              setCurrentSection(0);
+            }}
+            variant="ghost"
+            size="sm"
+            className="bg-background/80 backdrop-blur-sm hover:bg-background"
+          >
+            <X className="h-4 w-4 mr-2" />
+            Sair (ESC)
+          </Button>
+        </div>
+
+        {/* Previous/Next Navigation Buttons */}
+        {currentSection > 0 && (
+          <Button
+            onClick={handlePrevSection}
+            variant="ghost"
+            size="icon"
+            className="fixed left-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </Button>
+        )}
+        {currentSection < sections.length - 1 && (
+          <Button
+            onClick={handleNextSection}
+            variant="ghost"
+            size="icon"
+            className="fixed right-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </Button>
+        )}
+
+        <div className="max-w-[1600px] mx-auto p-8 pt-20 space-y-16">
           {/* Header */}
           <div className="space-y-2">
             <h1 className="text-4xl font-bold">{meetingData.title}</h1>
@@ -231,7 +331,10 @@ export default function MeetingEditor() {
 
           {/* Dashboards */}
           {linkedDashboardsData.length > 0 && (
-            <div className="space-y-4">
+            <div id="section-0" className={cn(
+              "space-y-4 scroll-mt-20 transition-opacity duration-300",
+              currentSectionData?.id === 'dashboards' ? "opacity-100" : "opacity-40"
+            )}>
               <h2 className="text-2xl font-semibold">📊 Dashboards Analisados</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {linkedDashboardsData.map((dashboard) => (
@@ -270,7 +373,13 @@ export default function MeetingEditor() {
           )}
 
           {/* Content */}
-          <div className="space-y-4 border-t pt-8">
+          <div 
+            id={`section-${linkedDashboardsData.length > 0 ? 1 : 0}`}
+            className={cn(
+              "space-y-4 border-t pt-8 scroll-mt-20 transition-opacity duration-300",
+              currentSectionData?.id === 'content' ? "opacity-100" : "opacity-40"
+            )}
+          >
             <h2 className="text-2xl font-semibold">📝 Discussões e Anotações</h2>
             <div className="prose prose-lg max-w-none">
               <MeetingViewer content={meetingData.content} />
@@ -279,7 +388,13 @@ export default function MeetingEditor() {
 
           {/* Action Items */}
           {meetingData.action_items && meetingData.action_items.length > 0 && (
-            <div className="space-y-4 border-t pt-8">
+            <div 
+              id={`section-${sections.length - 1}`}
+              className={cn(
+                "space-y-4 border-t pt-8 scroll-mt-20 transition-opacity duration-300",
+                currentSectionData?.id === 'actions' ? "opacity-100" : "opacity-40"
+              )}
+            >
               <h2 className="text-2xl font-semibold">✅ Itens de Ação</h2>
               <ul className="space-y-3">
                 {meetingData.action_items.map((item, idx) => (
