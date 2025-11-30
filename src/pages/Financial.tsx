@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -10,9 +10,18 @@ import { AsaasCustomerList } from "@/components/financial/AsaasCustomerList";
 import { SubscriptionList } from "@/components/financial/SubscriptionList";
 import { PaymentList } from "@/components/financial/PaymentList";
 import { AsaasConfigDialog } from "@/components/financial/AsaasConfigDialog";
+import { FinancialPeriodFilter } from "@/components/financial/FinancialPeriodFilter";
+import { startOfMonth, endOfMonth } from "date-fns";
 
 export default function Financial() {
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
+  const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
+
+  const handlePeriodChange = (newStartDate: Date, newEndDate: Date) => {
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+  };
 
   // Buscar vínculos de clientes
   const { data: customerLinks } = useQuery({
@@ -46,29 +55,32 @@ export default function Financial() {
     linkedCustomerIds.includes(payment.customer)
   ) || [];
 
-  // Calcular métricas
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  // Filtrar cobranças por período
+  const paymentsInPeriod = useMemo(() => {
+    return linkedPayments.filter((payment: any) => {
+      const dueDate = new Date(payment.dueDate);
+      const paymentDate = payment.paymentDate ? new Date(payment.paymentDate) : null;
+      const confirmedDate = payment.confirmedDate ? new Date(payment.confirmedDate) : null;
+      
+      // Para cobranças pagas, usar data de pagamento/confirmação
+      const dateToCheck = paymentDate || confirmedDate || dueDate;
+      
+      return dateToCheck >= startDate && dateToCheck <= endDate;
+    });
+  }, [linkedPayments, startDate, endDate]);
 
-  const totalReceivable = linkedPayments
+  // Calcular métricas baseadas no período
+  const totalReceivable = paymentsInPeriod
     .filter((p: any) => p.status === 'PENDING')
     .reduce((sum: number, p: any) => sum + (p.value || 0), 0);
 
-  const receivedThisMonth = linkedPayments
-    .filter((p: any) => {
-      const paymentDate = p.paymentDate || p.confirmedDate;
-      if (!paymentDate) return false;
-      
-      const date = new Date(paymentDate);
-      return (
-        (p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH') &&
-        date.getMonth() === currentMonth &&
-        date.getFullYear() === currentYear
-      );
-    })
+  const receivedInPeriod = paymentsInPeriod
+    .filter((p: any) => 
+      p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH'
+    )
     .reduce((sum: number, p: any) => sum + (p.value || 0), 0);
 
-  const overdue = linkedPayments
+  const overdue = paymentsInPeriod
     .filter((p: any) => p.status === 'OVERDUE')
     .reduce((sum: number, p: any) => sum + (p.value || 0), 0);
 
@@ -87,6 +99,12 @@ export default function Financial() {
             Configurar Asaas
           </Button>
         </div>
+
+        <FinancialPeriodFilter
+          startDate={startDate}
+          endDate={endDate}
+          onPeriodChange={handlePeriodChange}
+        />
 
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
@@ -111,10 +129,10 @@ export default function Financial() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {paymentsLoading ? '...' : `R$ ${receivedThisMonth.toFixed(2)}`}
+                {paymentsLoading ? '...' : `R$ ${receivedInPeriod.toFixed(2)}`}
               </div>
               <p className="text-xs text-muted-foreground">
-                Total confirmado no mês atual
+                Total confirmado no período selecionado
               </p>
             </CardContent>
           </Card>
