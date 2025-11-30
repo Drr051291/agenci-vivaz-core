@@ -213,6 +213,8 @@ Deno.serve(async (req) => {
     if (action.startsWith('payment-info-') && req.method === 'GET') {
       const paymentId = action.replace('payment-info-', '');
       
+      console.log('Getting payment info:', paymentId);
+      
       const response = await fetch(`${baseUrl}/payments/${paymentId}`, {
         headers: {
           'access_token': apiKey,
@@ -226,10 +228,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // PUT /payment/:id - Update payment
-    if (action.startsWith('payment-') && req.method === 'PUT') {
-      const paymentId = action.replace('payment-', '');
+    // PUT /update-payment/:id - Update payment
+    if (action.startsWith('update-payment-') && req.method === 'PUT') {
+      const paymentId = action.replace('update-payment-', '');
       const body = await req.json();
+      
+      console.log('Updating payment:', paymentId, 'Body:', body);
       
       const response = await fetch(`${baseUrl}/payments/${paymentId}`, {
         method: 'PUT',
@@ -241,6 +245,33 @@ Deno.serve(async (req) => {
       });
 
       const data = await response.json();
+      console.log('Asaas response:', data);
+      
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: response.status,
+      });
+    }
+
+    // PUT /update-subscription/:id - Update subscription
+    if (action.startsWith('update-subscription-') && req.method === 'PUT') {
+      const subscriptionId = action.replace('update-subscription-', '');
+      const body = await req.json();
+      
+      console.log('Updating subscription:', subscriptionId, 'Body:', body);
+      
+      const response = await fetch(`${baseUrl}/subscriptions/${subscriptionId}`, {
+        method: 'PUT',
+        headers: {
+          'access_token': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+      console.log('Asaas response:', data);
+      
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: response.status,

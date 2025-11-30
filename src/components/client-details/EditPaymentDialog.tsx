@@ -45,7 +45,7 @@ export function EditPaymentDialog({
   const updatePaymentMutation = useMutation({
     mutationFn: async (data: any) => {
       const { data: result, error } = await supabase.functions.invoke(
-        `asaas-api/payment-${payment.id}`,
+        `asaas-api/update-payment-${payment.id}`,
         {
           method: "PUT",
           body: data,
