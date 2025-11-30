@@ -1,8 +1,10 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Image from '@tiptap/extension-image';
+import ResizableImageExtension from 'tiptap-extension-resize-image';
 import Youtube from '@tiptap/extension-youtube';
 import Placeholder from '@tiptap/extension-placeholder';
+import { ChartExtension } from './extensions/ChartExtension';
+import { createSlashCommandExtension } from './extensions/SlashCommands';
 import { Button } from '@/components/ui/button';
 import {
   Bold,
@@ -41,10 +43,18 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
   const [youtubeDialogOpen, setYoutubeDialogOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
 
+  const triggerImageUpload = () => {
+    document.getElementById('image-upload')?.click();
+  };
+
+  const triggerYoutubeDialog = () => {
+    setYoutubeDialogOpen(true);
+  };
+
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Image.configure({
+      ResizableImageExtension.configure({
         HTMLAttributes: {
           class: 'rounded-lg max-w-full h-auto my-4',
         },
@@ -57,8 +67,10 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
         },
       }),
       Placeholder.configure({
-        placeholder: placeholder || 'Comece a escrever sua ata...',
+        placeholder: placeholder || 'Comece a escrever sua ata... Digite "/" para ver opções',
       }),
+      ChartExtension,
+      createSlashCommandExtension(triggerImageUpload, triggerYoutubeDialog),
     ],
     content,
     onUpdate: ({ editor }) => {
