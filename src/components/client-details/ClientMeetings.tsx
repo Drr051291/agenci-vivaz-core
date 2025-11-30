@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Users, Pencil, Share2, Download, Trash2 } from "lucide-react";
+import { Plus, Calendar, Users, Pencil, Share2, Download, Trash2, LayoutDashboard, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -26,8 +26,12 @@ import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/meeting-editor/RichTextEditor";
 import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 import { ShareMeetingDialog } from "@/components/meeting-editor/ShareMeetingDialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface MeetingMinute {
   id: string;
@@ -38,11 +42,46 @@ interface MeetingMinute {
   action_items?: string[];
   created_at: string;
   share_token?: string;
+  linked_dashboards?: string[];
+  linked_tasks?: string[];
 }
 
 interface ClientMeetingsProps {
   clientId: string;
 }
+
+interface Dashboard {
+  id: string;
+  name: string;
+  dashboard_type: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  status: string;
+}
+
+const INITIAL_TEMPLATE = `<h2>📊 Dashboards Analisados</h2>
+<p><em>Os dashboards serão inseridos automaticamente aqui.</em></p>
+
+<h2>📈 Análise de Resultados</h2>
+<p>Descreva os principais resultados observados nos dashboards...</p>
+
+<h2>💡 Insights e Oportunidades</h2>
+<ul>
+  <li>Insight 1...</li>
+  <li>Insight 2...</li>
+</ul>
+
+<h2>🎯 Estratégias Propostas</h2>
+<p>Detalhe as estratégias sugeridas para o próximo período...</p>
+
+<h2>✅ Ações Definidas</h2>
+<p>As atividades vinculadas serão listadas automaticamente abaixo.</p>
+
+<h2>📝 Observações Adicionais</h2>
+<p>Adicione quaisquer observações relevantes...</p>`;
 
 export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const [meetings, setMeetings] = useState<MeetingMinute[]>([]);
@@ -53,8 +92,12 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingMinute | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [clientName, setClientName] = useState("");
+  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [selectedDashboards, setSelectedDashboards] = useState<string[]>([]);
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [formData, setFormData] = useState({
-    title: "",
     meeting_date: "",
     participants: "",
     content: "",
@@ -63,7 +106,44 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
 
   useEffect(() => {
     fetchMeetings();
+    fetchClientData();
   }, [clientId]);
+
+  const fetchClientData = async () => {
+    try {
+      // Buscar nome do cliente
+      const { data: clientData, error: clientError } = await supabase
+        .from("clients")
+        .select("company_name")
+        .eq("id", clientId)
+        .single();
+
+      if (clientError) throw clientError;
+      setClientName(clientData.company_name);
+
+      // Buscar dashboards do cliente
+      const { data: dashboardsData, error: dashboardsError } = await supabase
+        .from("client_dashboards")
+        .select("id, name, dashboard_type")
+        .eq("client_id", clientId)
+        .eq("is_active", true);
+
+      if (dashboardsError) throw dashboardsError;
+      setDashboards(dashboardsData || []);
+
+      // Buscar tasks do cliente
+      const { data: tasksData, error: tasksError } = await supabase
+        .from("tasks")
+        .select("id, title, status")
+        .eq("client_id", clientId)
+        .in("status", ["pending", "in_progress"]);
+
+      if (tasksError) throw tasksError;
+      setTasks(tasksData || []);
+    } catch (error) {
+      console.error("Erro ao buscar dados do cliente:", error);
+    }
+  };
 
   const fetchMeetings = async () => {
     try {
@@ -76,32 +156,60 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       if (error) throw error;
       setMeetings(data || []);
     } catch (error) {
-      console.error("Erro ao buscar atas:", error);
-      toast.error("Erro ao carregar atas de reunião");
+      console.error("Erro ao buscar reuniões:", error);
+      toast.error("Erro ao carregar reuniões");
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateTitle = (date: string) => {
+    const meetingDate = new Date(date);
+    const formattedDate = format(meetingDate, "dd/MM/yyyy", { locale: ptBR });
+    return `Vivaz - ${clientName} - ${formattedDate}`;
+  };
+
+  const generateDashboardsSection = () => {
+    if (selectedDashboards.length === 0) {
+      return "<p><em>Nenhum dashboard selecionado para esta reunião.</em></p>";
+    }
+    
+    const dashboardsList = selectedDashboards
+      .map(id => {
+        const dashboard = dashboards.find(d => d.id === id);
+        return dashboard ? `<li><strong>${dashboard.name}</strong> (${dashboard.dashboard_type})</li>` : "";
+      })
+      .join("");
+    
+    return `<ul>${dashboardsList}</ul>`;
   };
 
   const handleOpenDialog = (meeting?: MeetingMinute) => {
     if (meeting) {
       setEditingId(meeting.id);
       setFormData({
-        title: meeting.title,
         meeting_date: meeting.meeting_date,
         participants: meeting.participants?.join(", ") || "",
         content: meeting.content,
         action_items: meeting.action_items?.join(", ") || "",
       });
+      setSelectedDashboards(meeting.linked_dashboards || []);
+      setSelectedTasks(meeting.linked_tasks || []);
     } else {
       setEditingId(null);
+      const now = new Date();
+      const localDateTime = format(now, "yyyy-MM-dd'T'HH:mm");
+      
       setFormData({
-        title: "",
-        meeting_date: "",
+        meeting_date: localDateTime,
         participants: "",
-        content: "",
+        content: INITIAL_TEMPLATE,
         action_items: "",
       });
+      
+      // Auto-selecionar todos os dashboards por padrão
+      setSelectedDashboards(dashboards.map(d => d.id));
+      setSelectedTasks([]);
     }
     setDialogOpen(true);
   };
@@ -127,20 +235,19 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
 
       if (error) throw error;
 
-      toast.success("Ata deletada com sucesso!");
+      toast.success("Reunião deletada com sucesso!");
       setDeleteDialogOpen(false);
       setSelectedMeeting(null);
       fetchMeetings();
     } catch (error) {
-      console.error("Erro ao deletar ata:", error);
-      toast.error("Erro ao deletar ata");
+      console.error("Erro ao deletar reunião:", error);
+      toast.error("Erro ao deletar reunião");
     }
   };
 
   const handleDownloadPDF = async (meeting: MeetingMinute) => {
     setDownloadingId(meeting.id);
     try {
-      // Criar um elemento temporário para renderizar o conteúdo
       const tempDiv = document.createElement('div');
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
@@ -209,7 +316,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         heightLeft -= pageHeight;
       }
 
-      pdf.save(`ata-${meeting.title}.pdf`);
+      pdf.save(`reuniao-${meeting.title}.pdf`);
       toast.success("PDF baixado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
@@ -235,12 +342,22 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         .map((item) => item.trim())
         .filter((item) => item);
 
+      // Inserir seção de dashboards no conteúdo
+      let finalContent = formData.content;
+      const dashboardsSection = generateDashboardsSection();
+      finalContent = finalContent.replace(
+        /<p><em>Os dashboards serão inseridos automaticamente aqui\.<\/em><\/p>/,
+        dashboardsSection
+      );
+
       const meetingData = {
-        title: formData.title,
+        title: generateTitle(formData.meeting_date),
         meeting_date: formData.meeting_date,
         participants: participants.length > 0 ? participants : null,
-        content: formData.content,
+        content: finalContent,
         action_items: actionItems.length > 0 ? actionItems : null,
+        linked_dashboards: selectedDashboards.length > 0 ? selectedDashboards : null,
+        linked_tasks: selectedTasks.length > 0 ? selectedTasks : null,
       };
 
       if (editingId) {
@@ -250,7 +367,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
           .eq("id", editingId);
 
         if (error) throw error;
-        toast.success("Ata atualizada com sucesso!");
+        toast.success("Reunião atualizada com sucesso!");
       } else {
         const { error } = await supabase.from("meeting_minutes").insert({
           ...meetingData,
@@ -259,23 +376,40 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         });
 
         if (error) throw error;
-        toast.success("Ata criada com sucesso!");
+        toast.success("Reunião criada com sucesso! Link de compartilhamento gerado.");
       }
 
       setDialogOpen(false);
       setEditingId(null);
       setFormData({
-        title: "",
         meeting_date: "",
         participants: "",
         content: "",
         action_items: "",
       });
+      setSelectedDashboards([]);
+      setSelectedTasks([]);
       fetchMeetings();
     } catch (error) {
-      console.error("Erro ao salvar ata:", error);
-      toast.error(editingId ? "Erro ao atualizar ata" : "Erro ao criar ata de reunião");
+      console.error("Erro ao salvar reunião:", error);
+      toast.error(editingId ? "Erro ao atualizar reunião" : "Erro ao criar reunião");
     }
+  };
+
+  const handleDashboardToggle = (dashboardId: string) => {
+    setSelectedDashboards(prev =>
+      prev.includes(dashboardId)
+        ? prev.filter(id => id !== dashboardId)
+        : [...prev, dashboardId]
+    );
+  };
+
+  const handleTaskToggle = (taskId: string) => {
+    setSelectedTasks(prev =>
+      prev.includes(taskId)
+        ? prev.filter(id => id !== taskId)
+        : [...prev, taskId]
+    );
   };
 
   if (loading) {
@@ -289,20 +423,20 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Atas de Reunião</h2>
+        <h2 className="text-2xl font-bold">Reuniões</h2>
         <Button onClick={() => handleOpenDialog()}>
           <Plus className="mr-2 h-4 w-4" />
-          Nova Ata
+          Nova Reunião
         </Button>
       </div>
 
       {meetings.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center h-64">
-            <p className="text-muted-foreground mb-4">Nenhuma ata encontrada</p>
+            <p className="text-muted-foreground mb-4">Nenhuma reunião encontrada</p>
             <Button onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" />
-              Criar Primeira Ata
+              Criar Primeira Reunião
             </Button>
           </CardContent>
         </Card>
@@ -312,7 +446,30 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
             <Card key={meeting.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{meeting.title}</CardTitle>
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg">{meeting.title}</CardTitle>
+                    {meeting.linked_dashboards && meeting.linked_dashboards.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <LayoutDashboard className="h-3 w-3 text-muted-foreground" />
+                        {meeting.linked_dashboards.map(dashId => {
+                          const dashboard = dashboards.find(d => d.id === dashId);
+                          return dashboard ? (
+                            <Badge key={dashId} variant="secondary" className="text-xs">
+                              {dashboard.name}
+                            </Badge>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
+                    {meeting.linked_tasks && meeting.linked_tasks.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <CheckSquare className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">
+                          {meeting.linked_tasks.length} atividade(s) vinculada(s)
+                        </span>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       variant="ghost"
@@ -384,29 +541,18 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Editar Ata de Reunião" : "Nova Ata de Reunião"}</DialogTitle>
+            <DialogTitle>{editingId ? "Editar Reunião" : "Nova Reunião"}</DialogTitle>
             <DialogDescription>
               {editingId 
-                ? "Atualize os detalhes da reunião. Use o editor para formatar texto, adicionar imagens e vídeos."
-                : "Registre os detalhes da reunião com o cliente. Use o editor para formatar texto, adicionar imagens e vídeos."
+                ? "Atualize os detalhes da reunião. O título será gerado automaticamente."
+                : "Registre os detalhes da reunião com o cliente. O título será gerado automaticamente no formato 'Vivaz - [Cliente] - [Data]'."
               }
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="title">Título *</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  required
-                />
-              </div>
               <div>
                 <Label htmlFor="meeting_date">Data da Reunião *</Label>
                 <Input
@@ -418,34 +564,103 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
                   }
                   required
                 />
+                {formData.meeting_date && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Título: {generateTitle(formData.meeting_date)}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="participants">
+                  Participantes (separados por vírgula)
+                </Label>
+                <Input
+                  id="participants"
+                  value={formData.participants}
+                  onChange={(e) =>
+                    setFormData({ ...formData, participants: e.target.value })
+                  }
+                  placeholder="João Silva, Maria Santos, etc."
+                />
               </div>
             </div>
-            <div>
-              <Label htmlFor="participants">
-                Participantes (separados por vírgula)
-              </Label>
-              <Input
-                id="participants"
-                value={formData.participants}
-                onChange={(e) =>
-                  setFormData({ ...formData, participants: e.target.value })
-                }
-                placeholder="João Silva, Maria Santos, etc."
-              />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Dashboards a Incluir na Reunião</Label>
+                <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto bg-muted/30">
+                  {dashboards.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum dashboard disponível</p>
+                  ) : (
+                    dashboards.map(dashboard => (
+                      <div key={dashboard.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`dashboard-${dashboard.id}`}
+                          checked={selectedDashboards.includes(dashboard.id)}
+                          onCheckedChange={() => handleDashboardToggle(dashboard.id)}
+                        />
+                        <label
+                          htmlFor={`dashboard-${dashboard.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {dashboard.name} <span className="text-xs text-muted-foreground">({dashboard.dashboard_type})</span>
+                        </label>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {selectedDashboards.length === 0 
+                    ? "Nenhum dashboard selecionado" 
+                    : `${selectedDashboards.length} dashboard(s) selecionado(s)`}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Atividades a Vincular</Label>
+                <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto bg-muted/30">
+                  {tasks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma atividade disponível</p>
+                  ) : (
+                    tasks.map(task => (
+                      <div key={task.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`task-${task.id}`}
+                          checked={selectedTasks.includes(task.id)}
+                          onCheckedChange={() => handleTaskToggle(task.id)}
+                        />
+                        <label
+                          htmlFor={`task-${task.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {task.title}
+                        </label>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {selectedTasks.length === 0 
+                    ? "Nenhuma atividade vinculada" 
+                    : `${selectedTasks.length} atividade(s) vinculada(s)`}
+                </p>
+              </div>
             </div>
+
             <div>
-              <Label>Conteúdo da Ata *</Label>
+              <Label>Conteúdo da Reunião *</Label>
               <RichTextEditor
                 content={formData.content}
                 onChange={(content) =>
                   setFormData({ ...formData, content })
                 }
-                placeholder="Escreva o conteúdo da ata aqui. Você pode colar imagens (Ctrl+V), adicionar formatação, títulos, listas e incorporar vídeos do YouTube."
+                placeholder="Use o template estruturado ou personalize conforme necessário. Você pode colar imagens (Ctrl+V), adicionar formatação, títulos, listas e incorporar vídeos do YouTube."
               />
             </div>
+
             <div>
               <Label htmlFor="action_items">
-                Itens de Ação (um por linha)
+                Itens de Ação Adicionais (separados por vírgula)
               </Label>
               <Input
                 id="action_items"
@@ -453,11 +668,15 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
                 onChange={(e) =>
                   setFormData({ ...formData, action_items: e.target.value })
                 }
-                placeholder="Aprovar orçamento, Agendar próxima reunião, Revisar layout (separados por vírgula)"
+                placeholder="Aprovar orçamento, Agendar próxima reunião, Revisar layout"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                As atividades vinculadas também serão incluídas automaticamente como itens de ação.
+              </p>
             </div>
+
             <Button type="submit" className="w-full">
-              {editingId ? "Atualizar Ata" : "Criar Ata"}
+              {editingId ? "Atualizar Reunião" : "Criar Reunião"}
             </Button>
           </form>
         </DialogContent>
@@ -475,9 +694,9 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza que deseja deletar esta ata?</AlertDialogTitle>
+            <AlertDialogTitle>Tem certeza que deseja deletar esta reunião?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. A ata "{selectedMeeting?.title}" será permanentemente removida do sistema, incluindo seu link de compartilhamento.
+              Esta ação não pode ser desfeita. A reunião "{selectedMeeting?.title}" será permanentemente removida do sistema, incluindo seu link de compartilhamento.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -486,7 +705,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
               onClick={handleDeleteConfirm}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Deletar Ata
+              Deletar Reunião
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
