@@ -3,15 +3,17 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/meeting-editor/RichTextEditor";
+import { DashboardCard } from "@/components/meeting-editor/DashboardCard";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Save, LayoutDashboard, CheckSquare, ExternalLink } from "lucide-react";
+import { ArrowLeft, Save, Calendar, Users, CheckSquare, LayoutDashboard } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface Dashboard {
   id: string;
@@ -26,27 +28,26 @@ interface Task {
   status: string;
 }
 
-const AUTOSAVE_DELAY = 3000; // 3 segundos
+const AUTOSAVE_DELAY = 3000;
 
 export default function MeetingEditor() {
   const { clientId, meetingId } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [clientName, setClientName] = useState("");
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedDashboards, setSelectedDashboards] = useState<string[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
-  const [formData, setFormData] = useState({
+  const [meetingData, setMeetingData] = useState({
     meeting_date: "",
-    participants: "",
+    participants: [] as string[],
     content: "",
-    action_items: "",
+    action_items: [] as string[],
+    title: "",
   });
 
-  // Autosave com debounce
   useEffect(() => {
     if (!meetingId || loading) return;
 
@@ -55,7 +56,7 @@ export default function MeetingEditor() {
     }, AUTOSAVE_DELAY);
 
     return () => clearTimeout(timer);
-  }, [formData, selectedDashboards, selectedTasks]);
+  }, [meetingData, selectedDashboards, selectedTasks]);
 
   useEffect(() => {
     if (clientId && meetingId) {
@@ -65,7 +66,6 @@ export default function MeetingEditor() {
 
   const loadMeetingData = async () => {
     try {
-      // Buscar dados do cliente
       const { data: clientData } = await supabase
         .from("clients")
         .select("company_name")
@@ -76,7 +76,6 @@ export default function MeetingEditor() {
         setClientName(clientData.company_name);
       }
 
-      // Buscar dashboards
       const { data: dashboardsData } = await supabase
         .from("client_dashboards")
         .select("id, name, dashboard_type, embed_url")
@@ -85,7 +84,6 @@ export default function MeetingEditor() {
 
       setDashboards(dashboardsData || []);
 
-      // Buscar tasks
       const { data: tasksData } = await supabase
         .from("tasks")
         .select("id, title, status")
@@ -94,8 +92,7 @@ export default function MeetingEditor() {
 
       setTasks(tasksData || []);
 
-      // Buscar dados da reunião
-      const { data: meetingData, error } = await supabase
+      const { data: meetingDataRes, error } = await supabase
         .from("meeting_minutes")
         .select("*")
         .eq("id", meetingId)
@@ -103,14 +100,15 @@ export default function MeetingEditor() {
 
       if (error) throw error;
 
-      setFormData({
-        meeting_date: meetingData.meeting_date,
-        participants: meetingData.participants?.join(", ") || "",
-        content: meetingData.content,
-        action_items: meetingData.action_items?.join(", ") || "",
+      setMeetingData({
+        meeting_date: meetingDataRes.meeting_date,
+        participants: meetingDataRes.participants || [],
+        content: meetingDataRes.content,
+        action_items: meetingDataRes.action_items || [],
+        title: meetingDataRes.title,
       });
-      setSelectedDashboards(meetingData.linked_dashboards || []);
-      setSelectedTasks(meetingData.linked_tasks || []);
+      setSelectedDashboards(meetingDataRes.linked_dashboards || []);
+      setSelectedTasks(meetingDataRes.linked_tasks || []);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       toast.error("Erro ao carregar reunião");
@@ -126,84 +124,31 @@ export default function MeetingEditor() {
     return `Vivaz - ${clientName} - ${formattedDate}`;
   };
 
-  const generateDashboardsSection = () => {
-    if (selectedDashboards.length === 0) {
-      return "<p><em>Nenhum dashboard selecionado para esta reunião.</em></p>";
-    }
-    
-    const dashboardsContent = selectedDashboards
-      .map(id => {
-        const dashboard = dashboards.find(d => d.id === id);
-        if (!dashboard) return "";
-        
-        const shareUrl = `${window.location.origin}/area-cliente/dashboards?dashboard=${dashboard.id}`;
-        return `
-          <div style="margin: 20px 0; padding: 15px; border: 1px solid #e5e5e5; border-radius: 8px;">
-            <h3 style="margin: 0 0 10px 0;">${dashboard.name} (${dashboard.dashboard_type})</h3>
-            ${dashboard.embed_url ? `
-              <iframe 
-                src="${dashboard.embed_url}" 
-                style="width: 100%; height: 600px; border: none; border-radius: 4px;"
-                frameborder="0"
-                allowfullscreen
-              ></iframe>
-            ` : ''}
-            <p style="margin-top: 10px; font-size: 14px;">
-              <a href="${shareUrl}" target="_blank" style="color: #DA60F4; text-decoration: none;">
-                🔗 Abrir dashboard em nova aba
-              </a>
-            </p>
-          </div>
-        `;
-      })
-      .join("");
-    
-    return dashboardsContent;
-  };
-
   const handleAutoSave = useCallback(async () => {
-    if (!meetingId || saving) return;
+    if (!meetingId || isSaving) return;
 
-    setSaving(true);
+    setIsSaving(true);
     try {
-      const participants = formData.participants
-        .split(",")
-        .map((p) => p.trim())
-        .filter((p) => p);
-
-      const actionItems = formData.action_items
-        .split(",")
-        .map((item) => item.trim())
-        .filter((item) => item);
-
-      let finalContent = formData.content;
-      const dashboardsSection = generateDashboardsSection();
-      finalContent = finalContent.replace(
-        /<p><em>Os dashboards serão inseridos automaticamente aqui\.<\/em><\/p>/,
-        dashboardsSection
-      );
-
       const { error } = await supabase
         .from("meeting_minutes")
         .update({
-          title: generateTitle(formData.meeting_date),
-          meeting_date: formData.meeting_date,
-          participants: participants.length > 0 ? participants : null,
-          content: finalContent,
-          action_items: actionItems.length > 0 ? actionItems : null,
+          title: generateTitle(meetingData.meeting_date),
+          meeting_date: meetingData.meeting_date,
+          participants: meetingData.participants.length > 0 ? meetingData.participants : null,
+          content: meetingData.content,
+          action_items: meetingData.action_items.length > 0 ? meetingData.action_items : null,
           linked_dashboards: selectedDashboards.length > 0 ? selectedDashboards : null,
           linked_tasks: selectedTasks.length > 0 ? selectedTasks : null,
         })
         .eq("id", meetingId);
 
       if (error) throw error;
-      setLastSaved(new Date());
     } catch (error) {
       console.error("Erro no autosave:", error);
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
-  }, [formData, selectedDashboards, selectedTasks, meetingId, saving]);
+  }, [meetingData, selectedDashboards, selectedTasks, meetingId, isSaving, clientName]);
 
   const handleSave = async () => {
     await handleAutoSave();
@@ -229,174 +174,178 @@ export default function MeetingEditor() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header fixo */}
-      <header className="sticky top-0 z-50 bg-background border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(`/clientes/${clientId}`)}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Button>
-            <div>
-              <h1 className="text-xl font-bold">{generateTitle(formData.meeting_date)}</h1>
-              {lastSaved && (
-                <p className="text-xs text-muted-foreground">
-                  {saving ? "Salvando..." : `Salvo ${format(lastSaved, "HH:mm:ss")}`}
+      {/* Header */}
+      <div className="border-b bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50 sticky top-0 z-10">
+        <div className="max-w-[1400px] mx-auto px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate(`/clientes/${clientId}`)}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold">
+                  {meetingData.title || "Nova Reunião"}
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {clientName}
                 </p>
-              )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={cn(
+                "text-sm",
+                isSaving ? "text-muted-foreground animate-pulse" : "text-emerald-600"
+              )}>
+                {isSaving ? "Salvando..." : "✓ Salvo"}
+              </span>
+              <Button onClick={handleSave}>
+                <Save className="mr-2 h-4 w-4" />
+                Salvar
+              </Button>
             </div>
           </div>
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4 mr-2" />
-            Salvar
-          </Button>
         </div>
-      </header>
+      </div>
 
-      {/* Conteúdo principal */}
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      {/* Content */}
+      <div className="max-w-[1400px] mx-auto px-8 py-8 space-y-8">
+        {/* Metadata Section - Inline */}
+        <Card className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Data da Reunião
+              </label>
+              <Input
+                type="date"
+                value={meetingData.meeting_date}
+                onChange={(e) =>
+                  setMeetingData({
+                    ...meetingData,
+                    meeting_date: e.target.value,
+                  })
+                }
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Participantes
+              </label>
+              <Input
+                placeholder="João Silva, Maria Santos..."
+                value={meetingData.participants.join(", ")}
+                onChange={(e) =>
+                  setMeetingData({
+                    ...meetingData,
+                    participants: e.target.value
+                      .split(",")
+                      .map((p) => p.trim())
+                      .filter(Boolean),
+                  })
+                }
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                <CheckSquare className="h-4 w-4" />
+                Itens de Ação
+              </label>
+              <Textarea
+                placeholder="Enviar proposta, Agendar follow-up..."
+                value={meetingData.action_items.join(", ")}
+                onChange={(e) =>
+                  setMeetingData({
+                    ...meetingData,
+                    action_items: e.target.value
+                      .split(",")
+                      .map((item) => item.trim())
+                      .filter(Boolean),
+                  })
+                }
+                rows={2}
+              />
+            </div>
+          </div>
+        </Card>
+
+        {/* Dashboards Section */}
+        <Card className="p-6">
+          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+            <LayoutDashboard className="h-5 w-5" />
+            Dashboards Vinculados
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {dashboards.map((dashboard) => (
+              <DashboardCard
+                key={dashboard.id}
+                id={dashboard.id}
+                name={dashboard.name}
+                type={dashboard.dashboard_type}
+                embedUrl={dashboard.embed_url || undefined}
+                isSelected={selectedDashboards.includes(dashboard.id)}
+                onToggle={handleDashboardToggle}
+              />
+            ))}
+          </div>
+        </Card>
+
+        {/* Main Content Area */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Coluna principal - Editor */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <div>
-                  <Label htmlFor="meeting_date">Data da Reunião</Label>
-                  <Input
-                    id="meeting_date"
-                    type="datetime-local"
-                    value={formData.meeting_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, meeting_date: e.target.value })
-                    }
-                  />
-                </div>
+          {/* Rich Text Editor - 2/3 */}
+          <Card className="p-6 lg:col-span-2">
+            <label className="text-sm font-medium mb-4 block">
+              📝 Conteúdo da Reunião
+            </label>
+            <RichTextEditor
+              content={meetingData.content}
+              onChange={(content) =>
+                setMeetingData({ ...meetingData, content })
+              }
+              placeholder="Descreva o que foi discutido na reunião..."
+            />
+          </Card>
 
-                <div>
-                  <Label htmlFor="participants">Participantes (separados por vírgula)</Label>
-                  <Input
-                    id="participants"
-                    placeholder="João Silva, Maria Santos..."
-                    value={formData.participants}
-                    onChange={(e) =>
-                      setFormData({ ...formData, participants: e.target.value })
-                    }
+          {/* Tasks - 1/3 */}
+          <Card className="p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <CheckSquare className="h-5 w-5" />
+              Atividades Vinculadas
+            </h3>
+            <div className="space-y-2">
+              {tasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors border"
+                >
+                  <Checkbox
+                    checked={selectedTasks.includes(task.id)}
+                    onCheckedChange={() => handleTaskToggle(task.id)}
                   />
-                </div>
-
-                <div>
-                  <Label htmlFor="action_items">Itens de Ação (separados por vírgula)</Label>
-                  <Input
-                    id="action_items"
-                    placeholder="Revisar proposta, Enviar relatório..."
-                    value={formData.action_items}
-                    onChange={(e) =>
-                      setFormData({ ...formData, action_items: e.target.value })
-                    }
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <Label>Conteúdo da Reunião</Label>
-                <div className="mt-2">
-                  <RichTextEditor
-                    content={formData.content}
-                    onChange={(content) =>
-                      setFormData({ ...formData, content })
-                    }
-                    placeholder="Escreva o conteúdo da reunião..."
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar - Dashboards e Atividades */}
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <LayoutDashboard className="h-4 w-4" />
-                  <h3 className="font-semibold">Dashboards</h3>
-                </div>
-                {dashboards.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhum dashboard disponível</p>
-                ) : (
-                  <div className="space-y-3">
-                    {dashboards.map((dashboard) => (
-                      <div key={dashboard.id} className="flex items-start gap-2">
-                        <Checkbox
-                          id={`dash-${dashboard.id}`}
-                          checked={selectedDashboards.includes(dashboard.id)}
-                          onCheckedChange={() => handleDashboardToggle(dashboard.id)}
-                        />
-                        <div className="flex-1">
-                          <label
-                            htmlFor={`dash-${dashboard.id}`}
-                            className="text-sm font-medium cursor-pointer"
-                          >
-                            {dashboard.name}
-                          </label>
-                          <p className="text-xs text-muted-foreground">
-                            {dashboard.dashboard_type}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{task.title}</p>
+                    <Badge variant="secondary" className="text-xs mt-1">
+                      {task.status}
+                    </Badge>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <CheckSquare className="h-4 w-4" />
-                  <h3 className="font-semibold">Atividades</h3>
                 </div>
-                {tasks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhuma atividade pendente</p>
-                ) : (
-                  <div className="space-y-3">
-                    {tasks.map((task) => (
-                      <div key={task.id} className="flex items-start gap-2">
-                        <Checkbox
-                          id={`task-${task.id}`}
-                          checked={selectedTasks.includes(task.id)}
-                          onCheckedChange={() => handleTaskToggle(task.id)}
-                        />
-                        <div className="flex-1">
-                          <label
-                            htmlFor={`task-${task.id}`}
-                            className="text-sm font-medium cursor-pointer"
-                          >
-                            {task.title}
-                          </label>
-                          <Badge variant="secondary" className="text-xs mt-1">
-                            {task.status === "pending" ? "Pendente" : "Em Progresso"}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+              ))}
+            </div>
+          </Card>
         </div>
       </div>
     </div>
