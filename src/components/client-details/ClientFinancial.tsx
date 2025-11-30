@@ -4,15 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ExternalLink, Link2Off, DollarSign, FileText, CreditCard } from "lucide-react";
+import { ExternalLink, Link2Off, DollarSign, FileText, CreditCard, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CreatePaymentDialog } from "./CreatePaymentDialog";
+import { useState } from "react";
 
 interface ClientFinancialProps {
   clientId: string;
 }
 
 export function ClientFinancial({ clientId }: ClientFinancialProps) {
+  const [createPaymentOpen, setCreatePaymentOpen] = useState(false);
+  
   // Buscar vínculo com Asaas
   const { data: asaasLink, isLoading: linkLoading } = useQuery({
     queryKey: ['asaas-link', clientId],
@@ -211,6 +215,13 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
         </TabsList>
 
         <TabsContent value="payments" className="space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => setCreatePaymentOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Cobrança
+            </Button>
+          </div>
+
           {paymentsLoading ? (
             <div className="text-center py-8 text-muted-foreground">
               Carregando cobranças...
@@ -298,6 +309,15 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
           )}
         </TabsContent>
       </Tabs>
+
+      {asaasLink && (
+        <CreatePaymentDialog
+          open={createPaymentOpen}
+          onOpenChange={setCreatePaymentOpen}
+          asaasCustomerId={asaasLink.asaas_customer_id}
+          clientName={asaasLink.asaas_customer_name || 'Cliente'}
+        />
+      )}
     </div>
   );
 }
