@@ -477,7 +477,7 @@ export default function MeetingEditor() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => navigate(`/clientes/${clientId}?tab=reunioes`)}
+                onClick={() => navigate(`/clientes/${clientId}?tab=meetings`)}
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
