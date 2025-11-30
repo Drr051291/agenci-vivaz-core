@@ -189,4 +189,47 @@ All colors MUST be HSL.
     border-radius: 0.5rem;
     margin: 1rem 0;
   }
+
+  /* TipTap Columns Styling */
+  .ProseMirror .column-group {
+    display: block;
+    margin: 1rem 0;
+  }
+
+  .ProseMirror .column {
+    display: block;
+    min-height: 2rem;
+  }
+
+  .ProseMirror .column .content {
+    padding: 0.5rem;
+  }
+
+  .ProseMirror .column-content {
+    min-height: 3rem;
+  }
+
+  .prose .column-group {
+    display: flex;
+    gap: 1rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.5rem;
+    padding: 1rem;
+    background: hsl(var(--muted) / 0.3);
+    margin: 1rem 0;
+  }
+
+  .prose .column {
+    flex: 1;
+    min-width: 0;
+    padding-right: 1rem;
+  }
+
+  .prose .column:not(:last-child) {
+    border-right: 1px solid hsl(var(--border));
+  }
+
+  .prose .column:last-child {
+    padding-right: 0;
+  }
 }
