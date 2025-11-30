@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface EditPaymentDialogProps {
   payment: any;
@@ -37,7 +38,7 @@ export function EditPaymentDialog({
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     value: payment?.value || 0,
-    dueDate: payment?.dueDate ? format(new Date(payment.dueDate), "yyyy-MM-dd") : "",
+    dueDate: payment?.dueDate ? format(parseLocalDate(payment.dueDate), "yyyy-MM-dd") : "",
     description: payment?.description || "",
     billingType: payment?.billingType || "BOLETO",
   });
@@ -98,7 +99,7 @@ export function EditPaymentDialog({
         `Olá! Segue o link para pagamento da cobrança:\n\n` +
         `Descrição: ${payment.description || "Cobrança"}\n` +
         `Valor: R$ ${payment.value.toFixed(2)}\n` +
-        `Vencimento: ${format(new Date(payment.dueDate), "dd/MM/yyyy")}\n\n` +
+        `Vencimento: ${format(parseLocalDate(payment.dueDate), "dd/MM/yyyy")}\n\n` +
         `Link: ${link}`
       );
       window.open(`https://wa.me/?text=${message}`, "_blank");

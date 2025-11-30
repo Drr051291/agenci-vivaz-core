@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 export function PaymentList() {
   const { data: payments, isLoading } = useQuery({
@@ -68,7 +69,7 @@ export function PaymentList() {
                   </span>
                   <span>
                     Vencimento:{' '}
-                    {format(new Date(payment.dueDate), 'dd/MM/yyyy', {
+                    {format(parseLocalDate(payment.dueDate), 'dd/MM/yyyy', {
                       locale: ptBR,
                     })}
                   </span>

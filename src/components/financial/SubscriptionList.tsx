@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 export function SubscriptionList() {
   const { data: subscriptions, isLoading } = useQuery({
@@ -63,7 +64,7 @@ export function SubscriptionList() {
                   {subscription.nextDueDate && (
                     <span>
                       Próx. Vencimento:{' '}
-                      {format(new Date(subscription.nextDueDate), 'dd/MM/yyyy', {
+                      {format(parseLocalDate(subscription.nextDueDate), 'dd/MM/yyyy', {
                         locale: ptBR,
                       })}
                     </span>
