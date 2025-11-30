@@ -22,13 +22,21 @@ interface CommandItem {
   command: ({ editor, range }: any) => void;
 }
 
-const CommandsList = ({ items, command }: any) => {
+interface CommandsListProps {
+  items: CommandItem[];
+  command: (item: CommandItem) => void;
+}
+
+const CommandsList = ({ items, command }: CommandsListProps) => {
   return (
     <div className="bg-popover border border-border rounded-lg shadow-lg p-2 min-w-[300px]">
       {items.map((item: CommandItem, index: number) => (
         <button
           key={index}
-          onClick={() => command(item)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            command(item);
+          }}
           className="w-full flex items-start gap-3 px-3 py-2 text-left rounded hover:bg-accent transition-colors"
         >
           <item.icon className="h-5 w-5 mt-0.5 text-muted-foreground" />
@@ -200,8 +208,12 @@ export const createSlashCommandExtension = (triggerImageUpload: () => void, trig
               },
 
               onExit() {
-                popup[0].destroy();
-                component.destroy();
+                if (popup && popup[0]) {
+                  popup[0].destroy();
+                }
+                if (component) {
+                  component.destroy();
+                }
               },
             };
           },
