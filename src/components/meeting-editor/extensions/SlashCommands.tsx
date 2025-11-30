@@ -14,7 +14,8 @@ import {
   ListOrdered,
   Quote,
   Columns2,
-  Columns3
+  Columns3,
+  Table
 } from 'lucide-react';
 
 interface CommandItem {
@@ -215,6 +216,14 @@ const getSuggestionItems = (triggerImageUpload: () => void, triggerYoutubeDialog
           },
         ],
       }).run();
+    },
+  },
+  {
+    title: 'Tabela',
+    description: 'Inserir tabela editável com linhas e colunas',
+    icon: Table,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
     },
   },
 ];

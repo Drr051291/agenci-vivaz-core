@@ -3,6 +3,10 @@ import StarterKit from '@tiptap/starter-kit';
 import ResizableImageExtension from 'tiptap-extension-resize-image';
 import Youtube from '@tiptap/extension-youtube';
 import Placeholder from '@tiptap/extension-placeholder';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableCell } from '@tiptap/extension-table-cell';
 import { ChartExtension } from './extensions/ChartExtension';
 import { createSlashCommandExtension } from './extensions/SlashCommands';
 import { ColumnGroup, Column } from './extensions/ColumnsExtension';
@@ -20,6 +24,10 @@ import {
   Youtube as YoutubeIcon,
   Undo,
   Redo,
+  Table as TableIcon,
+  TableProperties,
+  Plus,
+  Minus,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -69,6 +77,23 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
       }),
       Placeholder.configure({
         placeholder: placeholder || 'Comece a escrever sua ata... Digite "/" para ver opções',
+      }),
+      Table.configure({
+        resizable: true,
+        HTMLAttributes: {
+          class: 'border-collapse table-auto w-full my-4',
+        },
+      }),
+      TableRow,
+      TableHeader.configure({
+        HTMLAttributes: {
+          class: 'border border-border bg-muted font-bold p-2',
+        },
+      }),
+      TableCell.configure({
+        HTMLAttributes: {
+          class: 'border border-border p-2',
+        },
       }),
       ChartExtension,
       ColumnGroup,
@@ -261,7 +286,85 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
         >
           <YoutubeIcon className="h-4 w-4" />
         </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+          title="Inserir Tabela"
+        >
+          <TableIcon className="h-4 w-4" />
+        </Button>
         <div className="w-px h-8 bg-border mx-1" />
+        {editor.isActive('table') && (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().addColumnBefore().run()}
+              title="Adicionar Coluna Antes"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().addColumnAfter().run()}
+              title="Adicionar Coluna Depois"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().deleteColumn().run()}
+              title="Remover Coluna"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().addRowBefore().run()}
+              title="Adicionar Linha Antes"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().addRowAfter().run()}
+              title="Adicionar Linha Depois"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().deleteRow().run()}
+              title="Remover Linha"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().deleteTable().run()}
+              title="Remover Tabela"
+              className="text-destructive"
+            >
+              <TableIcon className="h-4 w-4" />
+            </Button>
+            <div className="w-px h-8 bg-border mx-1" />
+          </>
+        )}
         <Button
           type="button"
           variant="ghost"
