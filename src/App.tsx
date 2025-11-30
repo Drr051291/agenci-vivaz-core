@@ -11,6 +11,7 @@ import ClientDetails from "./pages/ClientDetails";
 import MeetingEditor from "./pages/MeetingEditor";
 import ClientDashboard from "./pages/client-area/ClientDashboard";
 import ClientMeetings from "./pages/client-area/ClientMeetings";
+import ClientMeetingView from "./pages/client-area/ClientMeetingView";
 import ClientTasks from "./pages/client-area/ClientTasks";
 import ClientDashboards from "./pages/client-area/ClientDashboards";
 import ClientFinancial from "./pages/client-area/ClientFinancial";
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/area-cliente" element={<ClientDashboard />} />
           <Route path="/area-cliente/atas" element={<ClientMeetings />} />
+          <Route path="/area-cliente/reunioes/:meetingId" element={<ClientMeetingView />} />
           <Route path="/area-cliente/atividades" element={<ClientTasks />} />
           <Route path="/area-cliente/dashboards" element={<ClientDashboards />} />
           <Route path="/area-cliente/financeiro" element={<ClientFinancial />} />
