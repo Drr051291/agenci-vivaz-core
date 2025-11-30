@@ -1,20 +1,31 @@
+import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Users, FileText, CreditCard } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DollarSign, Users, FileText, CreditCard, Settings } from "lucide-react";
 import { AsaasCustomerList } from "@/components/financial/AsaasCustomerList";
 import { SubscriptionList } from "@/components/financial/SubscriptionList";
 import { PaymentList } from "@/components/financial/PaymentList";
+import { AsaasConfigDialog } from "@/components/financial/AsaasConfigDialog";
 
 export default function Financial() {
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Financeiro</h1>
-          <p className="text-muted-foreground">
-            Gestão de clientes, assinaturas e cobranças via Asaas
-          </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold">Financeiro</h1>
+            <p className="text-muted-foreground">
+              Gestão de clientes, assinaturas e cobranças via Asaas
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => setConfigDialogOpen(true)}>
+            <Settings className="h-4 w-4 mr-2" />
+            Configurar Asaas
+          </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -86,6 +97,11 @@ export default function Financial() {
             <PaymentList />
           </TabsContent>
         </Tabs>
+
+        <AsaasConfigDialog 
+          open={configDialogOpen} 
+          onOpenChange={setConfigDialogOpen} 
+        />
       </div>
     </DashboardLayout>
   );

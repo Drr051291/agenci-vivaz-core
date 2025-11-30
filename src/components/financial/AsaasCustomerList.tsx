@@ -12,14 +12,17 @@ export function AsaasCustomerList() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
-  const { data: asaasCustomers, isLoading } = useQuery({
+  const { data: asaasCustomers, isLoading, error } = useQuery({
     queryKey: ['asaas-customers'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('asaas-api/customers', {
         method: 'GET',
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching customers:', error);
+        throw error;
+      }
       return data;
     },
   });
@@ -52,6 +55,16 @@ export function AsaasCustomerList() {
 
   if (isLoading) {
     return <div>Carregando clientes do Asaas...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 border border-destructive rounded-lg bg-destructive/10">
+        <p className="text-sm text-destructive">
+          Erro ao carregar clientes do Asaas. Verifique se a API key está configurada corretamente.
+        </p>
+      </div>
+    );
   }
 
   return (
