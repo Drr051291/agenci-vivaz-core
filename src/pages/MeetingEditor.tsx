@@ -94,16 +94,37 @@ export default function MeetingEditor() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPresentationMode, selectedDashboards, meetingData]);
 
-  // Auto-scroll to active section
+  // Auto-scroll to active section when using navigation controls
   useEffect(() => {
     if (isPresentationMode && currentSection >= 0) {
       const sectionId = `section-${currentSection}`;
       const element = document.getElementById(sectionId);
       if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
   }, [currentSection, isPresentationMode]);
+
+  // Update current section based on scroll position
+  useEffect(() => {
+    if (!isPresentationMode) return;
+
+    const handleScroll = () => {
+      const sections = getSections();
+      const scrollPosition = window.scrollY + window.innerHeight / 2;
+
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const element = document.getElementById(`section-${i}`);
+        if (element && element.offsetTop <= scrollPosition) {
+          setCurrentSection(i);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isPresentationMode, selectedDashboards, meetingData]);
 
   const loadMeetingData = async () => {
     try {
@@ -261,30 +282,37 @@ export default function MeetingEditor() {
       selectedDashboards.includes(d.id)
     );
     const sections = getSections();
-    const currentSectionData = sections[currentSection];
 
     return (
       <div className="fixed inset-0 bg-background z-50 overflow-auto">
         {/* Navigation Controls */}
         <div className="fixed top-4 left-0 right-0 z-50 flex items-center justify-between px-4">
           {/* Section Indicators */}
-          <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-lg px-4 py-2 border">
-            {sections.map((section, idx) => (
-              <button
-                key={section.id}
-                onClick={() => setCurrentSection(idx)}
-                className={cn(
-                  "h-2 rounded-full transition-all",
-                  idx === currentSection 
-                    ? "w-8 bg-primary" 
-                    : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
-                )}
-                title={section.title}
-              />
-            ))}
-            <span className="ml-2 text-sm text-muted-foreground">
-              {currentSection + 1} / {sections.length}
-            </span>
+          <div className="flex items-center gap-3 bg-background/95 backdrop-blur-sm rounded-lg px-4 py-3 border shadow-sm">
+            <div className="flex items-center gap-2">
+              {sections.map((section, idx) => (
+                <button
+                  key={section.id}
+                  onClick={() => setCurrentSection(idx)}
+                  className={cn(
+                    "h-2 rounded-full transition-all",
+                    idx === currentSection 
+                      ? "w-8 bg-primary" 
+                      : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                  )}
+                  title={section.title}
+                />
+              ))}
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">
+                {currentSection + 1} / {sections.length}
+              </span>
+              <span className="text-sm text-foreground font-medium">
+                {sections[currentSection]?.title}
+              </span>
+            </div>
           </div>
 
           {/* Exit Button */}
@@ -308,7 +336,7 @@ export default function MeetingEditor() {
             onClick={handlePrevSection}
             variant="ghost"
             size="icon"
-            className="fixed left-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
+            className="fixed left-4 top-1/2 -translate-y-1/2 z-40 h-12 w-12 rounded-full bg-background/95 backdrop-blur-sm hover:bg-background border shadow-sm"
           >
             <ChevronLeft className="h-6 w-6" />
           </Button>
@@ -318,13 +346,13 @@ export default function MeetingEditor() {
             onClick={handleNextSection}
             variant="ghost"
             size="icon"
-            className="fixed right-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
+            className="fixed right-4 top-1/2 -translate-y-1/2 z-40 h-12 w-12 rounded-full bg-background/95 backdrop-blur-sm hover:bg-background border shadow-sm"
           >
             <ChevronRight className="h-6 w-6" />
           </Button>
         )}
 
-        <div className="max-w-[1600px] mx-auto p-8 pt-20 space-y-16">
+        <div className="max-w-[1600px] mx-auto p-8 pt-20 pb-16 space-y-16">
           {/* Header */}
           <div className="space-y-2">
             <h1 className="text-4xl font-bold">{meetingData.title}</h1>
@@ -344,10 +372,13 @@ export default function MeetingEditor() {
 
           {/* Dashboards */}
           {linkedDashboardsData.length > 0 && (
-            <div id="section-0" className={cn(
-              "space-y-4 scroll-mt-20 transition-opacity duration-300",
-              currentSectionData?.id === 'dashboards' ? "opacity-100" : "opacity-40"
-            )}>
+            <div 
+              id="section-0" 
+              className={cn(
+                "space-y-4 scroll-mt-20 rounded-lg transition-all duration-300",
+                currentSection === 0 && "pl-4 border-l-4 border-primary"
+              )}
+            >
               <h2 className="text-2xl font-semibold">📊 Dashboards Analisados</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {linkedDashboardsData.map((dashboard) => (
@@ -389,8 +420,8 @@ export default function MeetingEditor() {
           <div 
             id={`section-${linkedDashboardsData.length > 0 ? 1 : 0}`}
             className={cn(
-              "space-y-4 border-t pt-8 scroll-mt-20 transition-opacity duration-300",
-              currentSectionData?.id === 'content' ? "opacity-100" : "opacity-40"
+              "space-y-4 border-t pt-8 scroll-mt-20 rounded-lg transition-all duration-300",
+              currentSection === (linkedDashboardsData.length > 0 ? 1 : 0) && "pl-4 border-l-4 border-primary"
             )}
           >
             <h2 className="text-2xl font-semibold">📝 Discussões e Anotações</h2>
@@ -404,8 +435,8 @@ export default function MeetingEditor() {
             <div 
               id={`section-${sections.length - 1}`}
               className={cn(
-                "space-y-4 border-t pt-8 scroll-mt-20 transition-opacity duration-300",
-                currentSectionData?.id === 'actions' ? "opacity-100" : "opacity-40"
+                "space-y-4 border-t pt-8 scroll-mt-20 rounded-lg transition-all duration-300",
+                currentSection === sections.length - 1 && "pl-4 border-l-4 border-primary"
               )}
             >
               <h2 className="text-2xl font-semibold">✅ Itens de Ação</h2>
