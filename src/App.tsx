@@ -18,6 +18,7 @@ import Integrations from "./pages/Integrations";
 import Messages from "./pages/Messages";
 import Users from "./pages/Users";
 import SharedMeeting from "./pages/SharedMeeting";
+import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import NotFound from "./pages/NotFound";
 import Financial from "./pages/Financial";
 
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/usuarios" element={<Users />} />
           <Route path="/financeiro" element={<Financial />} />
           <Route path="/atas/:token" element={<SharedMeeting />} />
+          <Route path="/google-calendar/callback" element={<GoogleCalendarCallback />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

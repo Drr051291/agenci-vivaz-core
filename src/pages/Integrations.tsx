@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CheckCircle2, Settings, ExternalLink, Plus, Pencil, Trash2 } from "lucide-react";
+import { GoogleCalendarConnect } from "@/components/calendar/GoogleCalendarConnect";
 import { Separator } from "@/components/ui/separator";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import {
@@ -331,6 +332,18 @@ export default function Integrations() {
             </Card>
           ))}
         </div>
+
+        <Separator />
+
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Google Calendar</h2>
+          <p className="text-muted-foreground mb-4">
+            Sincronize reuniões com sua agenda do Google
+          </p>
+          <GoogleCalendarConnect />
+        </div>
+
+        <Separator />
 
         {selectedPlatform === "pipedrive" && (
           <Card>

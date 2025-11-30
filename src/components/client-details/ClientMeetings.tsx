@@ -16,6 +16,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ShareMeetingDialog } from "@/components/meeting-editor/ShareMeetingDialog";
+import { ImportEventsDialog } from "@/components/calendar/ImportEventsDialog";
+import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { Badge } from "@/components/ui/badge";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -76,6 +78,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
+  const { isConnected } = useGoogleCalendar();
 
   useEffect(() => {
     fetchMeetings();
@@ -150,6 +153,38 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     } catch (error) {
       console.error("Erro ao criar reunião:", error);
       toast.error("Erro ao criar reunião");
+    }
+  };
+
+  const handleImportEvent = async (event: {
+    title: string;
+    date: Date;
+    description?: string;
+  }) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const localDateTime = format(event.date, "yyyy-MM-dd'T'HH:mm");
+      
+      const { data: newMeeting, error } = await supabase
+        .from("meeting_minutes")
+        .insert({
+          client_id: clientId,
+          title: event.title,
+          meeting_date: localDateTime,
+          content: event.description || INITIAL_TEMPLATE,
+          created_by: user?.id,
+          linked_dashboards: dashboards.map(d => d.id),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success("Reunião importada! Redirecionando para edição...");
+      navigate(`/clientes/${clientId}/reunioes/${newMeeting.id}?mode=edit`);
+    } catch (error) {
+      console.error("Erro ao importar evento:", error);
+      toast.error("Erro ao importar evento");
     }
   };
 
@@ -284,12 +319,20 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-2">
         <h2 className="text-2xl font-bold">Reuniões</h2>
-        <Button onClick={handleCreateMeeting}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova Reunião
-        </Button>
+        <div className="flex gap-2">
+          {isConnected && (
+            <ImportEventsDialog 
+              clientId={clientId} 
+              onImportEvent={handleImportEvent}
+            />
+          )}
+          <Button onClick={handleCreateMeeting}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nova Reunião
+          </Button>
+        </div>
       </div>
 
       {meetings.length === 0 ? (
