@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import ClientDetails from "./pages/ClientDetails";
+import MeetingEditor from "./pages/MeetingEditor";
 import ClientDashboard from "./pages/client-area/ClientDashboard";
 import ClientMeetings from "./pages/client-area/ClientMeetings";
 import ClientTasks from "./pages/client-area/ClientTasks";
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/area-cliente/dashboards" element={<ClientDashboards />} />
           <Route path="/clientes" element={<Clients />} />
           <Route path="/clientes/:id" element={<ClientDetails />} />
+          <Route path="/clientes/:clientId/reunioes/:meetingId" element={<MeetingEditor />} />
           <Route path="/colaboradores" element={<Collaborators />} />
           <Route path="/integracoes" element={<Integrations />} />
           <Route path="/integracoes/:id" element={<Integrations />} />
