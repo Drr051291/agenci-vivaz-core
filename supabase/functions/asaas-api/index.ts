@@ -16,6 +16,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Create user-scoped client for authentication
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -34,8 +35,14 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    // Get Asaas config
-    const { data: config, error: configError } = await supabaseClient
+    // Create admin client for reading Asaas config (bypasses RLS)
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Get Asaas config using admin client
+    const { data: config, error: configError } = await supabaseAdmin
       .from('asaas_config')
       .select('*')
       .eq('is_active', true)
