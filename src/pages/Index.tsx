@@ -3,9 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Users, MessageSquare, TrendingUp } from "lucide-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 const Index = () => {
   const navigate = useNavigate();
+
+  usePageMeta({
+    title: "Home",
+    description: "HUB Vivaz - Sistema de gerenciamento de clientes, projetos e comunicação da Vivaz Marketing e Growth",
+    keywords: "gestão de clientes, CRM, projetos, marketing, growth, vivaz",
+  });
 
   useEffect(() => {
     const checkAuth = async () => {

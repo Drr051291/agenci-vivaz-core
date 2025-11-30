@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, MessageSquare, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface Message {
   id: string;
@@ -58,6 +59,12 @@ const Messages = () => {
     content: "",
   });
   const { toast } = useToast();
+
+  usePageMeta({
+    title: "Mensagens",
+    description: "Envie e receba mensagens da equipe e clientes do HUB Vivaz",
+    keywords: "mensagens, comunicação, chat, vivaz",
+  });
 
   useEffect(() => {
     initializeData();

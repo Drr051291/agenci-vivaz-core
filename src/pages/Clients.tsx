@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Building2, Globe, Pencil, User, Phone, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface Client {
   id: string;
@@ -64,6 +65,12 @@ const Clients = () => {
     contact_email: "",
   });
   const { toast } = useToast();
+
+  usePageMeta({
+    title: "Clientes",
+    description: "Gerencie seus clientes, visualize informações de contato e acompanhe o status de cada cliente",
+    keywords: "clientes, gestão de clientes, CRM, contatos, vivaz",
+  });
 
   useEffect(() => {
     fetchClients();

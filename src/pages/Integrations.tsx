@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CheckCircle2, Settings, ExternalLink, Plus, Pencil, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import {
   Dialog,
   DialogContent,
@@ -92,6 +93,12 @@ export default function Integrations() {
     domain: "api.pipedrive.com",
     isActive: false,
     integrationId: null as string | null,
+  });
+
+  usePageMeta({
+    title: "Integrações",
+    description: "Configure integrações com plataformas de CRM e marketing como Pipedrive e Reportei",
+    keywords: "integrações, CRM, pipedrive, reportei, dashboards, vivaz",
   });
 
   useEffect(() => {

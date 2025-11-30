@@ -6,12 +6,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart3 } from "lucide-react";
 import { DashboardList } from "@/components/client-details/DashboardList";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 const ClientDashboards = () => {
   const [loading, setLoading] = useState(true);
   const [clientId, setClientId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  usePageMeta({
+    title: "Dashboards - Área do Cliente",
+    description: "Visualize seus dashboards de métricas e performance",
+    keywords: "dashboards, métricas, performance, área do cliente, vivaz",
+  });
 
   useEffect(() => {
     const checkAuth = async () => {

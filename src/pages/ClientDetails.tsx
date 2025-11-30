@@ -13,6 +13,7 @@ import { ClientTasks } from "@/components/client-details/ClientTasks";
 import { ClientMeetings } from "@/components/client-details/ClientMeetings";
 import { ClientDashboardsNew } from "@/components/client-details/ClientDashboardsNew";
 import { ClientFinancial } from "@/components/client-details/ClientFinancial";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface Client {
   id: string;
@@ -36,6 +37,12 @@ export default function ClientDetails() {
   const navigate = useNavigate();
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
+
+  usePageMeta({
+    title: client ? `${client.company_name}` : "Detalhes do Cliente",
+    description: `Gerencie atividades, reuniões, dashboards e informações financeiras do cliente ${client?.company_name || ''}`,
+    keywords: "cliente, detalhes, atividades, reuniões, financeiro, vivaz",
+  });
 
   useEffect(() => {
     if (id) {

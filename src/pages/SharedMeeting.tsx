@@ -8,6 +8,7 @@ import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface MeetingMinute {
   id: string;
@@ -25,6 +26,12 @@ export default function SharedMeeting() {
   const [meeting, setMeeting] = useState<MeetingMinute | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+
+  usePageMeta({
+    title: meeting ? meeting.title : "Reunião Compartilhada",
+    description: `Reunião compartilhada - ${meeting?.title || 'HUB Vivaz'}`,
+    keywords: "reunião, compartilhada, ata, vivaz",
+  });
 
   useEffect(() => {
     if (token) {

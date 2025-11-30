@@ -5,11 +5,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { CheckSquare } from "lucide-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 const ClientTasks = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  usePageMeta({
+    title: "Atividades - Área do Cliente",
+    description: "Acompanhe suas tarefas e atividades",
+    keywords: "atividades, tarefas, área do cliente, vivaz",
+  });
 
   useEffect(() => {
     const checkAuth = async () => {
