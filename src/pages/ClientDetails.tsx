@@ -12,6 +12,7 @@ import { ClientOverview } from "@/components/client-details/ClientOverview";
 import { ClientTasks } from "@/components/client-details/ClientTasks";
 import { ClientMeetings } from "@/components/client-details/ClientMeetings";
 import { ClientDashboardsNew } from "@/components/client-details/ClientDashboardsNew";
+import { ClientFinancial } from "@/components/client-details/ClientFinancial";
 
 interface Client {
   id: string;
@@ -149,11 +150,12 @@ export default function ClientDetails() {
 
         {/* Tabs com foco no conteúdo */}
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="tasks">Atividades</TabsTrigger>
             <TabsTrigger value="meetings">Atas</TabsTrigger>
             <TabsTrigger value="dashboards">Dashboards</TabsTrigger>
+            <TabsTrigger value="financial">Financeiro</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-4">
@@ -170,6 +172,10 @@ export default function ClientDetails() {
 
           <TabsContent value="dashboards" className="mt-4">
             <ClientDashboardsNew clientId={client.id} />
+          </TabsContent>
+
+          <TabsContent value="financial" className="mt-4">
+            <ClientFinancial clientId={client.id} />
           </TabsContent>
         </Tabs>
       </div>
