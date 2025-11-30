@@ -27,7 +27,12 @@ interface ImportEventsDialogProps {
 export const ImportEventsDialog = ({ clientId, onImportEvent }: ImportEventsDialogProps) => {
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState<string | null>(null);
-  const { events, isLoadingEvents, refetchEvents } = useGoogleCalendar();
+  const { events, isLoadingEvents, refetchEvents, isConnected } = useGoogleCalendar();
+
+  // Don't render if not connected
+  if (!isConnected) {
+    return null;
+  }
 
   const handleImport = async (event: any) => {
     setImporting(event.id);

@@ -25,16 +25,27 @@ export const useGoogleCalendar = () => {
   const { data: isConnected, isLoading: isCheckingConnection } = useQuery({
     queryKey: ["google-calendar-connection"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("google_calendar_tokens")
-        .select("id")
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from("google_calendar_tokens")
+          .select("id")
+          .single();
 
-      if (error && error.code !== "PGRST116") {
-        throw error;
+        // PGRST116 = no rows returned, which means not connected
+        if (error && error.code === "PGRST116") {
+          return false;
+        }
+
+        if (error) {
+          console.error("Error checking Google Calendar connection:", error);
+          return false;
+        }
+
+        return !!data;
+      } catch (error) {
+        console.error("Failed to check connection:", error);
+        return false;
       }
-
-      return !!data;
     },
   });
 
@@ -97,24 +108,33 @@ export const useGoogleCalendar = () => {
   const { data: events, isLoading: isLoadingEvents, refetch: refetchEvents } = useQuery({
     queryKey: ["google-calendar-events"],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error("Not authenticated");
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar?action=list-events`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar?action=list-events`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to fetch events");
         }
-      );
-
-      if (!response.ok) throw new Error("Failed to fetch events");
-      
-      const data = await response.json();
-      return data.items as GoogleCalendarEvent[];
+        
+        const data = await response.json();
+        return data.items as GoogleCalendarEvent[];
+      } catch (error) {
+        console.error("Error fetching calendar events:", error);
+        throw error;
+      }
     },
-    enabled: isConnected,
+    enabled: !!isConnected,
+    retry: false,
   });
 
   // Create event in Google Calendar
