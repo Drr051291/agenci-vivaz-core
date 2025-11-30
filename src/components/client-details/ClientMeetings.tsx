@@ -346,7 +346,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           {meetings.map((meeting) => (
             <Card 
               key={meeting.id} 
