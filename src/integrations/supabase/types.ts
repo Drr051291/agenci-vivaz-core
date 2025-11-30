@@ -235,6 +235,79 @@ export type Database = {
           },
         ]
       }
+      google_calendar_events: {
+        Row: {
+          calendar_id: string
+          google_event_id: string
+          id: string
+          meeting_id: string | null
+          synced_at: string | null
+        }
+        Insert: {
+          calendar_id: string
+          google_event_id: string
+          id?: string
+          meeting_id?: string | null
+          synced_at?: string | null
+        }
+        Update: {
+          calendar_id?: string
+          google_event_id?: string
+          id?: string
+          meeting_id?: string | null
+          synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_calendar_events_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: true
+            referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_calendar_tokens: {
+        Row: {
+          access_token: string
+          calendar_id: string | null
+          created_at: string | null
+          id: string
+          refresh_token: string
+          token_expiry: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          access_token: string
+          calendar_id?: string | null
+          created_at?: string | null
+          id?: string
+          refresh_token: string
+          token_expiry?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          access_token?: string
+          calendar_id?: string | null
+          created_at?: string | null
+          id?: string
+          refresh_token?: string
+          token_expiry?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_calendar_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_minutes: {
         Row: {
           action_items: string[] | null
