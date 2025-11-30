@@ -33,22 +33,27 @@ interface CommandsListProps {
 const CommandsList = ({ items, command }: CommandsListProps) => {
   return (
     <div className="bg-popover border border-border rounded-lg shadow-lg p-2 min-w-[300px]">
-      {items.map((item: CommandItem, index: number) => (
-        <button
-          key={index}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            command(item);
-          }}
-          className="w-full flex items-start gap-3 px-3 py-2 text-left rounded hover:bg-accent transition-colors"
-        >
-          <item.icon className="h-5 w-5 mt-0.5 text-muted-foreground" />
-          <div className="flex-1">
-            <div className="font-medium text-sm">{item.title}</div>
-            <div className="text-xs text-muted-foreground">{item.description}</div>
-          </div>
-        </button>
-      ))}
+      {items.length === 0 ? (
+        <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum resultado encontrado</div>
+      ) : (
+        items.map((item: CommandItem, index: number) => (
+          <button
+            key={index}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              command(item);
+            }}
+            className="w-full flex items-start gap-3 px-3 py-2 text-left rounded hover:bg-accent transition-colors"
+          >
+            <item.icon className="h-5 w-5 mt-0.5 text-muted-foreground" />
+            <div className="flex-1">
+              <div className="font-medium text-sm">{item.title}</div>
+              <div className="text-xs text-muted-foreground">{item.description}</div>
+            </div>
+          </button>
+        ))
+      )}
     </div>
   );
 };
@@ -253,7 +258,15 @@ export const createSlashCommandExtension = (triggerImageUpload: () => void, trig
             return {
               onStart: (props) => {
                 component = new ReactRenderer(CommandsList, {
-                  props,
+                  props: {
+                    ...props,
+                    command: (item: CommandItem) => {
+                      item.command({
+                        editor: props.editor,
+                        range: props.range,
+                      });
+                    },
+                  },
                   editor: props.editor,
                 });
 
@@ -273,7 +286,15 @@ export const createSlashCommandExtension = (triggerImageUpload: () => void, trig
               },
 
               onUpdate(props) {
-                component.updateProps(props);
+                component.updateProps({
+                  ...props,
+                  command: (item: CommandItem) => {
+                    item.command({
+                      editor: props.editor,
+                      range: props.range,
+                    });
+                  },
+                });
 
                 if (!props.clientRect) {
                   return;
