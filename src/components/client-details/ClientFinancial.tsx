@@ -76,6 +76,58 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
     },
   });
 
+  // Calcular métricas (sempre chamado, mesmo se não houver link)
+  const totalReceived = useMemo(() => {
+    return payments?.filter((p: any) => 
+      p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH'
+    ).reduce((sum: number, p: any) => sum + (p.value || 0), 0) || 0;
+  }, [payments]);
+
+  const totalPending = useMemo(() => {
+    return payments?.filter((p: any) => 
+      p.status === 'PENDING'
+    ).reduce((sum: number, p: any) => sum + (p.value || 0), 0) || 0;
+  }, [payments]);
+
+  const totalOverdue = useMemo(() => {
+    return payments?.filter((p: any) => 
+      p.status === 'OVERDUE'
+    ).reduce((sum: number, p: any) => sum + (p.value || 0), 0) || 0;
+  }, [payments]);
+
+  // Aplicar filtros nas cobranças (sempre chamado)
+  const filteredPayments = useMemo(() => {
+    if (!payments) return [];
+
+    return payments.filter((payment: any) => {
+      // Filtro de status
+      if (paymentFilters.status !== "all" && payment.status !== paymentFilters.status) {
+        return false;
+      }
+
+      // Filtro de data de vencimento
+      const dueDate = new Date(payment.dueDate);
+      
+      if (paymentFilters.startDate) {
+        const startDate = new Date(paymentFilters.startDate);
+        startDate.setHours(0, 0, 0, 0);
+        if (dueDate < startDate) {
+          return false;
+        }
+      }
+
+      if (paymentFilters.endDate) {
+        const endDate = new Date(paymentFilters.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        if (dueDate > endDate) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [payments, paymentFilters]);
+
   const getStatusBadge = (status: string, type: 'subscription' | 'payment') => {
     if (type === 'subscription') {
       const statusMap: Record<string, { label: string; variant: any }> = {
@@ -99,6 +151,7 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
     }
   };
 
+  // Early returns DEPOIS de todos os hooks
   if (linkLoading) {
     return (
       <Card>
@@ -135,51 +188,6 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
       </Card>
     );
   }
-
-  const totalReceived = payments?.filter((p: any) => 
-    p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH'
-  ).reduce((sum: number, p: any) => sum + (p.value || 0), 0) || 0;
-
-  const totalPending = payments?.filter((p: any) => 
-    p.status === 'PENDING'
-  ).reduce((sum: number, p: any) => sum + (p.value || 0), 0) || 0;
-
-  const totalOverdue = payments?.filter((p: any) => 
-    p.status === 'OVERDUE'
-  ).reduce((sum: number, p: any) => sum + (p.value || 0), 0) || 0;
-
-  // Aplicar filtros nas cobranças
-  const filteredPayments = useMemo(() => {
-    if (!payments) return [];
-
-    return payments.filter((payment: any) => {
-      // Filtro de status
-      if (paymentFilters.status !== "all" && payment.status !== paymentFilters.status) {
-        return false;
-      }
-
-      // Filtro de data de vencimento
-      const dueDate = new Date(payment.dueDate);
-      
-      if (paymentFilters.startDate) {
-        const startDate = new Date(paymentFilters.startDate);
-        startDate.setHours(0, 0, 0, 0);
-        if (dueDate < startDate) {
-          return false;
-        }
-      }
-
-      if (paymentFilters.endDate) {
-        const endDate = new Date(paymentFilters.endDate);
-        endDate.setHours(23, 59, 59, 999);
-        if (dueDate > endDate) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [payments, paymentFilters]);
 
   return (
     <div className="space-y-6">
