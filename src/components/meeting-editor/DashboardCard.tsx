@@ -11,7 +11,7 @@ interface DashboardCardProps {
   type: string;
   embedUrl?: string;
   isSelected: boolean;
-  onToggle: (id: string) => void;
+  onToggle?: (id: string) => void;
 }
 
 const getDashboardConfig = (type: string) => {
@@ -58,11 +58,12 @@ export function DashboardCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden transition-all duration-200 cursor-pointer border-2",
+        "relative overflow-hidden transition-all duration-200 border-2",
         config.color,
-        isSelected && "ring-2 ring-primary ring-offset-2"
+        isSelected && "ring-2 ring-primary ring-offset-2",
+        onToggle && "cursor-pointer"
       )}
-      onClick={() => onToggle(id)}
+      onClick={() => onToggle?.(id)}
     >
       <div className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
@@ -77,12 +78,14 @@ export function DashboardCard({
               </Badge>
             </div>
           </div>
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={() => onToggle(id)}
-            onClick={(e) => e.stopPropagation()}
-            className="mt-1"
-          />
+          {onToggle && (
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => onToggle(id)}
+              onClick={(e) => e.stopPropagation()}
+              className="mt-1"
+            />
+          )}
         </div>
 
         <div className="bg-background/80 rounded-lg p-6 flex items-center justify-center min-h-[100px]">
