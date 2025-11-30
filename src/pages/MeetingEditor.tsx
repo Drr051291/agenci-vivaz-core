@@ -49,6 +49,7 @@ export default function MeetingEditor() {
     content: "",
     action_items: [] as string[],
     title: "",
+    created_at: "",
   });
 
   useEffect(() => {
@@ -146,6 +147,7 @@ export default function MeetingEditor() {
         content: meetingDataRes.content,
         action_items: meetingDataRes.action_items || [],
         title: meetingDataRes.title,
+        created_at: meetingDataRes.created_at,
       });
       setSelectedDashboards(meetingDataRes.linked_dashboards || []);
       setSelectedTasks(meetingDataRes.linked_tasks || []);
@@ -158,10 +160,21 @@ export default function MeetingEditor() {
     }
   };
 
-  const generateTitle = (date: string) => {
-    const meetingDate = new Date(date);
-    const formattedDate = format(meetingDate, "dd/MM/yyyy", { locale: ptBR });
-    return `Vivaz - ${clientName} - ${formattedDate}`;
+  const generateTitle = (meetingDate: string, createdAt?: string) => {
+    // Se a data da reunião foi preenchida pelo analista, usar ela
+    if (meetingDate && meetingDate.trim() !== '') {
+      const date = new Date(meetingDate);
+      const formattedDate = format(date, "dd/MM/yyyy", { locale: ptBR });
+      return `Vivaz - ${clientName} - ${formattedDate}`;
+    }
+    // Caso contrário, usar a data de criação
+    if (createdAt) {
+      const date = new Date(createdAt);
+      const formattedDate = format(date, "dd/MM/yyyy", { locale: ptBR });
+      return `Vivaz - ${clientName} - ${formattedDate}`;
+    }
+    // Fallback
+    return `Vivaz - ${clientName} - Nova Reunião`;
   };
 
   const handleAutoSave = useCallback(async () => {
@@ -172,7 +185,7 @@ export default function MeetingEditor() {
       const { error } = await supabase
         .from("meeting_minutes")
         .update({
-          title: generateTitle(meetingData.meeting_date),
+          title: generateTitle(meetingData.meeting_date, meetingData.created_at),
           meeting_date: meetingData.meeting_date,
           participants: meetingData.participants.length > 0 ? meetingData.participants : null,
           content: meetingData.content,
