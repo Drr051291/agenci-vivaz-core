@@ -153,7 +153,7 @@ export default function ClientDetails() {
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="tasks">Atividades</TabsTrigger>
-            <TabsTrigger value="meetings">Atas</TabsTrigger>
+            <TabsTrigger value="meetings">Reuniões</TabsTrigger>
             <TabsTrigger value="dashboards">Dashboards</TabsTrigger>
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
           </TabsList>

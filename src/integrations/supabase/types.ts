@@ -243,6 +243,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          linked_dashboards: string[] | null
+          linked_tasks: string[] | null
           meeting_date: string
           participants: string[] | null
           project_id: string | null
@@ -257,6 +259,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          linked_dashboards?: string[] | null
+          linked_tasks?: string[] | null
           meeting_date: string
           participants?: string[] | null
           project_id?: string | null
@@ -271,6 +275,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          linked_dashboards?: string[] | null
+          linked_tasks?: string[] | null
           meeting_date?: string
           participants?: string[] | null
           project_id?: string | null
