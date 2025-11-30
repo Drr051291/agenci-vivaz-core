@@ -34,17 +34,18 @@ import { NavLink } from "@/components/NavLink";
 import { useToast } from "@/hooks/use-toast";
 
 const adminMenuItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Clientes", url: "/clientes", icon: Users },
-  { title: "Financeiro", url: "/financeiro", icon: DollarSign },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: false },
+  { title: "Clientes", url: "/clientes", icon: Users, adminOnly: false },
+  { title: "Financeiro", url: "/financeiro", icon: DollarSign, adminOnly: false },
   { title: "Usuários", url: "/usuarios", icon: UserCog, adminOnly: true },
 ];
 
 const clientMenuItems = [
-  { title: "Dashboard", url: "/area-cliente", icon: LayoutDashboard, adminOnly: false },
-  { title: "Atas de Reuniões", url: "/area-cliente/atas", icon: FileText, adminOnly: false },
+  { title: "Visão Geral", url: "/area-cliente", icon: LayoutDashboard, adminOnly: false },
+  { title: "Reuniões", url: "/area-cliente/atas", icon: FileText, adminOnly: false },
   { title: "Atividades", url: "/area-cliente/atividades", icon: CheckSquare, adminOnly: false },
   { title: "Dashboards", url: "/area-cliente/dashboards", icon: BarChart3, adminOnly: false },
+  { title: "Financeiro", url: "/area-cliente/financeiro", icon: DollarSign, adminOnly: false },
 ];
 
 interface DashboardLayoutProps {
