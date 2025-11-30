@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, Calendar, DollarSign, Phone, Mail, MapPin } from "lucide-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface ClientData {
   id: string;
@@ -26,6 +27,12 @@ const ClientDashboard = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  usePageMeta({
+    title: "Área do Cliente",
+    description: "Acompanhe suas informações, atividades e dashboards",
+    keywords: "área do cliente, dashboard, informações, vivaz",
+  });
 
   useEffect(() => {
     const checkAuthAndLoadClient = async () => {

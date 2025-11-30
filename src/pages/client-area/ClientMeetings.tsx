@@ -8,6 +8,7 @@ import { Calendar, Users, FileText, Download, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 import { Badge } from "@/components/ui/badge";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface MeetingMinute {
   id: string;
@@ -24,6 +25,12 @@ const ClientMeetings = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  usePageMeta({
+    title: "Reuniões - Área do Cliente",
+    description: "Acompanhe as reuniões realizadas e seus resultados",
+    keywords: "reuniões, atas, área do cliente, vivaz",
+  });
 
   useEffect(() => {
     const checkAuthAndLoadMeetings = async () => {

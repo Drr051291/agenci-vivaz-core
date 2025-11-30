@@ -3,6 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Users, Briefcase, MessageSquare, TrendingUp } from "lucide-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -10,6 +11,12 @@ const Dashboard = () => {
     projects: 0,
     messages: 0,
     collaborators: 0,
+  });
+
+  usePageMeta({
+    title: "Dashboard",
+    description: "Visão geral do HUB Vivaz com estatísticas de clientes, projetos e comunicações",
+    keywords: "dashboard, estatísticas, clientes, projetos, vivaz",
   });
 
   useEffect(() => {

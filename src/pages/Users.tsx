@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Users as UsersIcon, Mail, Shield } from "lucide-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface UserWithRole {
   id: string;
@@ -56,6 +57,12 @@ const Users = () => {
     client_id: "",
   });
   const { toast } = useToast();
+
+  usePageMeta({
+    title: "Usuários",
+    description: "Gerencie usuários do sistema, crie contas e defina permissões de acesso",
+    keywords: "usuários, gestão de usuários, permissões, roles, vivaz",
+  });
 
   useEffect(() => {
     checkAdminStatus();

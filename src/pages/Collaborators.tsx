@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Mail, Phone, Users } from "lucide-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface Collaborator {
   id: string;
@@ -20,6 +21,12 @@ const Collaborators = () => {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  usePageMeta({
+    title: "Colaboradores",
+    description: "Visualize a equipe Vivaz, informações de contato e funções de cada colaborador",
+    keywords: "colaboradores, equipe, time, vivaz, contatos",
+  });
 
   useEffect(() => {
     fetchCollaborators();

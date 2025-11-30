@@ -12,8 +12,15 @@ import { PaymentList } from "@/components/financial/PaymentList";
 import { AsaasConfigDialog } from "@/components/financial/AsaasConfigDialog";
 import { FinancialPeriodFilter } from "@/components/financial/FinancialPeriodFilter";
 import { startOfMonth, endOfMonth } from "date-fns";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 export default function Financial() {
+  usePageMeta({
+    title: "Financeiro",
+    description: "Gerencie informações financeiras, assinaturas e cobranças dos clientes",
+    keywords: "financeiro, cobranças, assinaturas, pagamentos, asaas, vivaz",
+  });
+
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));

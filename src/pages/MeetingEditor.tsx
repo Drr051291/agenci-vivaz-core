@@ -15,6 +15,7 @@ import { ArrowLeft, Save, Calendar, Users, CheckSquare, LayoutDashboard, Present
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface Dashboard {
   id: string;
@@ -53,6 +54,12 @@ export default function MeetingEditor() {
     action_items: [] as string[],
     title: "",
     created_at: "",
+  });
+
+  usePageMeta({
+    title: meetingData.title || "Reunião",
+    description: `Edite e visualize a reunião ${meetingData.title || ''}`,
+    keywords: "reunião, ata, editor, vivaz",
   });
 
   useEffect(() => {
