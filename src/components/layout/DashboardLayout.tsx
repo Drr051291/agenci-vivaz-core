@@ -36,10 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 const adminMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Clientes", url: "/clientes", icon: Users },
-  { title: "Colaboradores", url: "/colaboradores", icon: Briefcase },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },
-  { title: "Integrações", url: "/integracoes", icon: Plug },
-  { title: "Mensagens", url: "/mensagens", icon: MessageSquare },
   { title: "Usuários", url: "/usuarios", icon: UserCog, adminOnly: true },
 ];
 
