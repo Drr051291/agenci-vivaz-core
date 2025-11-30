@@ -8,7 +8,8 @@ import { ExternalLink, Link2Off, DollarSign, FileText, CreditCard, Plus } from "
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CreatePaymentDialog } from "./CreatePaymentDialog";
-import { useState } from "react";
+import { PaymentFilters, PaymentFilterState } from "./PaymentFilters";
+import { useState, useMemo } from "react";
 
 interface ClientFinancialProps {
   clientId: string;
@@ -16,6 +17,9 @@ interface ClientFinancialProps {
 
 export function ClientFinancial({ clientId }: ClientFinancialProps) {
   const [createPaymentOpen, setCreatePaymentOpen] = useState(false);
+  const [paymentFilters, setPaymentFilters] = useState<PaymentFilterState>({
+    status: "all",
+  });
   
   // Buscar vínculo com Asaas
   const { data: asaasLink, isLoading: linkLoading } = useQuery({
@@ -144,6 +148,39 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
     p.status === 'OVERDUE'
   ).reduce((sum: number, p: any) => sum + (p.value || 0), 0) || 0;
 
+  // Aplicar filtros nas cobranças
+  const filteredPayments = useMemo(() => {
+    if (!payments) return [];
+
+    return payments.filter((payment: any) => {
+      // Filtro de status
+      if (paymentFilters.status !== "all" && payment.status !== paymentFilters.status) {
+        return false;
+      }
+
+      // Filtro de data de vencimento
+      const dueDate = new Date(payment.dueDate);
+      
+      if (paymentFilters.startDate) {
+        const startDate = new Date(paymentFilters.startDate);
+        startDate.setHours(0, 0, 0, 0);
+        if (dueDate < startDate) {
+          return false;
+        }
+      }
+
+      if (paymentFilters.endDate) {
+        const endDate = new Date(paymentFilters.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        if (dueDate > endDate) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [payments, paymentFilters]);
+
   return (
     <div className="space-y-6">
       {/* Info do vínculo */}
@@ -215,7 +252,8 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
         </TabsList>
 
         <TabsContent value="payments" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-between items-start gap-4 flex-wrap">
+            <PaymentFilters onFilterChange={setPaymentFilters} />
             <Button onClick={() => setCreatePaymentOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Nova Cobrança
@@ -226,9 +264,9 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
             <div className="text-center py-8 text-muted-foreground">
               Carregando cobranças...
             </div>
-          ) : payments && payments.length > 0 ? (
+          ) : filteredPayments && filteredPayments.length > 0 ? (
             <div className="space-y-3">
-              {payments.map((payment: any) => (
+              {filteredPayments.map((payment: any) => (
                 <Card key={payment.id}>
                   <CardContent className="py-4">
                     <div className="flex justify-between items-start">
@@ -259,7 +297,10 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              Nenhuma cobrança encontrada para este cliente
+              {payments && payments.length > 0 
+                ? 'Nenhuma cobrança encontrada com os filtros aplicados'
+                : 'Nenhuma cobrança encontrada para este cliente'
+              }
             </div>
           )}
         </TabsContent>
