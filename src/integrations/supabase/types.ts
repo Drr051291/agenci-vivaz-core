@@ -357,6 +357,44 @@ export type Database = {
           },
         ]
       }
+      payment_invoices: {
+        Row: {
+          client_id: string
+          file_name: string
+          file_path: string
+          id: string
+          payment_id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          client_id: string
+          file_name: string
+          file_path: string
+          id?: string
+          payment_id: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          client_id?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          payment_id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

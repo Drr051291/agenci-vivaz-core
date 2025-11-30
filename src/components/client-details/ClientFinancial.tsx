@@ -4,12 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ExternalLink, Link2Off, DollarSign, FileText, CreditCard, Plus } from "lucide-react";
+import { ExternalLink, Link2Off, DollarSign, FileText, CreditCard, Plus, Upload, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CreatePaymentDialog } from "./CreatePaymentDialog";
 import { PaymentFilters, PaymentFilterState } from "./PaymentFilters";
+import { UploadInvoiceDialog } from "./UploadInvoiceDialog";
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
 
 interface ClientFinancialProps {
   clientId: string;
@@ -17,6 +19,8 @@ interface ClientFinancialProps {
 
 export function ClientFinancial({ clientId }: ClientFinancialProps) {
   const [createPaymentOpen, setCreatePaymentOpen] = useState(false);
+  const [uploadInvoiceOpen, setUploadInvoiceOpen] = useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [paymentFilters, setPaymentFilters] = useState<PaymentFilterState>({
     status: "all",
   });
@@ -75,6 +79,47 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
       return filtered;
     },
   });
+
+  // Buscar notas fiscais do cliente
+  const { data: invoices } = useQuery({
+    queryKey: ['payment-invoices', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payment_invoices')
+        .select('*')
+        .eq('client_id', clientId);
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleDownloadInvoice = async (filePath: string, fileName: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('invoices')
+        .download(filePath);
+
+      if (error) throw error;
+
+      const url = window.URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success("Download iniciado");
+    } catch (error: any) {
+      console.error("Erro ao baixar nota fiscal:", error);
+      toast.error("Erro ao baixar nota fiscal");
+    }
+  };
+
+  const getInvoiceForPayment = (paymentId: string) => {
+    return invoices?.find(inv => inv.payment_id === paymentId);
+  };
 
   // Calcular métricas (sempre chamado, mesmo se não houver link)
   const totalReceived = useMemo(() => {
@@ -274,34 +319,62 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
             </div>
           ) : filteredPayments && filteredPayments.length > 0 ? (
             <div className="space-y-3">
-              {filteredPayments.map((payment: any) => (
-                <Card key={payment.id}>
-                  <CardContent className="py-4">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold">
-                            {payment.description || 'Sem descrição'}
-                          </h4>
-                          {getStatusBadge(payment.status, 'payment')}
+              {filteredPayments.map((payment: any) => {
+                const invoice = getInvoiceForPayment(payment.id);
+                
+                return (
+                  <Card key={payment.id}>
+                    <CardContent className="py-4">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-semibold">
+                              {payment.description || 'Sem descrição'}
+                            </h4>
+                            {getStatusBadge(payment.status, 'payment')}
+                          </div>
+                          <div className="flex gap-4 text-sm text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                              R$ {payment.value?.toFixed(2)}
+                            </span>
+                            <span>
+                              Venc:{' '}
+                              {format(new Date(payment.dueDate), 'dd/MM/yyyy', {
+                                locale: ptBR,
+                              })}
+                            </span>
+                            <span>{payment.billingType}</span>
+                          </div>
                         </div>
-                        <div className="flex gap-4 text-sm text-muted-foreground">
-                          <span className="font-medium text-foreground">
-                            R$ {payment.value?.toFixed(2)}
-                          </span>
-                          <span>
-                            Venc:{' '}
-                            {format(new Date(payment.dueDate), 'dd/MM/yyyy', {
-                              locale: ptBR,
-                            })}
-                          </span>
-                          <span>{payment.billingType}</span>
+                        <div className="flex gap-2">
+                          {invoice ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadInvoice(invoice.file_path, invoice.file_name)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver Nota
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedPaymentId(payment.id);
+                                setUploadInvoiceOpen(true);
+                              }}
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload NF
+                            </Button>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
@@ -360,12 +433,22 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
       </Tabs>
 
       {asaasLink && (
-        <CreatePaymentDialog
-          open={createPaymentOpen}
-          onOpenChange={setCreatePaymentOpen}
-          asaasCustomerId={asaasLink.asaas_customer_id}
-          clientName={asaasLink.asaas_customer_name || 'Cliente'}
-        />
+        <>
+          <CreatePaymentDialog
+            open={createPaymentOpen}
+            onOpenChange={setCreatePaymentOpen}
+            asaasCustomerId={asaasLink.asaas_customer_id}
+            clientName={asaasLink.asaas_customer_name || 'Cliente'}
+          />
+          {selectedPaymentId && (
+            <UploadInvoiceDialog
+              open={uploadInvoiceOpen}
+              onOpenChange={setUploadInvoiceOpen}
+              paymentId={selectedPaymentId}
+              clientId={clientId}
+            />
+          )}
+        </>
       )}
     </div>
   );
