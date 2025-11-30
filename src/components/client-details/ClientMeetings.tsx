@@ -1,16 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Calendar, Users, Pencil, Share2, Download, Trash2, LayoutDashboard, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,12 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RichTextEditor } from "@/components/meeting-editor/RichTextEditor";
-import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 import { ShareMeetingDialog } from "@/components/meeting-editor/ShareMeetingDialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -56,12 +45,6 @@ interface Dashboard {
   dashboard_type: string;
 }
 
-interface Task {
-  id: string;
-  title: string;
-  status: string;
-}
-
 const INITIAL_TEMPLATE = `<h2>📊 Dashboards Analisados</h2>
 <p><em>Os dashboards serão inseridos automaticamente aqui.</em></p>
 
@@ -84,25 +67,15 @@ const INITIAL_TEMPLATE = `<h2>📊 Dashboards Analisados</h2>
 <p>Adicione quaisquer observações relevantes...</p>`;
 
 export function ClientMeetings({ clientId }: ClientMeetingsProps) {
+  const navigate = useNavigate();
   const [meetings, setMeetings] = useState<MeetingMinute[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingMinute | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [selectedDashboards, setSelectedDashboards] = useState<string[]>([]);
-  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
-  const [formData, setFormData] = useState({
-    meeting_date: "",
-    participants: "",
-    content: "",
-    action_items: "",
-  });
 
   useEffect(() => {
     fetchMeetings();
@@ -111,7 +84,6 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
 
   const fetchClientData = async () => {
     try {
-      // Buscar nome do cliente
       const { data: clientData, error: clientError } = await supabase
         .from("clients")
         .select("company_name")
@@ -121,7 +93,6 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       if (clientError) throw clientError;
       setClientName(clientData.company_name);
 
-      // Buscar dashboards do cliente
       const { data: dashboardsData, error: dashboardsError } = await supabase
         .from("client_dashboards")
         .select("id, name, dashboard_type")
@@ -130,16 +101,6 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
 
       if (dashboardsError) throw dashboardsError;
       setDashboards(dashboardsData || []);
-
-      // Buscar tasks do cliente
-      const { data: tasksData, error: tasksError } = await supabase
-        .from("tasks")
-        .select("id, title, status")
-        .eq("client_id", clientId)
-        .in("status", ["pending", "in_progress"]);
-
-      if (tasksError) throw tasksError;
-      setTasks(tasksData || []);
     } catch (error) {
       console.error("Erro ao buscar dados do cliente:", error);
     }
@@ -163,55 +124,37 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     }
   };
 
-  const generateTitle = (date: string) => {
-    const meetingDate = new Date(date);
-    const formattedDate = format(meetingDate, "dd/MM/yyyy", { locale: ptBR });
-    return `Vivaz - ${clientName} - ${formattedDate}`;
-  };
-
-  const generateDashboardsSection = () => {
-    if (selectedDashboards.length === 0) {
-      return "<p><em>Nenhum dashboard selecionado para esta reunião.</em></p>";
-    }
-    
-    const dashboardsList = selectedDashboards
-      .map(id => {
-        const dashboard = dashboards.find(d => d.id === id);
-        return dashboard ? `<li><strong>${dashboard.name}</strong> (${dashboard.dashboard_type})</li>` : "";
-      })
-      .join("");
-    
-    return `<ul>${dashboardsList}</ul>`;
-  };
-
-  const handleOpenDialog = (meeting?: MeetingMinute) => {
-    if (meeting) {
-      setEditingId(meeting.id);
-      setFormData({
-        meeting_date: meeting.meeting_date,
-        participants: meeting.participants?.join(", ") || "",
-        content: meeting.content,
-        action_items: meeting.action_items?.join(", ") || "",
-      });
-      setSelectedDashboards(meeting.linked_dashboards || []);
-      setSelectedTasks(meeting.linked_tasks || []);
-    } else {
-      setEditingId(null);
+  const handleCreateMeeting = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
       const now = new Date();
       const localDateTime = format(now, "yyyy-MM-dd'T'HH:mm");
       
-      setFormData({
-        meeting_date: localDateTime,
-        participants: "",
-        content: INITIAL_TEMPLATE,
-        action_items: "",
-      });
-      
-      // Auto-selecionar todos os dashboards por padrão
-      setSelectedDashboards(dashboards.map(d => d.id));
-      setSelectedTasks([]);
+      const { data: newMeeting, error } = await supabase
+        .from("meeting_minutes")
+        .insert({
+          client_id: clientId,
+          title: `Vivaz - ${clientName} - ${format(now, "dd/MM/yyyy", { locale: ptBR })}`,
+          meeting_date: localDateTime,
+          content: INITIAL_TEMPLATE,
+          created_by: user?.id,
+          linked_dashboards: dashboards.map(d => d.id),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success("Reunião criada! Redirecionando para edição...");
+      navigate(`/clientes/${clientId}/reunioes/${newMeeting.id}`);
+    } catch (error) {
+      console.error("Erro ao criar reunião:", error);
+      toast.error("Erro ao criar reunião");
     }
-    setDialogOpen(true);
+  };
+
+  const handleEditMeeting = (meetingId: string) => {
+    navigate(`/clientes/${clientId}/reunioes/${meetingId}`);
   };
 
   const handleShare = (meeting: MeetingMinute) => {
@@ -326,92 +269,6 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const participants = formData.participants
-        .split(",")
-        .map((p) => p.trim())
-        .filter((p) => p);
-
-      const actionItems = formData.action_items
-        .split(",")
-        .map((item) => item.trim())
-        .filter((item) => item);
-
-      // Inserir seção de dashboards no conteúdo
-      let finalContent = formData.content;
-      const dashboardsSection = generateDashboardsSection();
-      finalContent = finalContent.replace(
-        /<p><em>Os dashboards serão inseridos automaticamente aqui\.<\/em><\/p>/,
-        dashboardsSection
-      );
-
-      const meetingData = {
-        title: generateTitle(formData.meeting_date),
-        meeting_date: formData.meeting_date,
-        participants: participants.length > 0 ? participants : null,
-        content: finalContent,
-        action_items: actionItems.length > 0 ? actionItems : null,
-        linked_dashboards: selectedDashboards.length > 0 ? selectedDashboards : null,
-        linked_tasks: selectedTasks.length > 0 ? selectedTasks : null,
-      };
-
-      if (editingId) {
-        const { error } = await supabase
-          .from("meeting_minutes")
-          .update(meetingData)
-          .eq("id", editingId);
-
-        if (error) throw error;
-        toast.success("Reunião atualizada com sucesso!");
-      } else {
-        const { error } = await supabase.from("meeting_minutes").insert({
-          ...meetingData,
-          client_id: clientId,
-          created_by: user?.id,
-        });
-
-        if (error) throw error;
-        toast.success("Reunião criada com sucesso! Link de compartilhamento gerado.");
-      }
-
-      setDialogOpen(false);
-      setEditingId(null);
-      setFormData({
-        meeting_date: "",
-        participants: "",
-        content: "",
-        action_items: "",
-      });
-      setSelectedDashboards([]);
-      setSelectedTasks([]);
-      fetchMeetings();
-    } catch (error) {
-      console.error("Erro ao salvar reunião:", error);
-      toast.error(editingId ? "Erro ao atualizar reunião" : "Erro ao criar reunião");
-    }
-  };
-
-  const handleDashboardToggle = (dashboardId: string) => {
-    setSelectedDashboards(prev =>
-      prev.includes(dashboardId)
-        ? prev.filter(id => id !== dashboardId)
-        : [...prev, dashboardId]
-    );
-  };
-
-  const handleTaskToggle = (taskId: string) => {
-    setSelectedTasks(prev =>
-      prev.includes(taskId)
-        ? prev.filter(id => id !== taskId)
-        : [...prev, taskId]
-    );
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -424,7 +281,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Reuniões</h2>
-        <Button onClick={() => handleOpenDialog()}>
+        <Button onClick={handleCreateMeeting}>
           <Plus className="mr-2 h-4 w-4" />
           Nova Reunião
         </Button>
@@ -434,278 +291,138 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center h-64">
             <p className="text-muted-foreground mb-4">Nenhuma reunião encontrada</p>
-            <Button onClick={() => handleOpenDialog()}>
+            <Button onClick={handleCreateMeeting}>
               <Plus className="mr-2 h-4 w-4" />
               Criar Primeira Reunião
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {meetings.map((meeting) => (
-            <Card key={meeting.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{meeting.title}</CardTitle>
-                    {meeting.linked_dashboards && meeting.linked_dashboards.length > 0 && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <LayoutDashboard className="h-3 w-3 text-muted-foreground" />
-                        {meeting.linked_dashboards.map(dashId => {
-                          const dashboard = dashboards.find(d => d.id === dashId);
-                          return dashboard ? (
-                            <Badge key={dashId} variant="secondary" className="text-xs">
-                              {dashboard.name}
-                            </Badge>
-                          ) : null;
+            <Card key={meeting.id} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-base leading-tight mb-2">
+                      {meeting.title}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">
+                        {new Date(meeting.meeting_date).toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
                         })}
-                      </div>
-                    )}
-                    {meeting.linked_tasks && meeting.linked_tasks.length > 0 && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <CheckSquare className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
-                          {meeting.linked_tasks.length} atividade(s) vinculada(s)
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleShare(meeting)}
-                      title="Compartilhar"
-                    >
-                      <Share2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDownloadPDF(meeting)}
-                      disabled={downloadingId === meeting.id}
-                      title="Baixar PDF"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleOpenDialog(meeting)}
-                      title="Editar"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteClick(meeting)}
-                      title="Deletar"
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      </span>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  {new Date(meeting.meeting_date).toLocaleDateString("pt-BR", {
-                    dateStyle: "long",
-                  })}
-                </div>
+                {meeting.linked_dashboards && meeting.linked_dashboards.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <LayoutDashboard className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <div className="flex flex-wrap gap-1">
+                      {meeting.linked_dashboards.slice(0, 3).map(dashId => {
+                        const dashboard = dashboards.find(d => d.id === dashId);
+                        return dashboard ? (
+                          <Badge key={dashId} variant="secondary" className="text-xs">
+                            {dashboard.name}
+                          </Badge>
+                        ) : null;
+                      })}
+                      {meeting.linked_dashboards.length > 3 && (
+                        <Badge variant="secondary" className="text-xs">
+                          +{meeting.linked_dashboards.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {meeting.linked_tasks && meeting.linked_tasks.length > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckSquare className="h-3 w-3 flex-shrink-0" />
+                    <span>{meeting.linked_tasks.length} atividade(s)</span>
+                  </div>
+                )}
+
                 {meeting.participants && meeting.participants.length > 0 && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    {meeting.participants.join(", ")}
+                    <Users className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{meeting.participants.slice(0, 2).join(", ")}</span>
+                    {meeting.participants.length > 2 && (
+                      <span>+{meeting.participants.length - 2}</span>
+                    )}
                   </div>
                 )}
-                <MeetingViewer content={meeting.content} />
-                {meeting.action_items && meeting.action_items.length > 0 && (
-                  <div className="border-t pt-3">
-                    <p className="text-sm font-medium mb-2">Itens de Ação:</p>
-                    <ul className="list-disc list-inside text-sm space-y-1">
-                      {meeting.action_items.map((item, idx) => (
-                        <li key={idx} className="text-muted-foreground">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+
+                <div className="flex gap-1 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleEditMeeting(meeting.id)}
+                  >
+                    <Pencil className="h-3 w-3 mr-1" />
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleShare(meeting)}
+                    title="Compartilhar"
+                  >
+                    <Share2 className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDownloadPDF(meeting)}
+                    disabled={downloadingId === meeting.id}
+                    title="Baixar PDF"
+                  >
+                    <Download className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteClick(meeting)}
+                    title="Deletar"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Editar Reunião" : "Nova Reunião"}</DialogTitle>
-            <DialogDescription>
-              {editingId 
-                ? "Atualize os detalhes da reunião. O título será gerado automaticamente."
-                : "Registre os detalhes da reunião com o cliente. O título será gerado automaticamente no formato 'Vivaz - [Cliente] - [Data]'."
-              }
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="meeting_date">Data da Reunião *</Label>
-                <Input
-                  id="meeting_date"
-                  type="datetime-local"
-                  value={formData.meeting_date}
-                  onChange={(e) =>
-                    setFormData({ ...formData, meeting_date: e.target.value })
-                  }
-                  required
-                />
-                {formData.meeting_date && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Título: {generateTitle(formData.meeting_date)}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="participants">
-                  Participantes (separados por vírgula)
-                </Label>
-                <Input
-                  id="participants"
-                  value={formData.participants}
-                  onChange={(e) =>
-                    setFormData({ ...formData, participants: e.target.value })
-                  }
-                  placeholder="João Silva, Maria Santos, etc."
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Dashboards a Incluir na Reunião</Label>
-                <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto bg-muted/30">
-                  {dashboards.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhum dashboard disponível</p>
-                  ) : (
-                    dashboards.map(dashboard => (
-                      <div key={dashboard.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`dashboard-${dashboard.id}`}
-                          checked={selectedDashboards.includes(dashboard.id)}
-                          onCheckedChange={() => handleDashboardToggle(dashboard.id)}
-                        />
-                        <label
-                          htmlFor={`dashboard-${dashboard.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          {dashboard.name} <span className="text-xs text-muted-foreground">({dashboard.dashboard_type})</span>
-                        </label>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {selectedDashboards.length === 0 
-                    ? "Nenhum dashboard selecionado" 
-                    : `${selectedDashboards.length} dashboard(s) selecionado(s)`}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Atividades a Vincular</Label>
-                <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto bg-muted/30">
-                  {tasks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhuma atividade disponível</p>
-                  ) : (
-                    tasks.map(task => (
-                      <div key={task.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`task-${task.id}`}
-                          checked={selectedTasks.includes(task.id)}
-                          onCheckedChange={() => handleTaskToggle(task.id)}
-                        />
-                        <label
-                          htmlFor={`task-${task.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          {task.title}
-                        </label>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {selectedTasks.length === 0 
-                    ? "Nenhuma atividade vinculada" 
-                    : `${selectedTasks.length} atividade(s) vinculada(s)`}
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <Label>Conteúdo da Reunião *</Label>
-              <RichTextEditor
-                content={formData.content}
-                onChange={(content) =>
-                  setFormData({ ...formData, content })
-                }
-                placeholder="Use o template estruturado ou personalize conforme necessário. Você pode colar imagens (Ctrl+V), adicionar formatação, títulos, listas e incorporar vídeos do YouTube."
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="action_items">
-                Itens de Ação Adicionais (separados por vírgula)
-              </Label>
-              <Input
-                id="action_items"
-                value={formData.action_items}
-                onChange={(e) =>
-                  setFormData({ ...formData, action_items: e.target.value })
-                }
-                placeholder="Aprovar orçamento, Agendar próxima reunião, Revisar layout"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                As atividades vinculadas também serão incluídas automaticamente como itens de ação.
-              </p>
-            </div>
-
-            <Button type="submit" className="w-full">
-              {editingId ? "Atualizar Reunião" : "Criar Reunião"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {selectedMeeting && selectedMeeting.share_token && (
+      {selectedMeeting && (
         <ShareMeetingDialog
+          shareToken={selectedMeeting.share_token || ""}
+          meetingTitle={selectedMeeting.title}
           open={shareDialogOpen}
           onOpenChange={setShareDialogOpen}
-          shareToken={selectedMeeting.share_token}
-          meetingTitle={selectedMeeting.title}
         />
       )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza que deseja deletar esta reunião?</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. A reunião "{selectedMeeting?.title}" será permanentemente removida do sistema, incluindo seu link de compartilhamento.
+              Tem certeza que deseja deletar esta reunião? Esta ação não pode ser
+              desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Deletar Reunião
+            <AlertDialogAction onClick={handleDeleteConfirm}>
+              Deletar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
