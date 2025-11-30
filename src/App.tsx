@@ -18,6 +18,7 @@ import Messages from "./pages/Messages";
 import Users from "./pages/Users";
 import SharedMeeting from "./pages/SharedMeeting";
 import NotFound from "./pages/NotFound";
+import Financial from "./pages/Financial";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/integracoes/:id" element={<Integrations />} />
           <Route path="/mensagens" element={<Messages />} />
           <Route path="/usuarios" element={<Users />} />
+          <Route path="/financeiro" element={<Financial />} />
           <Route path="/atas/:token" element={<SharedMeeting />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

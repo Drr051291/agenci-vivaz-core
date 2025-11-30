@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      asaas_config: {
+        Row: {
+          api_key_encrypted: string
+          created_at: string | null
+          environment: string | null
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          api_key_encrypted: string
+          created_at?: string | null
+          environment?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          api_key_encrypted?: string
+          created_at?: string | null
+          environment?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      asaas_customer_links: {
+        Row: {
+          asaas_customer_cpf_cnpj: string | null
+          asaas_customer_email: string | null
+          asaas_customer_id: string
+          asaas_customer_name: string | null
+          client_id: string
+          created_at: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          asaas_customer_cpf_cnpj?: string | null
+          asaas_customer_email?: string | null
+          asaas_customer_id: string
+          asaas_customer_name?: string | null
+          client_id: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          asaas_customer_cpf_cnpj?: string | null
+          asaas_customer_email?: string | null
+          asaas_customer_id?: string
+          asaas_customer_name?: string | null
+          client_id?: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asaas_customer_links_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_dashboards: {
         Row: {
           client_id: string
