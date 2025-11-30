@@ -42,7 +42,10 @@ Deno.serve(async (req) => {
 
     const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID');
     const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET');
-    const REDIRECT_URI = 'https://hub-vivaz.lovable.app/google-calendar/callback';
+    
+    // Get the origin from the request to build the correct redirect URI
+    const origin = req.headers.get('origin') || 'https://hub-vivaz.lovable.app';
+    const REDIRECT_URI = `${origin}/google-calendar/callback`;
 
     console.log('Google Calendar action:', action);
 
