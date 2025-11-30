@@ -11,6 +11,8 @@ interface GoogleTokenResponse {
   expires_in: number;
   scope: string;
   token_type: string;
+  error?: string;
+  error_description?: string;
 }
 
 Deno.serve(async (req) => {
@@ -44,8 +46,11 @@ Deno.serve(async (req) => {
     const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET');
     
     // Get the origin from the request to build the correct redirect URI
-    const origin = req.headers.get('origin') || 'https://hub-vivaz.lovable.app';
+    // Support both custom domain and lovable domains
+    const origin = req.headers.get('origin') || req.headers.get('referer')?.split('/')[0] + '//' + req.headers.get('referer')?.split('/')[2] || 'https://hub.vivazagencia.com.br';
     const REDIRECT_URI = `${origin}/google-calendar/callback`;
+    
+    console.log('Using redirect URI:', REDIRECT_URI);
 
     console.log('Google Calendar action:', action);
 
@@ -70,7 +75,10 @@ Deno.serve(async (req) => {
       const body = await req.json();
       const code = body.code;
 
+      console.log('Processing callback with redirect URI:', REDIRECT_URI);
+
       if (!code) {
+        console.error('Missing authorization code in callback');
         return new Response(JSON.stringify({ error: 'Missing authorization code' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -92,12 +100,18 @@ Deno.serve(async (req) => {
       const tokens: GoogleTokenResponse = await tokenResponse.json();
 
       if (!tokenResponse.ok) {
-        console.error('Token exchange error:', tokens);
-        return new Response(JSON.stringify({ error: 'Token exchange failed' }), {
+        console.error('Token exchange error:', JSON.stringify(tokens, null, 2));
+        const errorMessage = tokens.error_description || tokens.error || 'Token exchange failed';
+        return new Response(JSON.stringify({ 
+          error: errorMessage,
+          details: tokens 
+        }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
+      console.log('Token exchange successful, saving to database');
 
       // Save tokens to database
       const tokenExpiry = new Date(Date.now() + tokens.expires_in * 1000);
@@ -117,6 +131,8 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
+      console.log('Google Calendar connected successfully for user:', user.id);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
