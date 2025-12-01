@@ -72,6 +72,15 @@ export function DashboardList({ clientId }: DashboardListProps) {
     };
   };
 
+  const getDisplayName = (dashboard: Dashboard) => {
+    // If name looks like a URL, show a generic name based on platform
+    if (dashboard.name.startsWith("http://") || dashboard.name.startsWith("https://")) {
+      const platform = getPlatformInfo(dashboard.dashboard_type);
+      return `Dashboard ${platform.name}`;
+    }
+    return dashboard.name;
+  };
+
   const handleViewDashboard = (dashboardId: string) => {
     setSelectedDashboardId(dashboardId);
     setDialogOpen(true);
@@ -112,7 +121,7 @@ export function DashboardList({ clientId }: DashboardListProps) {
                         <Icon className="h-5 w-5" />
                       </div>
                       <div>
-                        <h3 className="font-medium text-base">{dashboard.name}</h3>
+                        <h3 className="font-medium text-base">{getDisplayName(dashboard)}</h3>
                         <Badge className={`${platform.color} border text-xs mt-1`}>
                           {platform.name}
                         </Badge>
