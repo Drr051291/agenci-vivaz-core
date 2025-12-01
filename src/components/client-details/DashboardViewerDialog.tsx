@@ -89,54 +89,54 @@ export function DashboardViewerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] w-[98vw] h-[98vh] p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-4 py-2 border-b flex-row items-center justify-between space-y-0 shrink-0">
-          <div className="flex items-center gap-2 flex-1">
+      <DialogContent className="max-w-[99vw] w-[99vw] h-[99vh] p-0 gap-0 overflow-hidden border-0">
+        <DialogHeader className="px-2 py-1 border-b flex-row items-center justify-between space-y-0 shrink-0 h-8 min-h-8">
+          <div className="flex items-center gap-1 flex-1">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-6 w-6"
               onClick={handlePrevious}
               disabled={currentIndex === 0}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3 w-3" />
             </Button>
 
-            <DialogTitle className="text-sm font-medium truncate max-w-[300px]">
+            <DialogTitle className="text-xs font-medium truncate max-w-[250px]">
               {getDisplayName(currentDashboard.name, currentDashboard.dashboard_type)}
             </DialogTitle>
 
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-6 w-6"
               onClick={handleNext}
               disabled={currentIndex === dashboards.length - 1}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3 w-3" />
             </Button>
 
-            <span className="text-xs text-muted-foreground ml-2">
-              {currentIndex + 1} de {dashboards.length}
+            <span className="text-[10px] text-muted-foreground ml-1">
+              {currentIndex + 1}/{dashboards.length}
             </span>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-6 w-6"
               onClick={() => setIframeKey(prev => prev + 1)}
               title="Atualizar"
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className="h-3 w-3" />
             </Button>
 
             {currentDashboard.embed_url && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-6 w-6"
                 asChild
                 title="Abrir em Nova Aba"
               >
@@ -145,7 +145,7 @@ export function DashboardViewerDialog({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-3 w-3" />
                 </a>
               </Button>
             )}
@@ -153,10 +153,10 @@ export function DashboardViewerDialog({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-6 w-6"
               onClick={() => onOpenChange(false)}
             >
-              <X className="h-4 w-4" />
+              <X className="h-3 w-3" />
             </Button>
           </div>
         </DialogHeader>
