@@ -1,12 +1,8 @@
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { X, ChevronLeft, ChevronRight, ExternalLink, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Dashboard {
   id: string;
@@ -45,6 +41,9 @@ export function DashboardViewerDialog({
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
         handleNext();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        onOpenChange(false);
       }
     };
 
@@ -88,95 +87,103 @@ export function DashboardViewerDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[99vw] w-[99vw] h-[99vh] p-0 gap-0 overflow-hidden border-0">
-        <DialogHeader className="px-2 py-1 border-b flex-row items-center justify-between space-y-0 shrink-0 h-8 min-h-8">
-          <div className="flex items-center gap-1 flex-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={handlePrevious}
-              disabled={currentIndex === 0}
-            >
-              <ChevronLeft className="h-3 w-3" />
-            </Button>
-
-            <DialogTitle className="text-xs font-medium truncate max-w-[250px]">
-              {getDisplayName(currentDashboard.name, currentDashboard.dashboard_type)}
-            </DialogTitle>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={handleNext}
-              disabled={currentIndex === dashboards.length - 1}
-            >
-              <ChevronRight className="h-3 w-3" />
-            </Button>
-
-            <span className="text-[10px] text-muted-foreground ml-1">
-              {currentIndex + 1}/{dashboards.length}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-0.5">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={() => setIframeKey(prev => prev + 1)}
-              title="Atualizar"
-            >
-              <RefreshCw className="h-3 w-3" />
-            </Button>
-
-            {currentDashboard.embed_url && (
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80" />
+        <DialogPrimitive.Content 
+          className="fixed inset-0 z-50 flex flex-col bg-background"
+          onEscapeKeyDown={() => onOpenChange(false)}
+        >
+          {/* Header minimalista */}
+          <div className="flex items-center justify-between px-2 h-7 min-h-7 border-b bg-background shrink-0">
+            <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
-                asChild
-                title="Abrir em Nova Aba"
+                className="h-5 w-5"
+                onClick={handlePrevious}
+                disabled={currentIndex === 0}
               >
-                <a
-                  href={currentDashboard.embed_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                <ChevronLeft className="h-3 w-3" />
               </Button>
-            )}
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={() => onOpenChange(false)}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
-        </DialogHeader>
+              <span className="text-xs font-medium truncate max-w-[200px]">
+                {getDisplayName(currentDashboard.name, currentDashboard.dashboard_type)}
+              </span>
 
-        <div className="flex-1 min-h-0">
-          {currentDashboard.embed_url ? (
-            <iframe
-              key={iframeKey}
-              src={getEmbedUrl(currentDashboard.embed_url, currentDashboard.dashboard_type)}
-              className="w-full h-full border-0"
-              title={currentDashboard.name}
-              allow="fullscreen"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full bg-muted/20">
-              <p className="text-muted-foreground">Dashboard sem URL configurada</p>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                onClick={handleNext}
+                disabled={currentIndex === dashboards.length - 1}
+              >
+                <ChevronRight className="h-3 w-3" />
+              </Button>
+
+              <span className="text-[10px] text-muted-foreground">
+                {currentIndex + 1}/{dashboards.length}
+              </span>
             </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+
+            <div className="flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                onClick={() => setIframeKey(prev => prev + 1)}
+                title="Atualizar"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+
+              {currentDashboard.embed_url && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  asChild
+                  title="Abrir em Nova Aba"
+                >
+                  <a
+                    href={currentDashboard.embed_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </Button>
+              )}
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                onClick={() => onOpenChange(false)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Iframe fullscreen */}
+          <div className="flex-1 w-full h-full">
+            {currentDashboard.embed_url ? (
+              <iframe
+                key={iframeKey}
+                src={getEmbedUrl(currentDashboard.embed_url, currentDashboard.dashboard_type)}
+                className="w-full h-full border-0"
+                title={currentDashboard.name}
+                allow="fullscreen"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full bg-muted/20">
+                <p className="text-muted-foreground">Dashboard sem URL configurada</p>
+              </div>
+            )}
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
