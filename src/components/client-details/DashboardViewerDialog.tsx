@@ -78,40 +78,54 @@ export function DashboardViewerDialog({
 
   if (!currentDashboard) return null;
 
+  const getDisplayName = (name: string, type: string) => {
+    if (name.startsWith("http://") || name.startsWith("https://")) {
+      const platformName = type === "analytics" || type === "reportei" ? "Reportei" : 
+                          type === "pipedrive" ? "Pipedrive" : type;
+      return `Dashboard ${platformName}`;
+    }
+    return name;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] h-[95vh] p-0 gap-0">
-        <DialogHeader className="px-6 py-4 border-b flex-row items-center justify-between space-y-0">
-          <div className="flex items-center gap-3 flex-1">
+      <DialogContent className="max-w-[98vw] w-[98vw] h-[98vh] p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-4 py-2 border-b flex-row items-center justify-between space-y-0 shrink-0">
+          <div className="flex items-center gap-2 flex-1">
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-8 w-8"
               onClick={handlePrevious}
               disabled={currentIndex === 0}
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Anterior
+              <ChevronLeft className="h-4 w-4" />
             </Button>
 
-            <DialogTitle className="text-base font-medium">
-              {currentDashboard.name}
+            <DialogTitle className="text-sm font-medium truncate max-w-[300px]">
+              {getDisplayName(currentDashboard.name, currentDashboard.dashboard_type)}
             </DialogTitle>
 
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-8 w-8"
               onClick={handleNext}
               disabled={currentIndex === dashboards.length - 1}
             >
-              Próximo
-              <ChevronRight className="h-4 w-4 ml-1" />
+              <ChevronRight className="h-4 w-4" />
             </Button>
+
+            <span className="text-xs text-muted-foreground ml-2">
+              {currentIndex + 1} de {dashboards.length}
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-8 w-8"
               onClick={() => setIframeKey(prev => prev + 1)}
               title="Atualizar"
             >
@@ -121,7 +135,8 @@ export function DashboardViewerDialog({
             {currentDashboard.embed_url && (
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="h-8 w-8"
                 asChild
                 title="Abrir em Nova Aba"
               >
@@ -137,7 +152,8 @@ export function DashboardViewerDialog({
 
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-8 w-8"
               onClick={() => onOpenChange(false)}
             >
               <X className="h-4 w-4" />
@@ -145,17 +161,17 @@ export function DashboardViewerDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 p-4">
+        <div className="flex-1 min-h-0">
           {currentDashboard.embed_url ? (
             <iframe
               key={iframeKey}
               src={getEmbedUrl(currentDashboard.embed_url, currentDashboard.dashboard_type)}
-              className="w-full h-full border-0 rounded-lg"
+              className="w-full h-full border-0"
               title={currentDashboard.name}
               allow="fullscreen"
             />
           ) : (
-            <div className="flex items-center justify-center h-full border rounded-lg bg-muted/20">
+            <div className="flex items-center justify-center h-full bg-muted/20">
               <p className="text-muted-foreground">Dashboard sem URL configurada</p>
             </div>
           )}
