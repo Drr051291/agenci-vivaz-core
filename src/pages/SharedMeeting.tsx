@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface MeetingMinute {
   id: string;
@@ -157,7 +158,7 @@ export default function SharedMeeting() {
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                {new Date(meeting.meeting_date).toLocaleDateString("pt-BR", {
+                {parseLocalDate(meeting.meeting_date).toLocaleDateString("pt-BR", {
                   dateStyle: "long",
                 })}
               </div>

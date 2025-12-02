@@ -8,6 +8,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Calendar, Users, CheckSquare, FileText, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -128,7 +129,7 @@ export default function ClientMeetings() {
       tempDiv.innerHTML = `
         <div style="font-family: Arial, sans-serif;">
           <h1 style="margin-bottom: 20px; font-size: 24px;">${meeting.title}</h1>
-          <p style="margin-bottom: 10px;"><strong>Data:</strong> ${format(new Date(meeting.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
+          <p style="margin-bottom: 10px;"><strong>Data:</strong> ${format(parseLocalDate(meeting.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
           ${meeting.participants && meeting.participants.length > 0 ? `<p style="margin-bottom: 20px;"><strong>Participantes:</strong> ${meeting.participants.join(", ")}</p>` : ""}
           <hr style="margin: 30px 0; border: none; border-top: 2px solid #ddd;" />
           <div style="margin-bottom: 30px;">
@@ -238,7 +239,7 @@ export default function ClientMeetings() {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                           <div className="flex items-center gap-1.5">
                             <Calendar className="h-3.5 w-3.5" />
-                            <span>{format(new Date(meeting.meeting_date), "dd MMM yyyy", { locale: ptBR })}</span>
+                            <span>{format(parseLocalDate(meeting.meeting_date), "dd MMM yyyy", { locale: ptBR })}</span>
                           </div>
 
                           {linkedDashboardNames.length > 0 && (
