@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/meeting-editor/RichTextEditor";
 import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
@@ -11,12 +10,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar, Users, CheckSquare, LayoutDashboard, Presentation, X, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, CheckSquare, LayoutDashboard, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 interface Dashboard {
   id: string;
@@ -29,6 +31,12 @@ interface Task {
   id: string;
   title: string;
   status: string;
+}
+
+interface Profile {
+  id: string;
+  full_name: string;
+  email: string;
 }
 
 const AUTOSAVE_DELAY = 3000;
@@ -46,8 +54,11 @@ export default function MeetingEditor() {
   const [clientName, setClientName] = useState("");
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedDashboards, setSelectedDashboards] = useState<string[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [participantsOpen, setParticipantsOpen] = useState(false);
   const [meetingData, setMeetingData] = useState({
     meeting_date: "",
     participants: [] as string[],
@@ -164,6 +175,14 @@ export default function MeetingEditor() {
         .in("status", ["pending", "in_progress"]);
 
       setTasks(tasksData || []);
+
+      // Fetch profiles for participants selection
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .order("full_name");
+
+      setProfiles(profilesData || []);
 
       const { data: meetingDataRes, error } = await supabase
         .from("meeting_minutes")
@@ -372,8 +391,8 @@ export default function MeetingEditor() {
             <h1 className="text-4xl font-bold">{meetingData.title}</h1>
             <div className="flex flex-wrap gap-4 text-lg text-muted-foreground">
               <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                {format(parseLocalDate(meetingData.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                <CalendarIcon className="h-5 w-5" />
+                {meetingData.meeting_date ? format(parseLocalDate(meetingData.meeting_date.split('T')[0]), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : "—"}
               </div>
               {meetingData.participants && meetingData.participants.length > 0 && (
                 <div className="flex items-center gap-2">
@@ -533,23 +552,49 @@ export default function MeetingEditor() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+                <CalendarIcon className="h-4 w-4" />
                 Data da Reunião
               </label>
               {isEditMode ? (
-                <Input
-                  type="date"
-                  value={meetingData.meeting_date}
-                  onChange={(e) =>
-                    setMeetingData({
-                      ...meetingData,
-                      meeting_date: e.target.value,
-                    })
-                  }
-                />
+                <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !meetingData.meeting_date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {meetingData.meeting_date ? (
+                        format(parseLocalDate(meetingData.meeting_date.split('T')[0]), "dd/MM/yyyy", { locale: ptBR })
+                      ) : (
+                        <span>Selecione a data</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={meetingData.meeting_date ? parseLocalDate(meetingData.meeting_date.split('T')[0]) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          const formattedDate = format(date, "yyyy-MM-dd");
+                          setMeetingData({
+                            ...meetingData,
+                            meeting_date: formattedDate,
+                          });
+                        }
+                        setDatePickerOpen(false);
+                      }}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               ) : (
                 <p className="text-sm py-2">
-                  {format(parseLocalDate(meetingData.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  {meetingData.meeting_date ? format(parseLocalDate(meetingData.meeting_date.split('T')[0]), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : "—"}
                 </p>
               )}
             </div>
@@ -560,19 +605,58 @@ export default function MeetingEditor() {
                 Participantes
               </label>
               {isEditMode ? (
-                <Input
-                  placeholder="João Silva, Maria Santos..."
-                  value={meetingData.participants.join(", ")}
-                  onChange={(e) =>
-                    setMeetingData({
-                      ...meetingData,
-                      participants: e.target.value
-                        .split(",")
-                        .map((p) => p.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                />
+                <Popover open={participantsOpen} onOpenChange={setParticipantsOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal h-auto min-h-10",
+                        !meetingData.participants.length && "text-muted-foreground"
+                      )}
+                    >
+                      <Users className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">
+                        {meetingData.participants.length > 0 
+                          ? meetingData.participants.join(", ")
+                          : "Selecione participantes"}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar participante..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum participante encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {profiles.map((profile) => {
+                            const isSelected = meetingData.participants.includes(profile.full_name);
+                            return (
+                              <CommandItem
+                                key={profile.id}
+                                onSelect={() => {
+                                  const newParticipants = isSelected
+                                    ? meetingData.participants.filter(p => p !== profile.full_name)
+                                    : [...meetingData.participants, profile.full_name];
+                                  setMeetingData({
+                                    ...meetingData,
+                                    participants: newParticipants,
+                                  });
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Checkbox
+                                  checked={isSelected}
+                                  className="mr-2"
+                                />
+                                <span>{profile.full_name}</span>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               ) : (
                 <p className="text-sm py-2">
                   {meetingData.participants.length > 0 ? meetingData.participants.join(", ") : "—"}
