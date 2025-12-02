@@ -190,12 +190,13 @@ All colors MUST be HSL.
     margin: 1rem 0;
   }
 
-  /* TipTap Columns Styling - Grid layout for side-by-side content */
+  /* TipTap Columns Styling - Flexbox layout for side-by-side content */
   .ProseMirror .column-block,
-  .ProseMirror [data-type="column-group"] {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
+  .ProseMirror [data-type="column-group"],
+  .ProseMirror div.column-block,
+  .ProseMirror div[data-type="column-group"] {
+    display: flex !important;
+    flex-direction: row !important;
     gap: 1.5rem;
     width: 100%;
     margin: 0.5rem 0;
@@ -203,7 +204,10 @@ All colors MUST be HSL.
   }
 
   .ProseMirror .column,
-  .ProseMirror [data-type="column"] {
+  .ProseMirror [data-type="column"],
+  .ProseMirror div.column,
+  .ProseMirror div[data-type="column"] {
+    flex: 1 1 0%;
     min-width: 0;
     overflow: visible;
   }
@@ -220,19 +224,23 @@ All colors MUST be HSL.
     margin: 0.25rem 0;
   }
 
-  /* Prose viewer - Grid layout for side-by-side content */
+  /* Prose viewer - Flexbox layout for side-by-side content */
   .prose .column-block,
-  .prose [data-type="column-group"] {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
+  .prose [data-type="column-group"],
+  .prose div.column-block,
+  .prose div[data-type="column-group"] {
+    display: flex !important;
+    flex-direction: row !important;
     gap: 1.5rem;
     width: 100%;
     margin: 0.5rem 0;
   }
 
   .prose .column,
-  .prose [data-type="column"] {
+  .prose [data-type="column"],
+  .prose div.column,
+  .prose div[data-type="column"] {
+    flex: 1 1 0%;
     min-width: 0;
   }
 
