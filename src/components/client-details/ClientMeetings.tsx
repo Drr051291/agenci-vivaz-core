@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Users, Pencil, Share2, Download, Trash2, LayoutDashboard, CheckSquare } from "lucide-react";
+import { Plus, Users, Pencil, Share2, Download, Trash2, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -18,7 +18,6 @@ import {
 import { ShareMeetingDialog } from "@/components/meeting-editor/ShareMeetingDialog";
 import { ImportEventsDialog } from "@/components/calendar/ImportEventsDialog";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
-import { Badge } from "@/components/ui/badge";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { format } from "date-fns";
@@ -354,46 +353,11 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
               onClick={() => handleViewMeeting(meeting.id)}
             >
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-sm font-medium leading-tight mb-2">
-                      {meeting.title}
-                    </CardTitle>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">
-                        {new Date(meeting.meeting_date).toLocaleDateString("pt-BR", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                <CardTitle className="text-sm font-medium leading-tight">
+                  {meeting.title}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {meeting.linked_dashboards && meeting.linked_dashboards.length > 0 && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <LayoutDashboard className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <div className="flex flex-wrap gap-1">
-                      {meeting.linked_dashboards.slice(0, 3).map(dashId => {
-                        const dashboard = dashboards.find(d => d.id === dashId);
-                        return dashboard ? (
-                          <Badge key={dashId} variant="secondary" className="text-xs">
-                            {dashboard.name}
-                          </Badge>
-                        ) : null;
-                      })}
-                      {meeting.linked_dashboards.length > 3 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{meeting.linked_dashboards.length - 3}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
                 {meeting.linked_tasks && meeting.linked_tasks.length > 0 && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CheckSquare className="h-3 w-3 flex-shrink-0" />
