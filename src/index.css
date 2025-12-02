@@ -190,76 +190,57 @@ All colors MUST be HSL.
     margin: 1rem 0;
   }
 
-  /* TipTap Columns Styling */
-  .ProseMirror .column-group {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin: 1rem 0;
-    border: 1px solid hsl(var(--border));
-    border-radius: 0.5rem;
-    padding: 1rem;
-    background: hsl(var(--muted) / 0.2);
+  /* TipTap Columns Styling - Notion-like clean style */
+  .ProseMirror .column-group-wrapper {
+    display: block;
+    margin: 0.5rem 0;
+    width: 100%;
   }
 
-  .ProseMirror .column-group > div {
-    display: contents;
+  .ProseMirror .column-group-container {
+    display: flex;
+    gap: 1.5rem;
+    width: 100%;
   }
 
-  .ProseMirror .column {
-    min-height: 3rem;
+  .ProseMirror .column-group-content {
+    display: flex;
+    gap: 1.5rem;
+    width: 100%;
+  }
+
+  .ProseMirror .column-wrapper {
+    flex: 1;
     min-width: 0;
-    padding: 0.5rem;
-    border-right: 1px solid hsl(var(--border) / 0.5);
-  }
-
-  .ProseMirror .column:last-child {
-    border-right: none;
-  }
-
-  .ProseMirror .column .content {
-    height: 100%;
   }
 
   .ProseMirror .column-content {
-    min-height: 3rem;
+    min-height: 1.5rem;
   }
 
-  .ProseMirror .column img {
+  .ProseMirror .column-content p:first-child {
+    margin-top: 0;
+  }
+
+  .ProseMirror .column-content img {
     max-width: 100%;
     height: auto;
+    margin: 0.25rem 0;
+  }
+
+  /* Prose viewer - Notion-like clean style */
+  .prose [data-type="column-group"] {
+    display: flex;
+    gap: 1.5rem;
+    width: 100%;
     margin: 0.5rem 0;
   }
 
-  .prose .column-group,
-  .prose [data-type="column-group"] {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: 0.5rem;
-    padding: 1rem;
-    background: hsl(var(--muted) / 0.2);
-    margin: 1rem 0;
-  }
-
-  .prose .column,
   .prose [data-type="column"] {
+    flex: 1;
     min-width: 0;
-    padding-right: 1rem;
   }
 
-  .prose .column:not(:last-child),
-  .prose [data-type="column"]:not(:last-child) {
-    border-right: 1px solid hsl(var(--border) / 0.5);
-  }
-
-  .prose .column:last-child,
-  .prose [data-type="column"]:last-child {
-    padding-right: 0;
-  }
-
-  .prose .column img,
   .prose [data-type="column"] img {
     max-width: 100%;
     height: auto;
