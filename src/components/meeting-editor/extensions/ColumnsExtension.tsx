@@ -1,40 +1,30 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
-import { useEffect, useState } from 'react';
-import { GripVertical } from 'lucide-react';
 
-const ColumnGroupComponent = ({ node, updateAttributes }: any) => {
-  const columnCount = node.attrs.columnCount || 2;
-  const columnWidths = node.attrs.columnWidths || Array(columnCount).fill(100 / columnCount);
+const ColumnGroupComponent = ({ node }: any) => {
+  const columnCount = node.content?.childCount || 2;
 
   return (
     <NodeViewWrapper className="column-group my-4">
       <div 
-        className="flex gap-4 border border-border rounded-lg p-4 bg-muted/30"
-        style={{ display: 'flex' }}
+        className="flex gap-4 border border-border rounded-lg p-4 bg-muted/20"
+        style={{ 
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columnCount}, 1fr)`,
+          gap: '1rem'
+        }}
       >
-        {Array.from({ length: columnCount }).map((_, index) => (
-          <div
-            key={index}
-            className="column-item flex-1 min-w-0"
-            style={{ 
-              flex: `0 0 ${columnWidths[index]}%`,
-              paddingRight: index < columnCount - 1 ? '1rem' : '0',
-              borderRight: index < columnCount - 1 ? '1px solid hsl(var(--border))' : 'none'
-            }}
-            data-column-index={index}
-          />
-        ))}
+        <NodeViewContent />
       </div>
     </NodeViewWrapper>
   );
 };
 
-const ColumnComponent = ({ node }: any) => {
+const ColumnComponent = () => {
   return (
-    <NodeViewWrapper className="column" data-drag-handle>
-      <div className="column-content">
-        <NodeViewContent className="content" />
+    <NodeViewWrapper className="column min-w-0">
+      <div className="column-content h-full border-r border-border/50 last:border-r-0 pr-4 last:pr-0">
+        <NodeViewContent className="content prose prose-sm max-w-none" />
       </div>
     </NodeViewWrapper>
   );
@@ -44,14 +34,13 @@ export const ColumnGroup = Node.create({
   name: 'columnGroup',
   group: 'block',
   content: 'column+',
+  defining: true,
+  isolating: true,
   
   addAttributes() {
     return {
       columnCount: {
         default: 2,
-      },
-      columnWidths: {
-        default: null,
       },
     };
   },
@@ -65,7 +54,11 @@ export const ColumnGroup = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'column-group' }), 0];
+    return ['div', mergeAttributes(HTMLAttributes, { 
+      'data-type': 'column-group',
+      class: 'column-group',
+      style: 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;'
+    }), 0];
   },
 
   addNodeView() {
@@ -76,6 +69,8 @@ export const ColumnGroup = Node.create({
 export const Column = Node.create({
   name: 'column',
   content: 'block+',
+  defining: true,
+  isolating: true,
   
   parseHTML() {
     return [
@@ -86,7 +81,11 @@ export const Column = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'column' }), 0];
+    return ['div', mergeAttributes(HTMLAttributes, { 
+      'data-type': 'column',
+      class: 'column',
+      style: 'min-width: 0;'
+    }), 0];
   },
 
   addNodeView() {
