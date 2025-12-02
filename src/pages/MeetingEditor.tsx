@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Save, Calendar, Users, CheckSquare, LayoutDashboard, Presentation, X, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
@@ -369,7 +370,7 @@ export default function MeetingEditor() {
             <div className="flex flex-wrap gap-4 text-lg text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                {format(new Date(meetingData.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                {format(parseLocalDate(meetingData.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
               </div>
               {meetingData.participants && meetingData.participants.length > 0 && (
                 <div className="flex items-center gap-2">
@@ -545,7 +546,7 @@ export default function MeetingEditor() {
                 />
               ) : (
                 <p className="text-sm py-2">
-                  {format(new Date(meetingData.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  {format(parseLocalDate(meetingData.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                 </p>
               )}
             </div>
