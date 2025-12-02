@@ -605,26 +605,6 @@ export default function MeetingEditor() {
           </div>
         </Card>
 
-        {/* Dashboards Section */}
-        <Card className="p-6">
-          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <LayoutDashboard className="h-5 w-5" />
-            Dashboards Vinculados
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {dashboards.map((dashboard) => (
-              <DashboardCard
-                key={dashboard.id}
-                id={dashboard.id}
-                name={dashboard.name}
-                type={dashboard.dashboard_type}
-                embedUrl={dashboard.embed_url || undefined}
-                isSelected={selectedDashboards.includes(dashboard.id)}
-                onToggle={isEditMode ? handleDashboardToggle : undefined}
-              />
-            ))}
-          </div>
-        </Card>
 
         {/* Main Content Area */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
