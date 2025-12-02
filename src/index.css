@@ -190,57 +190,53 @@ All colors MUST be HSL.
     margin: 1rem 0;
   }
 
-  /* TipTap Columns Styling - Notion-like clean style */
-  .ProseMirror .column-group-wrapper {
-    display: block;
+  /* TipTap Columns Styling - Grid layout for side-by-side content */
+  .ProseMirror .column-block,
+  .ProseMirror [data-type="column-group"] {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 1.5rem;
+    width: 100%;
     margin: 0.5rem 0;
-    width: 100%;
+    padding: 0.5rem 0;
   }
 
-  .ProseMirror .column-group-container {
-    display: flex;
-    gap: 1.5rem;
-    width: 100%;
-  }
-
-  .ProseMirror .column-group-content {
-    display: flex;
-    gap: 1.5rem;
-    width: 100%;
-  }
-
-  .ProseMirror .column-wrapper {
-    flex: 1;
+  .ProseMirror .column,
+  .ProseMirror [data-type="column"] {
     min-width: 0;
+    overflow: visible;
   }
 
-  .ProseMirror .column-content {
-    min-height: 1.5rem;
-  }
-
-  .ProseMirror .column-content p:first-child {
+  .ProseMirror .column p:first-child,
+  .ProseMirror [data-type="column"] p:first-child {
     margin-top: 0;
   }
 
-  .ProseMirror .column-content img {
+  .ProseMirror .column img,
+  .ProseMirror [data-type="column"] img {
     max-width: 100%;
     height: auto;
     margin: 0.25rem 0;
   }
 
-  /* Prose viewer - Notion-like clean style */
+  /* Prose viewer - Grid layout for side-by-side content */
+  .prose .column-block,
   .prose [data-type="column-group"] {
-    display: flex;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     gap: 1.5rem;
     width: 100%;
     margin: 0.5rem 0;
   }
 
+  .prose .column,
   .prose [data-type="column"] {
-    flex: 1;
     min-width: 0;
   }
 
+  .prose .column img,
   .prose [data-type="column"] img {
     max-width: 100%;
     height: auto;
