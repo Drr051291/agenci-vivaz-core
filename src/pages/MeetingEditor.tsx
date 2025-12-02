@@ -195,13 +195,16 @@ export default function MeetingEditor() {
   const generateTitle = (meetingDate: string, createdAt?: string) => {
     // Se a data da reunião foi preenchida pelo analista, usar ela
     if (meetingDate && meetingDate.trim() !== '') {
-      const date = new Date(meetingDate);
+      // Extrair apenas a parte da data (YYYY-MM-DD) se vier com timestamp
+      const dateOnly = meetingDate.split('T')[0];
+      const date = parseLocalDate(dateOnly);
       const formattedDate = format(date, "dd/MM/yyyy", { locale: ptBR });
       return `Vivaz - ${clientName} - ${formattedDate}`;
     }
     // Caso contrário, usar a data de criação
     if (createdAt) {
-      const date = new Date(createdAt);
+      const dateOnly = createdAt.split('T')[0];
+      const date = parseLocalDate(dateOnly);
       const formattedDate = format(date, "dd/MM/yyyy", { locale: ptBR });
       return `Vivaz - ${clientName} - ${formattedDate}`;
     }
