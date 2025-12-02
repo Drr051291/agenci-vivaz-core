@@ -25,9 +25,9 @@ import {
   Undo,
   Redo,
   Table as TableIcon,
-  TableProperties,
   Plus,
   Minus,
+  Columns2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -294,6 +294,30 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
           title="Inserir Tabela"
         >
           <TableIcon className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            editor.chain().focus().insertContent({
+              type: 'columnGroup',
+              attrs: { columnCount: 2 },
+              content: [
+                {
+                  type: 'column',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Coluna 1' }] }],
+                },
+                {
+                  type: 'column',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Coluna 2' }] }],
+                },
+              ],
+            }).run();
+          }}
+          title="Inserir 2 Colunas (lado a lado)"
+        >
+          <Columns2 className="h-4 w-4" />
         </Button>
         <div className="w-px h-8 bg-border mx-1" />
         {editor.isActive('table') && (
