@@ -1,32 +1,4 @@
 import { Node, mergeAttributes } from '@tiptap/core';
-import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
-
-const ColumnGroupComponent = ({ node }: any) => {
-  const columnCount = node.attrs.columnCount || 2;
-
-  return (
-    <NodeViewWrapper className="column-group-wrapper">
-      <div 
-        className="column-group-container"
-        style={{ 
-          display: 'flex',
-          gap: '1.5rem',
-          width: '100%',
-        }}
-      >
-        <NodeViewContent className="column-group-content" />
-      </div>
-    </NodeViewWrapper>
-  );
-};
-
-const ColumnComponent = () => {
-  return (
-    <NodeViewWrapper className="column-wrapper" style={{ flex: 1, minWidth: 0 }}>
-      <NodeViewContent className="column-content" />
-    </NodeViewWrapper>
-  );
-};
 
 export const ColumnGroup = Node.create({
   name: 'columnGroup',
@@ -54,12 +26,8 @@ export const ColumnGroup = Node.create({
   renderHTML({ HTMLAttributes }) {
     return ['div', mergeAttributes(HTMLAttributes, { 
       'data-type': 'column-group',
-      style: 'display: flex; gap: 1.5rem; width: 100%;'
+      class: 'column-block',
     }), 0];
-  },
-
-  addNodeView() {
-    return ReactNodeViewRenderer(ColumnGroupComponent);
   },
 });
 
@@ -80,11 +48,7 @@ export const Column = Node.create({
   renderHTML({ HTMLAttributes }) {
     return ['div', mergeAttributes(HTMLAttributes, { 
       'data-type': 'column',
-      style: 'flex: 1; min-width: 0;'
+      class: 'column',
     }), 0];
-  },
-
-  addNodeView() {
-    return ReactNodeViewRenderer(ColumnComponent);
   },
 });
