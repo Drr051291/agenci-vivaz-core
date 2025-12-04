@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ShareMeetingDialog } from "@/components/meeting-editor/ShareMeetingDialog";
-import { ImportEventsDialog } from "@/components/calendar/ImportEventsDialog";
+import { GoogleCalendarManager } from "@/components/calendar/GoogleCalendarManager";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -322,10 +322,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         <h2 className="text-xl font-bold">Reuniões</h2>
         <div className="flex gap-2">
           {isConnected && (
-            <ImportEventsDialog 
-              clientId={clientId} 
-              onImportEvent={handleImportEvent}
-            />
+            <GoogleCalendarManager onImportEvent={handleImportEvent} />
           )}
           <Button onClick={handleCreateMeeting}>
             <Plus className="mr-2 h-4 w-4" />

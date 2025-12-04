@@ -311,6 +311,174 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Update event in Google Calendar
+    if (action === 'update-event' && req.method === 'PUT') {
+      const body = await req.json();
+      const { eventId, summary, description, startDateTime, endDateTime, attendees } = body;
+
+      if (!eventId) {
+        return new Response(JSON.stringify({ error: 'Missing event ID' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: tokenData } = await supabaseClient
+        .from('google_calendar_tokens')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!tokenData) {
+        return new Response(JSON.stringify({ error: 'Not connected to Google Calendar' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Refresh token if expired
+      let accessToken = tokenData.access_token;
+      if (new Date(tokenData.token_expiry) < new Date()) {
+        const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: GOOGLE_CLIENT_ID!,
+            client_secret: GOOGLE_CLIENT_SECRET!,
+            refresh_token: tokenData.refresh_token,
+            grant_type: 'refresh_token',
+          }),
+        });
+
+        const newTokens: GoogleTokenResponse = await refreshResponse.json();
+        accessToken = newTokens.access_token;
+
+        const tokenExpiry = new Date(Date.now() + newTokens.expires_in * 1000);
+        await supabaseClient
+          .from('google_calendar_tokens')
+          .update({
+            access_token: newTokens.access_token,
+            token_expiry: tokenExpiry.toISOString(),
+          })
+          .eq('user_id', user.id);
+      }
+
+      // Update event
+      const event = {
+        summary,
+        description,
+        start: {
+          dateTime: startDateTime,
+          timeZone: 'America/Sao_Paulo',
+        },
+        end: {
+          dateTime: endDateTime,
+          timeZone: 'America/Sao_Paulo',
+        },
+        attendees: attendees?.map((email: string) => ({ email })) || [],
+      };
+
+      const updateResponse = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(event),
+        }
+      );
+
+      const updatedEvent = await updateResponse.json();
+
+      if (!updateResponse.ok) {
+        console.error('Event update error:', updatedEvent);
+        return new Response(JSON.stringify({ error: 'Failed to update event' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify(updatedEvent), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Delete event from Google Calendar
+    if (action === 'delete-event' && req.method === 'DELETE') {
+      const eventId = url.searchParams.get('eventId');
+
+      if (!eventId) {
+        return new Response(JSON.stringify({ error: 'Missing event ID' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: tokenData } = await supabaseClient
+        .from('google_calendar_tokens')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!tokenData) {
+        return new Response(JSON.stringify({ error: 'Not connected to Google Calendar' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Refresh token if expired
+      let accessToken = tokenData.access_token;
+      if (new Date(tokenData.token_expiry) < new Date()) {
+        const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: GOOGLE_CLIENT_ID!,
+            client_secret: GOOGLE_CLIENT_SECRET!,
+            refresh_token: tokenData.refresh_token,
+            grant_type: 'refresh_token',
+          }),
+        });
+
+        const newTokens: GoogleTokenResponse = await refreshResponse.json();
+        accessToken = newTokens.access_token;
+
+        const tokenExpiry = new Date(Date.now() + newTokens.expires_in * 1000);
+        await supabaseClient
+          .from('google_calendar_tokens')
+          .update({
+            access_token: newTokens.access_token,
+            token_expiry: tokenExpiry.toISOString(),
+          })
+          .eq('user_id', user.id);
+      }
+
+      const deleteResponse = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!deleteResponse.ok && deleteResponse.status !== 204) {
+        console.error('Event deletion error');
+        return new Response(JSON.stringify({ error: 'Failed to delete event' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Disconnect Google Calendar
     if (action === 'disconnect' && req.method === 'DELETE') {
       const { error } = await supabaseClient
