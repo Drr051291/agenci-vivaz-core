@@ -168,7 +168,7 @@ export function TaskDialog({ open, onOpenChange, clientId, onSuccess }: TaskDial
         title,
         description: description || null,
         category: selectedType.category,
-        status: selectedType.defaultStatus,
+        status: "pendente", // Sempre começa como pendente
         priority: priority as any,
         due_date: due_date || null,
         assigned_to: assigned_to || null,
