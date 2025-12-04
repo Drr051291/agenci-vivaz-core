@@ -41,6 +41,7 @@ import {
 import { toast } from "sonner";
 
 interface GoogleCalendarManagerProps {
+  clientEmail?: string;
   onImportEvent?: (event: {
     title: string;
     date: Date;
@@ -49,12 +50,13 @@ interface GoogleCalendarManagerProps {
   }) => Promise<void>;
 }
 
-export const GoogleCalendarManager = ({ onImportEvent }: GoogleCalendarManagerProps) => {
+export const GoogleCalendarManager = ({ clientEmail, onImportEvent }: GoogleCalendarManagerProps) => {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("events");
   const [importing, setImporting] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
   const [deleteEventId, setDeleteEventId] = useState<string | null>(null);
+  const [showOnlyClientEvents, setShowOnlyClientEvents] = useState(true);
   
   // Create event form state
   const [newEvent, setNewEvent] = useState({
@@ -79,6 +81,13 @@ export const GoogleCalendarManager = ({ onImportEvent }: GoogleCalendarManagerPr
     deleteEvent,
     isDeletingEvent,
   } = useGoogleCalendar();
+
+  // Filter events that contain the client's email as attendee
+  const filteredEvents = events?.filter((event) => {
+    if (!showOnlyClientEvents || !clientEmail) return true;
+    const attendeeEmails = event.attendees?.map((a: any) => a.email?.toLowerCase()) || [];
+    return attendeeEmails.includes(clientEmail.toLowerCase());
+  });
 
   if (!isConnected) {
     return null;
@@ -243,7 +252,21 @@ export const GoogleCalendarManager = ({ onImportEvent }: GoogleCalendarManagerPr
             </TabsList>
 
             <TabsContent value="events" className="mt-4">
-              <div className="flex justify-end mb-3">
+              <div className="flex items-center justify-between mb-3">
+                {clientEmail && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="filterByClient"
+                      checked={showOnlyClientEvents}
+                      onChange={(e) => setShowOnlyClientEvents(e.target.checked)}
+                      className="rounded border-border"
+                    />
+                    <Label htmlFor="filterByClient" className="text-sm cursor-pointer">
+                      Apenas eventos do cliente ({clientEmail})
+                    </Label>
+                  </div>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -260,9 +283,9 @@ export const GoogleCalendarManager = ({ onImportEvent }: GoogleCalendarManagerPr
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
-                ) : events && events.length > 0 ? (
+                ) : filteredEvents && filteredEvents.length > 0 ? (
                   <div className="space-y-3">
-                    {events.map((event) => {
+                    {filteredEvents.map((event) => {
                       const startDate = event.start.dateTime
                         ? new Date(event.start.dateTime)
                         : new Date(event.start.date);
