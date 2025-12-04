@@ -8,8 +8,9 @@ import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, CheckSquare, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, RefreshCw, Check } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, CheckSquare, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, RefreshCw, Check, ListTodo, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -86,7 +87,6 @@ export default function MeetingEditor() {
     }
   }, [clientId, meetingId]);
 
-  // Handle keyboard navigation in presentation mode
   useEffect(() => {
     if (!isPresentationMode) return;
 
@@ -112,7 +112,6 @@ export default function MeetingEditor() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPresentationMode, meetingData]);
 
-  // Auto-scroll to active section when using navigation controls
   useEffect(() => {
     if (isPresentationMode && currentSection >= 0) {
       const sectionId = `section-${currentSection}`;
@@ -123,7 +122,6 @@ export default function MeetingEditor() {
     }
   }, [currentSection, isPresentationMode]);
 
-  // Update current section based on scroll position
   useEffect(() => {
     if (!isPresentationMode) return;
 
@@ -164,7 +162,6 @@ export default function MeetingEditor() {
 
       setTasks(tasksData || []);
 
-      // Fetch profiles for participants selection
       const { data: profilesData } = await supabase
         .from("profiles")
         .select("id, full_name, email")
@@ -190,7 +187,6 @@ export default function MeetingEditor() {
       });
       setSelectedTasks(meetingDataRes.linked_tasks || []);
 
-      // Check sync status
       if (isConnected && meetingId) {
         const syncStatus = await getMeetingSyncStatus(meetingId);
         setIsSynced(!!syncStatus);
@@ -205,22 +201,18 @@ export default function MeetingEditor() {
   };
 
   const generateTitle = (meetingDate: string, createdAt?: string) => {
-    // Se a data da reunião foi preenchida pelo analista, usar ela
     if (meetingDate && meetingDate.trim() !== '') {
-      // Extrair apenas a parte da data (YYYY-MM-DD) se vier com timestamp
       const dateOnly = meetingDate.split('T')[0];
       const date = parseLocalDate(dateOnly);
       const formattedDate = format(date, "dd/MM/yyyy", { locale: ptBR });
       return `Vivaz - ${clientName} - ${formattedDate}`;
     }
-    // Caso contrário, usar a data de criação
     if (createdAt) {
       const dateOnly = createdAt.split('T')[0];
       const date = parseLocalDate(dateOnly);
       const formattedDate = format(date, "dd/MM/yyyy", { locale: ptBR });
       return `Vivaz - ${clientName} - ${formattedDate}`;
     }
-    // Fallback
     return `Vivaz - ${clientName} - Nova Reunião`;
   };
 
@@ -244,7 +236,6 @@ export default function MeetingEditor() {
 
       if (error) throw error;
 
-      // Sync to Google Calendar if connected and already synced
       if (isConnected && isSynced) {
         await updateMeetingInCalendar({
           id: meetingId,
@@ -262,7 +253,7 @@ export default function MeetingEditor() {
 
   const handleSave = async () => {
     await handleAutoSave();
-    toast.success("Reunião salva com sucesso!");
+    toast.success("Alterações salvas!");
   };
 
   const handleSyncToCalendar = async () => {
@@ -277,9 +268,9 @@ export default function MeetingEditor() {
       });
       if (result) {
         setIsSynced(true);
-        toast.success("Reunião sincronizada com Google Calendar");
+        toast.success("Sincronizado com Google Calendar");
       } else {
-        toast.error("Erro ao sincronizar com Google Calendar");
+        toast.error("Erro ao sincronizar");
       }
     } catch (error) {
       console.error("Erro ao sincronizar:", error);
@@ -299,9 +290,9 @@ export default function MeetingEditor() {
 
   const getSections = () => {
     const sections = [];
-    sections.push({ id: 'content', title: '📝 Discussões e Anotações' });
+    sections.push({ id: 'content', title: 'Discussões e Anotações' });
     if (meetingData.action_items && meetingData.action_items.length > 0) {
-      sections.push({ id: 'actions', title: '✅ Itens de Ação' });
+      sections.push({ id: 'actions', title: 'Itens de Ação' });
     }
     return sections;
   };
@@ -317,99 +308,102 @@ export default function MeetingEditor() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent"></div>
       </div>
     );
   }
 
-  // Presentation Mode View
+  // Presentation Mode
   if (isPresentationMode) {
     const sections = getSections();
 
     return (
       <div className="fixed inset-0 bg-background z-50 overflow-auto">
-        {/* Navigation Controls */}
-        <div className="fixed top-4 left-0 right-0 z-50 flex items-center justify-between px-4">
-          {/* Section Indicators */}
-          <div className="flex items-center gap-3 bg-background/95 backdrop-blur-sm rounded-lg px-4 py-3 border shadow-sm">
-            <div className="flex items-center gap-2">
-              {sections.map((section, idx) => (
+        {/* Navigation */}
+        <div className="fixed top-4 left-0 right-0 z-50 flex items-center justify-between px-6">
+          <div className="flex items-center gap-3 bg-background/95 backdrop-blur rounded-full px-5 py-2.5 border shadow-lg">
+            <div className="flex items-center gap-1.5">
+              {sections.map((_, idx) => (
                 <button
-                  key={section.id}
+                  key={idx}
                   onClick={() => setCurrentSection(idx)}
                   className={cn(
                     "h-2 rounded-full transition-all",
                     idx === currentSection 
-                      ? "w-8 bg-primary" 
-                      : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                      ? "w-6 bg-primary" 
+                      : "w-2 bg-muted-foreground/20 hover:bg-muted-foreground/40"
                   )}
-                  title={section.title}
                 />
               ))}
             </div>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">
-                {currentSection + 1} / {sections.length}
-              </span>
-              <span className="text-sm text-foreground font-medium">
-                {sections[currentSection]?.title}
-              </span>
-            </div>
+            <Separator orientation="vertical" className="h-4" />
+            <span className="text-sm text-muted-foreground">
+              {currentSection + 1} / {sections.length}
+            </span>
           </div>
 
-          {/* Exit Button */}
           <Button
             onClick={() => {
               setIsPresentationMode(false);
               setCurrentSection(0);
             }}
-            variant="ghost"
+            variant="secondary"
             size="sm"
-            className="bg-background/80 backdrop-blur-sm hover:bg-background"
+            className="rounded-full shadow-lg"
           >
-            <X className="h-4 w-4 mr-2" />
-            Sair (ESC)
+            <X className="h-4 w-4 mr-1.5" />
+            Sair
           </Button>
         </div>
 
-        {/* Previous/Next Navigation Buttons */}
+        {/* Navigation Buttons */}
         {currentSection > 0 && (
           <Button
             onClick={handlePrevSection}
-            variant="ghost"
+            variant="secondary"
             size="icon"
-            className="fixed left-4 top-1/2 -translate-y-1/2 z-40 h-12 w-12 rounded-full bg-background/95 backdrop-blur-sm hover:bg-background border shadow-sm"
+            className="fixed left-6 top-1/2 -translate-y-1/2 z-40 h-12 w-12 rounded-full shadow-lg"
           >
-            <ChevronLeft className="h-6 w-6" />
+            <ChevronLeft className="h-5 w-5" />
           </Button>
         )}
         {currentSection < sections.length - 1 && (
           <Button
             onClick={handleNextSection}
-            variant="ghost"
+            variant="secondary"
             size="icon"
-            className="fixed right-4 top-1/2 -translate-y-1/2 z-40 h-12 w-12 rounded-full bg-background/95 backdrop-blur-sm hover:bg-background border shadow-sm"
+            className="fixed right-6 top-1/2 -translate-y-1/2 z-40 h-12 w-12 rounded-full shadow-lg"
           >
-            <ChevronRight className="h-6 w-6" />
+            <ChevronRight className="h-5 w-5" />
           </Button>
         )}
 
-        <div className="max-w-[1600px] mx-auto p-8 pt-20 pb-16 space-y-16">
+        <div className="max-w-4xl mx-auto px-8 pt-24 pb-16">
           {/* Header */}
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold">{meetingData.title}</h1>
-            <div className="flex flex-wrap gap-4 text-lg text-muted-foreground">
+          <div className="mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium mb-4">
+              <FileText className="h-4 w-4" />
+              Ata de Reunião
+            </div>
+            <h1 className="text-4xl font-bold mb-4">{meetingData.title}</h1>
+            <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
               <div className="flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5" />
-                {meetingData.meeting_date ? format(parseLocalDate(meetingData.meeting_date.split('T')[0]), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : "—"}
+                <CalendarIcon className="h-4 w-4" />
+                <span>
+                  {meetingData.meeting_date 
+                    ? format(parseLocalDate(meetingData.meeting_date.split('T')[0]), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) 
+                    : "Data não definida"}
+                </span>
               </div>
               {meetingData.participants && meetingData.participants.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  {meetingData.participants.join(", ")}
-                </div>
+                <>
+                  <span className="text-border">•</span>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span>{meetingData.participants.join(", ")}</span>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -418,11 +412,14 @@ export default function MeetingEditor() {
           <div 
             id="section-0"
             className={cn(
-              "space-y-4 border-t pt-8 scroll-mt-20 rounded-lg transition-all duration-300",
-              currentSection === 0 && "pl-4 border-l-4 border-primary"
+              "mb-12 p-8 rounded-2xl bg-card border transition-all",
+              currentSection === 0 && "ring-2 ring-primary/20"
             )}
           >
-            <h2 className="text-2xl font-semibold">📝 Discussões e Anotações</h2>
+            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Discussões e Anotações
+            </h2>
             <div className="prose prose-lg max-w-none">
               <MeetingViewer content={meetingData.content} />
             </div>
@@ -433,21 +430,24 @@ export default function MeetingEditor() {
             <div 
               id={`section-${sections.length - 1}`}
               className={cn(
-                "space-y-4 border-t pt-8 scroll-mt-20 rounded-lg transition-all duration-300",
-                currentSection === sections.length - 1 && "pl-4 border-l-4 border-primary"
+                "p-8 rounded-2xl bg-card border transition-all",
+                currentSection === sections.length - 1 && "ring-2 ring-primary/20"
               )}
             >
-              <h2 className="text-2xl font-semibold">✅ Itens de Ação</h2>
-              <ul className="space-y-3">
+              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                <CheckSquare className="h-5 w-5 text-primary" />
+                Itens de Ação
+              </h2>
+              <div className="space-y-4">
                 {meetingData.action_items.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-3 text-lg">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-sm font-semibold text-primary">{idx + 1}</span>
+                  <div key={idx} className="flex items-start gap-4 p-4 rounded-xl bg-muted/50">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-bold text-primary">{idx + 1}</span>
                     </div>
-                    <span className="flex-1">{item}</span>
-                  </li>
+                    <span className="flex-1 pt-1">{item}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
         </div>
@@ -456,71 +456,73 @@ export default function MeetingEditor() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-muted/30">
       {/* Header */}
-      <div className="border-b bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50 sticky top-0 z-10">
-        <div className="max-w-[1400px] mx-auto px-8 py-4">
+      <div className="border-b bg-background sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate(`/clientes/${clientId}?tab=meetings`)}
+                className="rounded-full"
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="text-2xl font-bold">
+                <h1 className="text-xl font-semibold">
                   {meetingData.title || "Nova Reunião"}
                 </h1>
-                <p className="text-sm text-muted-foreground">
-                  {clientName}
-                </p>
+                <p className="text-sm text-muted-foreground">{clientName}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {isConnected && (
                 isSynced ? (
-                  <Badge variant="outline" className="text-xs flex items-center gap-1">
-                    <CalendarIcon className="h-3 w-3" />
+                  <Badge variant="outline" className="gap-1.5 bg-emerald-50 text-emerald-700 border-emerald-200">
                     <Check className="h-3 w-3" />
                     Sincronizado
                   </Badge>
                 ) : (
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={handleSyncToCalendar}
                     disabled={isSyncing}
+                    className="text-muted-foreground"
                   >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
+                    <RefreshCw className={cn("h-4 w-4 mr-1.5", isSyncing && "animate-spin")} />
                     Sincronizar
                   </Button>
                 )
               )}
               {isEditMode && (
                 <span className={cn(
-                  "text-sm",
-                  isSaving ? "text-muted-foreground animate-pulse" : "text-emerald-600"
+                  "text-xs px-2.5 py-1 rounded-full",
+                  isSaving 
+                    ? "text-muted-foreground bg-muted animate-pulse" 
+                    : "text-emerald-700 bg-emerald-50"
                 )}>
-                  {isSaving ? "Salvando..." : "✓ Salvo"}
+                  {isSaving ? "Salvando..." : "Salvo"}
                 </span>
               )}
               <Button
                 onClick={() => setIsPresentationMode(true)}
                 variant="outline"
+                size="sm"
               >
-                <Presentation className="h-4 w-4 mr-2" />
-                Modo Apresentação
+                <Presentation className="h-4 w-4 mr-1.5" />
+                Apresentar
               </Button>
               {isEditMode ? (
-                <Button onClick={handleSave}>
-                  <Save className="mr-2 h-4 w-4" />
+                <Button onClick={handleSave} size="sm">
+                  <Save className="h-4 w-4 mr-1.5" />
                   Salvar
                 </Button>
               ) : (
-                <Button onClick={() => navigate(`/clientes/${clientId}/reunioes/${meetingId}?mode=edit`)}>
-                  <Pencil className="mr-2 h-4 w-4" />
+                <Button onClick={() => navigate(`/clientes/${clientId}/reunioes/${meetingId}?mode=edit`)} size="sm">
+                  <Pencil className="h-4 w-4 mr-1.5" />
                   Editar
                 </Button>
               )}
@@ -530,273 +532,256 @@ export default function MeetingEditor() {
       </div>
 
       {/* Content */}
-      <div className="max-w-[1400px] mx-auto px-8 py-8 space-y-8">
-        {/* Metadata Section - Inline */}
-        <Card className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                Data da Reunião
-              </label>
-              {isEditMode ? (
-                <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !meetingData.meeting_date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarDays className="mr-2 h-4 w-4" />
-                      {meetingData.meeting_date ? (
-                        format(parseLocalDate(meetingData.meeting_date.split('T')[0]), "dd/MM/yyyy", { locale: ptBR })
-                      ) : (
-                        <span>Selecione a data</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={meetingData.meeting_date ? parseLocalDate(meetingData.meeting_date.split('T')[0]) : undefined}
-                      onSelect={(date) => {
-                        if (date) {
-                          const formattedDate = format(date, "yyyy-MM-dd");
-                          setMeetingData({
-                            ...meetingData,
-                            meeting_date: formattedDate,
-                          });
-                        }
-                        setDatePickerOpen(false);
-                      }}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                <p className="text-sm py-2">
-                  {meetingData.meeting_date ? format(parseLocalDate(meetingData.meeting_date.split('T')[0]), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : "—"}
-                </p>
-              )}
+      <div className="max-w-6xl mx-auto px-6 py-6">
+        {/* Metadata */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <CalendarDays className="h-5 w-5 text-primary" />
+              </div>
+              <span className="font-medium">Data</span>
             </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Participantes
-              </label>
-              {isEditMode ? (
-                <Popover open={participantsOpen} onOpenChange={setParticipantsOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal h-auto min-h-10",
-                        !meetingData.participants.length && "text-muted-foreground"
-                      )}
-                    >
-                      <Users className="mr-2 h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">
-                        {meetingData.participants.length > 0 
-                          ? meetingData.participants.join(", ")
-                          : "Selecione participantes"}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Buscar participante..." />
-                      <CommandList>
-                        <CommandEmpty>Nenhum participante encontrado.</CommandEmpty>
-                        <CommandGroup>
-                          {profiles.map((profile) => {
-                            const isSelected = meetingData.participants.includes(profile.full_name);
-                            return (
-                              <CommandItem
-                                key={profile.id}
-                                onSelect={() => {
-                                  const newParticipants = isSelected
-                                    ? meetingData.participants.filter(p => p !== profile.full_name)
-                                    : [...meetingData.participants, profile.full_name];
-                                  setMeetingData({
-                                    ...meetingData,
-                                    participants: newParticipants,
-                                  });
-                                }}
-                                className="cursor-pointer"
-                              >
-                                <Checkbox
-                                  checked={isSelected}
-                                  className="mr-2"
-                                />
-                                <span>{profile.full_name}</span>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                <p className="text-sm py-2">
-                  {meetingData.participants.length > 0 ? meetingData.participants.join(", ") : "—"}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                <CheckSquare className="h-4 w-4" />
-                Itens de Ação
-              </label>
-              {isEditMode ? (
-                <Textarea
-                  placeholder="Enviar proposta, Agendar follow-up..."
-                  value={meetingData.action_items.join(", ")}
-                  onChange={(e) =>
-                    setMeetingData({
-                      ...meetingData,
-                      action_items: e.target.value
-                        .split(",")
-                        .map((item) => item.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                  rows={2}
-                />
-              ) : (
-                <p className="text-sm py-2">
-                  {meetingData.action_items.length > 0 ? meetingData.action_items.join(", ") : "—"}
-                </p>
-              )}
-            </div>
-          </div>
-        </Card>
-
-
-        {/* Main Content Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Rich Text Editor/Viewer - 2/3 */}
-          <Card className="p-6 lg:col-span-2">
-            <label className="text-sm font-medium mb-4 block">
-              📝 Conteúdo da Reunião
-            </label>
             {isEditMode ? (
-              <RichTextEditor
-                content={meetingData.content}
-                onChange={(content) =>
-                  setMeetingData({ ...meetingData, content })
-                }
-                placeholder="Descreva o que foi discutido na reunião..."
-              />
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start font-normal h-10",
+                      !meetingData.meeting_date && "text-muted-foreground"
+                    )}
+                  >
+                    {meetingData.meeting_date 
+                      ? format(parseLocalDate(meetingData.meeting_date.split('T')[0]), "dd/MM/yyyy", { locale: ptBR })
+                      : "Selecionar data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={meetingData.meeting_date ? parseLocalDate(meetingData.meeting_date.split('T')[0]) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        setMeetingData({
+                          ...meetingData,
+                          meeting_date: format(date, "yyyy-MM-dd"),
+                        });
+                      }
+                      setDatePickerOpen(false);
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             ) : (
-              <MeetingViewer content={meetingData.content} />
+              <p className="text-sm text-muted-foreground">
+                {meetingData.meeting_date 
+                  ? format(parseLocalDate(meetingData.meeting_date.split('T')[0]), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) 
+                  : "Não definida"}
+              </p>
             )}
           </Card>
 
-          {/* Tasks - 1/3 */}
-          <Card className="p-6">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <CheckSquare className="h-5 w-5" />
-              Atividades Vinculadas
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <span className="font-medium">Participantes</span>
+            </div>
+            {isEditMode ? (
+              <Popover open={participantsOpen} onOpenChange={setParticipantsOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start font-normal h-10 truncate",
+                      !meetingData.participants.length && "text-muted-foreground"
+                    )}
+                  >
+                    {meetingData.participants.length > 0 
+                      ? meetingData.participants.join(", ")
+                      : "Adicionar participantes"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum resultado.</CommandEmpty>
+                      <CommandGroup>
+                        {profiles.map((profile) => {
+                          const isSelected = meetingData.participants.includes(profile.full_name);
+                          return (
+                            <CommandItem
+                              key={profile.id}
+                              onSelect={() => {
+                                const newParticipants = isSelected
+                                  ? meetingData.participants.filter(p => p !== profile.full_name)
+                                  : [...meetingData.participants, profile.full_name];
+                                setMeetingData({ ...meetingData, participants: newParticipants });
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Checkbox checked={isSelected} className="mr-2" />
+                              {profile.full_name}
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <p className="text-sm text-muted-foreground truncate">
+                {meetingData.participants.length > 0 ? meetingData.participants.join(", ") : "Nenhum participante"}
+              </p>
+            )}
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <ListTodo className="h-5 w-5 text-primary" />
+              </div>
+              <span className="font-medium">Próximos Passos</span>
+            </div>
+            {isEditMode ? (
+              <Textarea
+                placeholder="Ex: Enviar proposta, Agendar follow-up..."
+                value={meetingData.action_items.join(", ")}
+                onChange={(e) =>
+                  setMeetingData({
+                    ...meetingData,
+                    action_items: e.target.value.split(",").map(item => item.trim()).filter(Boolean),
+                  })
+                }
+                className="min-h-[40px] resize-none text-sm"
+                rows={1}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground truncate">
+                {meetingData.action_items.length > 0 
+                  ? `${meetingData.action_items.length} item(s) definido(s)` 
+                  : "Nenhum item definido"}
+              </p>
+            )}
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Editor */}
+          <Card className="lg:col-span-3 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold">Conteúdo</h2>
+            </div>
+            {isEditMode ? (
+              <RichTextEditor
+                content={meetingData.content}
+                onChange={(content) => setMeetingData({ ...meetingData, content })}
+                placeholder="Descreva os pontos discutidos na reunião..."
+              />
+            ) : (
+              <div className="prose max-w-none">
+                <MeetingViewer content={meetingData.content} />
+              </div>
+            )}
+          </Card>
+
+          {/* Tasks Sidebar */}
+          <Card className="p-4 h-fit lg:sticky lg:top-24">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">Atividades</h3>
+              </div>
               {selectedTasks.length > 0 && (
-                <Badge variant="secondary" className="ml-auto">
-                  {selectedTasks.length} selecionada(s)
+                <Badge variant="secondary" className="text-xs">
+                  {selectedTasks.length}
                 </Badge>
               )}
-            </h3>
+            </div>
             
             {isEditMode && tasks.length > 0 && (
-              <div className="mb-4 p-3 bg-muted/50 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-2">
-                  Selecione as atividades relacionadas a esta reunião
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs h-7"
-                    onClick={() => {
-                      const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
-                      setSelectedTasks(pendingTasks.map(t => t.id));
-                    }}
-                  >
-                    Selecionar pendentes
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs h-7"
-                    onClick={() => setSelectedTasks([])}
-                  >
-                    Limpar
-                  </Button>
-                </div>
+              <div className="flex gap-2 mb-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-7 flex-1"
+                  onClick={() => {
+                    const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+                    setSelectedTasks(pendingTasks.map(t => t.id));
+                  }}
+                >
+                  Pendentes
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => setSelectedTasks([])}
+                >
+                  Limpar
+                </Button>
               </div>
             )}
             
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <div className="space-y-2 max-h-[350px] overflow-y-auto">
               {tasks.length > 0 ? (
                 tasks.map((task) => {
                   const isSelected = selectedTasks.includes(task.id);
-                  const statusColors: Record<string, string> = {
-                    pending: "bg-yellow-500/10 text-yellow-700",
-                    in_progress: "bg-blue-500/10 text-blue-700",
-                    completed: "bg-green-500/10 text-green-700",
-                    review: "bg-purple-500/10 text-purple-700",
-                    cancelled: "bg-gray-500/10 text-gray-500",
+                  const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+                    pending: { bg: "bg-amber-50", text: "text-amber-700", label: "Pendente" },
+                    in_progress: { bg: "bg-blue-50", text: "text-blue-700", label: "Em andamento" },
+                    completed: { bg: "bg-emerald-50", text: "text-emerald-700", label: "Concluída" },
+                    review: { bg: "bg-violet-50", text: "text-violet-700", label: "Revisão" },
+                    cancelled: { bg: "bg-gray-50", text: "text-gray-500", label: "Cancelada" },
                   };
-                  const statusLabels: Record<string, string> = {
-                    pending: "Pendente",
-                    in_progress: "Em Progresso",
-                    completed: "Concluída",
-                    review: "Revisão",
-                    cancelled: "Cancelada",
-                  };
+                  const config = statusConfig[task.status] || statusConfig.pending;
                   
                   return (
                     <div
                       key={task.id}
                       onClick={() => isEditMode && handleTaskToggle(task.id)}
                       className={cn(
-                        "flex items-start gap-3 p-3 rounded-lg transition-colors border",
-                        isEditMode && "cursor-pointer hover:bg-muted/50",
-                        isSelected && "bg-primary/5 border-primary/30"
+                        "p-3 rounded-lg border transition-all",
+                        isEditMode && "cursor-pointer hover:border-primary/50",
+                        isSelected ? "bg-primary/5 border-primary/30" : "bg-background"
                       )}
                     >
-                      {isEditMode && (
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => handleTaskToggle(task.id)}
-                          className="mt-0.5"
-                        />
-                      )}
-                      {!isEditMode && isSelected && (
-                        <Check className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className={cn(
-                          "font-medium text-sm",
-                          !isSelected && !isEditMode && "text-muted-foreground"
-                        )}>
-                          {task.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <Badge 
-                            variant="secondary" 
-                            className={cn("text-xs", statusColors[task.status] || "")}
-                          >
-                            {statusLabels[task.status] || task.status}
-                          </Badge>
-                          {task.due_date && (
-                            <span className="text-xs text-muted-foreground">
-                              {format(parseLocalDate(task.due_date), "dd/MM", { locale: ptBR })}
+                      <div className="flex items-start gap-2">
+                        {isEditMode && (
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => handleTaskToggle(task.id)}
+                            className="mt-0.5"
+                          />
+                        )}
+                        {!isEditMode && isSelected && (
+                          <Check className="h-4 w-4 text-primary mt-0.5" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className={cn(
+                            "text-sm font-medium truncate",
+                            !isSelected && !isEditMode && "text-muted-foreground"
+                          )}>
+                            {task.title}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={cn("text-xs px-1.5 py-0.5 rounded", config.bg, config.text)}>
+                              {config.label}
                             </span>
-                          )}
+                            {task.due_date && (
+                              <span className="text-xs text-muted-foreground">
+                                {format(parseLocalDate(task.due_date), "dd/MM", { locale: ptBR })}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -804,8 +789,8 @@ export default function MeetingEditor() {
                 })
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <CheckSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Nenhuma atividade cadastrada</p>
+                  <CheckSquare className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Nenhuma atividade</p>
                 </div>
               )}
             </div>
