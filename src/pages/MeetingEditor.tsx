@@ -5,12 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/meeting-editor/RichTextEditor";
 import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
-import { DashboardCard } from "@/components/meeting-editor/DashboardCard";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, CheckSquare, LayoutDashboard, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, RefreshCw, Check } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, CheckSquare, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, RefreshCw, Check } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -20,13 +19,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useMeetingCalendarSync } from "@/hooks/useMeetingCalendarSync";
-
-interface Dashboard {
-  id: string;
-  name: string;
-  dashboard_type: string;
-  embed_url: string | null;
-}
 
 interface Task {
   id: string;
@@ -55,10 +47,8 @@ export default function MeetingEditor() {
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [currentSection, setCurrentSection] = useState(0);
   const [clientName, setClientName] = useState("");
-  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [selectedDashboards, setSelectedDashboards] = useState<string[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
@@ -88,7 +78,7 @@ export default function MeetingEditor() {
     }, AUTOSAVE_DELAY);
 
     return () => clearTimeout(timer);
-  }, [meetingData, selectedDashboards, selectedTasks, isEditMode]);
+  }, [meetingData, selectedTasks, isEditMode]);
 
   useEffect(() => {
     if (clientId && meetingId) {
@@ -120,7 +110,7 @@ export default function MeetingEditor() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPresentationMode, selectedDashboards, meetingData]);
+  }, [isPresentationMode, meetingData]);
 
   // Auto-scroll to active section when using navigation controls
   useEffect(() => {
@@ -152,7 +142,7 @@ export default function MeetingEditor() {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [isPresentationMode, selectedDashboards, meetingData]);
+  }, [isPresentationMode, meetingData]);
 
   const loadMeetingData = async () => {
     try {
@@ -165,14 +155,6 @@ export default function MeetingEditor() {
       if (clientData) {
         setClientName(clientData.company_name);
       }
-
-      const { data: dashboardsData } = await supabase
-        .from("client_dashboards")
-        .select("id, name, dashboard_type, embed_url")
-        .eq("client_id", clientId)
-        .eq("is_active", true);
-
-      setDashboards(dashboardsData || []);
 
       const { data: tasksData } = await supabase
         .from("tasks")
@@ -206,7 +188,6 @@ export default function MeetingEditor() {
         title: meetingDataRes.title,
         created_at: meetingDataRes.created_at,
       });
-      setSelectedDashboards(meetingDataRes.linked_dashboards || []);
       setSelectedTasks(meetingDataRes.linked_tasks || []);
 
       // Check sync status
@@ -257,7 +238,6 @@ export default function MeetingEditor() {
           participants: meetingData.participants.length > 0 ? meetingData.participants : null,
           content: meetingData.content,
           action_items: meetingData.action_items.length > 0 ? meetingData.action_items : null,
-          linked_dashboards: selectedDashboards.length > 0 ? selectedDashboards : null,
           linked_tasks: selectedTasks.length > 0 ? selectedTasks : null,
         })
         .eq("id", meetingId);
@@ -278,7 +258,7 @@ export default function MeetingEditor() {
     } finally {
       setIsSaving(false);
     }
-  }, [meetingData, selectedDashboards, selectedTasks, meetingId, isSaving, clientName, isConnected, isSynced, updateMeetingInCalendar]);
+  }, [meetingData, selectedTasks, meetingId, isSaving, clientName, isConnected, isSynced, updateMeetingInCalendar]);
 
   const handleSave = async () => {
     await handleAutoSave();
@@ -309,14 +289,6 @@ export default function MeetingEditor() {
     }
   };
 
-  const handleDashboardToggle = (dashboardId: string) => {
-    setSelectedDashboards(prev =>
-      prev.includes(dashboardId)
-        ? prev.filter(id => id !== dashboardId)
-        : [...prev, dashboardId]
-    );
-  };
-
   const handleTaskToggle = (taskId: string) => {
     setSelectedTasks(prev =>
       prev.includes(taskId)
@@ -327,11 +299,6 @@ export default function MeetingEditor() {
 
   const getSections = () => {
     const sections = [];
-    const linkedDashboardsData = dashboards.filter(d => selectedDashboards.includes(d.id));
-    
-    if (linkedDashboardsData.length > 0) {
-      sections.push({ id: 'dashboards', title: '📊 Dashboards Analisados' });
-    }
     sections.push({ id: 'content', title: '📝 Discussões e Anotações' });
     if (meetingData.action_items && meetingData.action_items.length > 0) {
       sections.push({ id: 'actions', title: '✅ Itens de Ação' });
@@ -358,9 +325,6 @@ export default function MeetingEditor() {
 
   // Presentation Mode View
   if (isPresentationMode) {
-    const linkedDashboardsData = dashboards.filter(d => 
-      selectedDashboards.includes(d.id)
-    );
     const sections = getSections();
 
     return (
@@ -450,58 +414,12 @@ export default function MeetingEditor() {
             </div>
           </div>
 
-          {/* Dashboards */}
-          {linkedDashboardsData.length > 0 && (
-            <div 
-              id="section-0" 
-              className={cn(
-                "space-y-4 scroll-mt-20 rounded-lg transition-all duration-300",
-                currentSection === 0 && "pl-4 border-l-4 border-primary"
-              )}
-            >
-              <h2 className="text-2xl font-semibold">📊 Dashboards Analisados</h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {linkedDashboardsData.map((dashboard) => (
-                  <Card key={dashboard.id} className="overflow-hidden">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center justify-between">
-                        <span>{dashboard.name}</span>
-                        {dashboard.embed_url && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open(dashboard.embed_url, "_blank")}
-                          >
-                            Abrir Completo →
-                          </Button>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      {dashboard.embed_url ? (
-                        <iframe
-                          src={dashboard.embed_url}
-                          className="w-full h-[500px] border-0"
-                          title={dashboard.name}
-                        />
-                      ) : (
-                        <div className="h-[500px] flex items-center justify-center bg-muted">
-                          <p className="text-muted-foreground">Dashboard não disponível</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Content */}
           <div 
-            id={`section-${linkedDashboardsData.length > 0 ? 1 : 0}`}
+            id="section-0"
             className={cn(
               "space-y-4 border-t pt-8 scroll-mt-20 rounded-lg transition-all duration-300",
-              currentSection === (linkedDashboardsData.length > 0 ? 1 : 0) && "pl-4 border-l-4 border-primary"
+              currentSection === 0 && "pl-4 border-l-4 border-primary"
             )}
           >
             <h2 className="text-2xl font-semibold">📝 Discussões e Anotações</h2>

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ArrowLeft, Calendar, Users, Download } from "lucide-react";
@@ -14,20 +14,12 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
-interface Dashboard {
-  id: string;
-  name: string;
-  dashboard_type: string;
-  embed_url: string | null;
-}
-
 interface MeetingData {
   title: string;
   meeting_date: string;
   participants: string[] | null;
   content: string;
   action_items: string[] | null;
-  linked_dashboards: string[] | null;
   client_id: string;
 }
 
@@ -37,7 +29,6 @@ export default function ClientMeetingView() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [meetingData, setMeetingData] = useState<MeetingData | null>(null);
-  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
 
   usePageMeta({
     title: meetingData?.title || "Reunião - Área do Cliente",
@@ -86,7 +77,7 @@ export default function ClientMeetingView() {
       // Buscar reunião
       const { data: meeting, error } = await supabase
         .from("meeting_minutes")
-        .select("*")
+        .select("title, meeting_date, participants, content, action_items, client_id")
         .eq("id", meetingId)
         .eq("client_id", client.id)
         .single();
@@ -98,17 +89,6 @@ export default function ClientMeetingView() {
       }
 
       setMeetingData(meeting);
-
-      // Buscar dashboards vinculados
-      if (meeting.linked_dashboards && meeting.linked_dashboards.length > 0) {
-        const { data: dashboardsData } = await supabase
-          .from("client_dashboards")
-          .select("id, name, dashboard_type, embed_url")
-          .in("id", meeting.linked_dashboards)
-          .eq("is_active", true);
-
-        setDashboards(dashboardsData || []);
-      }
     } catch (error) {
       console.error("Erro ao carregar reunião:", error);
       toast.error("Erro ao carregar reunião");
