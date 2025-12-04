@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Calendar,
   Plus,
   Loader2,
@@ -22,9 +29,10 @@ import {
   RefreshCw,
   Clock,
   Users,
+  CalendarDays,
 } from "lucide-react";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay, addDays, subDays, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +47,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type PeriodFilter = "upcoming" | "today" | "week" | "month" | "past_week" | "past_month" | "all";
 
 interface GoogleCalendarManagerProps {
   clientEmail?: string;
@@ -57,6 +67,7 @@ export const GoogleCalendarManager = ({ clientEmail, onImportEvent }: GoogleCale
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
   const [deleteEventId, setDeleteEventId] = useState<string | null>(null);
   const [showOnlyClientEvents, setShowOnlyClientEvents] = useState(true);
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("upcoming");
   
   // Create event form state
   const [newEvent, setNewEvent] = useState({
@@ -82,12 +93,51 @@ export const GoogleCalendarManager = ({ clientEmail, onImportEvent }: GoogleCale
     isDeletingEvent,
   } = useGoogleCalendar();
 
-  // Filter events that contain the client's email as attendee
-  const filteredEvents = events?.filter((event) => {
-    if (!showOnlyClientEvents || !clientEmail) return true;
-    const attendeeEmails = event.attendees?.map((a: any) => a.email?.toLowerCase()) || [];
-    return attendeeEmails.includes(clientEmail.toLowerCase());
-  });
+  // Filter events by period and client email
+  const filteredEvents = useMemo(() => {
+    if (!events) return [];
+    
+    const now = new Date();
+    const today = startOfDay(now);
+    
+    return events.filter((event) => {
+      // First filter by client email if enabled
+      if (showOnlyClientEvents && clientEmail) {
+        const attendeeEmails = event.attendees?.map((a: any) => a.email?.toLowerCase()) || [];
+        if (!attendeeEmails.includes(clientEmail.toLowerCase())) {
+          return false;
+        }
+      }
+      
+      // Then filter by period
+      const eventDate = event.start.dateTime
+        ? new Date(event.start.dateTime)
+        : new Date(event.start.date);
+      
+      switch (periodFilter) {
+        case "upcoming":
+          return eventDate >= today;
+        case "today":
+          return eventDate >= today && eventDate <= endOfDay(now);
+        case "week":
+          return eventDate >= today && eventDate <= addDays(today, 7);
+        case "month":
+          return eventDate >= today && eventDate <= addMonths(today, 1);
+        case "past_week":
+          return eventDate >= subDays(today, 7) && eventDate < today;
+        case "past_month":
+          return eventDate >= subMonths(today, 1) && eventDate < today;
+        case "all":
+        default:
+          return true;
+      }
+    }).sort((a, b) => {
+      const dateA = a.start.dateTime ? new Date(a.start.dateTime) : new Date(a.start.date);
+      const dateB = b.start.dateTime ? new Date(b.start.dateTime) : new Date(b.start.date);
+      // For upcoming/future, sort ascending; for past, sort descending
+      return periodFilter.startsWith("past") ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
+    });
+  }, [events, showOnlyClientEvents, clientEmail, periodFilter]);
 
   if (!isConnected) {
     return null;
@@ -252,7 +302,38 @@ export const GoogleCalendarManager = ({ clientEmail, onImportEvent }: GoogleCale
             </TabsList>
 
             <TabsContent value="events" className="mt-4">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-col gap-3 mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      <Select value={periodFilter} onValueChange={(value: PeriodFilter) => setPeriodFilter(value)}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Período" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="upcoming">Próximos eventos</SelectItem>
+                          <SelectItem value="today">Hoje</SelectItem>
+                          <SelectItem value="week">Próximos 7 dias</SelectItem>
+                          <SelectItem value="month">Próximo mês</SelectItem>
+                          <SelectItem value="past_week">Últimos 7 dias</SelectItem>
+                          <SelectItem value="past_month">Último mês</SelectItem>
+                          <SelectItem value="all">Todos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => refetchEvents()}
+                    disabled={isLoadingEvents}
+                  >
+                    <RefreshCw className={`mr-2 h-4 w-4 ${isLoadingEvents ? "animate-spin" : ""}`} />
+                    Atualizar
+                  </Button>
+                </div>
+                
                 {clientEmail && (
                   <div className="flex items-center gap-2">
                     <input
@@ -267,15 +348,6 @@ export const GoogleCalendarManager = ({ clientEmail, onImportEvent }: GoogleCale
                     </Label>
                   </div>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => refetchEvents()}
-                  disabled={isLoadingEvents}
-                >
-                  <RefreshCw className={`mr-2 h-4 w-4 ${isLoadingEvents ? "animate-spin" : ""}`} />
-                  Atualizar
-                </Button>
               </div>
 
               <ScrollArea className="h-[400px] pr-4">
