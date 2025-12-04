@@ -14,9 +14,10 @@ export const TASK_CATEGORIES = {
 
 export type TaskCategory = keyof typeof TASK_CATEGORIES;
 
-// Status personalizados por categoria
+// Status personalizados por categoria (sempre começando com Pendente)
 export const CATEGORY_STATUS = {
   campanhas: [
+    { value: "pendente", label: "Pendente" },
     { value: "planejamento", label: "Planejamento" },
     { value: "configuracao", label: "Configuração" },
     { value: "ativa", label: "Ativa" },
@@ -24,6 +25,7 @@ export const CATEGORY_STATUS = {
     { value: "encerrada", label: "Encerrada" },
   ],
   meta_ads: [
+    { value: "pendente", label: "Pendente" },
     { value: "planejamento", label: "Planejamento" },
     { value: "criacao", label: "Criação" },
     { value: "aguardando_aprovacao", label: "Aguardando Aprovação" },
@@ -32,6 +34,7 @@ export const CATEGORY_STATUS = {
     { value: "finalizada", label: "Finalizada" },
   ],
   google_ads: [
+    { value: "pendente", label: "Pendente" },
     { value: "planejamento", label: "Planejamento" },
     { value: "criacao", label: "Criação" },
     { value: "aguardando_aprovacao", label: "Aguardando Aprovação" },
@@ -40,6 +43,7 @@ export const CATEGORY_STATUS = {
     { value: "finalizada", label: "Finalizada" },
   ],
   criativo: [
+    { value: "pendente", label: "Pendente" },
     { value: "briefing", label: "Briefing" },
     { value: "criacao", label: "Criação" },
     { value: "revisao", label: "Revisão" },
@@ -48,6 +52,7 @@ export const CATEGORY_STATUS = {
     { value: "entregue", label: "Entregue" },
   ],
   landing_page: [
+    { value: "pendente", label: "Pendente" },
     { value: "briefing", label: "Briefing" },
     { value: "desenvolvimento", label: "Desenvolvimento" },
     { value: "revisao", label: "Revisão" },
@@ -55,12 +60,14 @@ export const CATEGORY_STATUS = {
     { value: "publicada", label: "Publicada" },
   ],
   ajuste: [
+    { value: "pendente", label: "Pendente" },
     { value: "solicitado", label: "Solicitado" },
     { value: "em_analise", label: "Em Análise" },
     { value: "em_execucao", label: "Em Execução" },
     { value: "concluido", label: "Concluído" },
   ],
   seo: [
+    { value: "pendente", label: "Pendente" },
     { value: "analise", label: "Análise" },
     { value: "planejamento", label: "Planejamento" },
     { value: "execucao", label: "Execução" },
@@ -68,6 +75,7 @@ export const CATEGORY_STATUS = {
     { value: "concluido", label: "Concluído" },
   ],
   email_marketing: [
+    { value: "pendente", label: "Pendente" },
     { value: "planejamento", label: "Planejamento" },
     { value: "criacao", label: "Criação" },
     { value: "revisao", label: "Revisão" },
@@ -75,6 +83,7 @@ export const CATEGORY_STATUS = {
     { value: "enviado", label: "Enviado" },
   ],
   conteudo: [
+    { value: "pendente", label: "Pendente" },
     { value: "briefing", label: "Briefing" },
     { value: "producao", label: "Produção" },
     { value: "revisao", label: "Revisão" },

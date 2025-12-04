@@ -144,6 +144,7 @@ export function ClientTasks({ clientId }: ClientTasksProps) {
               tasks={filteredTasks}
               category={(categoryFilter === "all" ? "outros" : categoryFilter) as TaskCategory}
               onTaskClick={(task) => setSelectedTask(task)}
+              onUpdate={fetchTasks}
             />
           )}
           {viewMode === "calendar" && (
