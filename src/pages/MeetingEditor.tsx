@@ -32,6 +32,8 @@ interface Task {
   id: string;
   title: string;
   status: string;
+  priority?: string;
+  due_date?: string;
 }
 
 interface Profile {
@@ -174,9 +176,9 @@ export default function MeetingEditor() {
 
       const { data: tasksData } = await supabase
         .from("tasks")
-        .select("id, title, status")
+        .select("id, title, status, priority, due_date")
         .eq("client_id", clientId)
-        .in("status", ["pending", "in_progress"]);
+        .order("created_at", { ascending: false });
 
       setTasks(tasksData || []);
 
@@ -783,27 +785,111 @@ export default function MeetingEditor() {
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <CheckSquare className="h-5 w-5" />
               Atividades Vinculadas
+              {selectedTasks.length > 0 && (
+                <Badge variant="secondary" className="ml-auto">
+                  {selectedTasks.length} selecionada(s)
+                </Badge>
+              )}
             </h3>
-            <div className="space-y-2">
-              {tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors border"
-                >
-                  {isEditMode && (
-                    <Checkbox
-                      checked={selectedTasks.includes(task.id)}
-                      onCheckedChange={() => handleTaskToggle(task.id)}
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{task.title}</p>
-                    <Badge variant="secondary" className="text-xs mt-1">
-                      {task.status}
-                    </Badge>
-                  </div>
+            
+            {isEditMode && tasks.length > 0 && (
+              <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Selecione as atividades relacionadas a esta reunião
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-7"
+                    onClick={() => {
+                      const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+                      setSelectedTasks(pendingTasks.map(t => t.id));
+                    }}
+                  >
+                    Selecionar pendentes
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-7"
+                    onClick={() => setSelectedTasks([])}
+                  >
+                    Limpar
+                  </Button>
                 </div>
-              ))}
+              </div>
+            )}
+            
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {tasks.length > 0 ? (
+                tasks.map((task) => {
+                  const isSelected = selectedTasks.includes(task.id);
+                  const statusColors: Record<string, string> = {
+                    pending: "bg-yellow-500/10 text-yellow-700",
+                    in_progress: "bg-blue-500/10 text-blue-700",
+                    completed: "bg-green-500/10 text-green-700",
+                    review: "bg-purple-500/10 text-purple-700",
+                    cancelled: "bg-gray-500/10 text-gray-500",
+                  };
+                  const statusLabels: Record<string, string> = {
+                    pending: "Pendente",
+                    in_progress: "Em Progresso",
+                    completed: "Concluída",
+                    review: "Revisão",
+                    cancelled: "Cancelada",
+                  };
+                  
+                  return (
+                    <div
+                      key={task.id}
+                      onClick={() => isEditMode && handleTaskToggle(task.id)}
+                      className={cn(
+                        "flex items-start gap-3 p-3 rounded-lg transition-colors border",
+                        isEditMode && "cursor-pointer hover:bg-muted/50",
+                        isSelected && "bg-primary/5 border-primary/30"
+                      )}
+                    >
+                      {isEditMode && (
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleTaskToggle(task.id)}
+                          className="mt-0.5"
+                        />
+                      )}
+                      {!isEditMode && isSelected && (
+                        <Check className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className={cn(
+                          "font-medium text-sm",
+                          !isSelected && !isEditMode && "text-muted-foreground"
+                        )}>
+                          {task.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <Badge 
+                            variant="secondary" 
+                            className={cn("text-xs", statusColors[task.status] || "")}
+                          >
+                            {statusLabels[task.status] || task.status}
+                          </Badge>
+                          {task.due_date && (
+                            <span className="text-xs text-muted-foreground">
+                              {format(parseLocalDate(task.due_date), "dd/MM", { locale: ptBR })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Nenhuma atividade cadastrada</p>
+                </div>
+              )}
             </div>
           </Card>
         </div>
