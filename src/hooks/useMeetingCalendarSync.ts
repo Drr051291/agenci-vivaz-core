@@ -12,30 +12,6 @@ interface MeetingData {
   client_id?: string;
 }
 
-// Helper to fetch client email
-const getClientEmail = async (meetingId: string): Promise<string | null> => {
-  try {
-    const { data: meeting } = await supabase
-      .from("meeting_minutes")
-      .select("client_id")
-      .eq("id", meetingId)
-      .single();
-
-    if (!meeting?.client_id) return null;
-
-    const { data: client } = await supabase
-      .from("clients")
-      .select("contact_email")
-      .eq("id", meeting.client_id)
-      .single();
-
-    return client?.contact_email || null;
-  } catch (error) {
-    console.error("Error fetching client email:", error);
-    return null;
-  }
-};
-
 export const useMeetingCalendarSync = () => {
   const { isConnected, createEvent, updateEvent, deleteEvent } = useGoogleCalendar();
 
@@ -46,15 +22,6 @@ export const useMeetingCalendarSync = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return null;
-
-      // Fetch client email to include as attendee
-      const clientEmail = await getClientEmail(meeting.id);
-      
-      // Combine meeting participants with client email
-      const attendees = [...(meeting.participants || [])];
-      if (clientEmail && !attendees.includes(clientEmail)) {
-        attendees.push(clientEmail);
-      }
 
       // Calculate end time (1 hour after start)
       const startDate = new Date(meeting.meeting_date);
@@ -73,7 +40,7 @@ export const useMeetingCalendarSync = () => {
             description: `Reunião Hub Vivaz\n\nID da reunião: ${meeting.id}`,
             startDateTime: startDate.toISOString(),
             endDateTime: endDate.toISOString(),
-            attendees: attendees,
+            attendees: meeting.participants || [],
           }),
         }
       );
@@ -120,15 +87,6 @@ export const useMeetingCalendarSync = () => {
         return true;
       }
 
-      // Fetch client email to include as attendee
-      const clientEmail = await getClientEmail(meeting.id);
-      
-      // Combine meeting participants with client email
-      const attendees = [...(meeting.participants || [])];
-      if (clientEmail && !attendees.includes(clientEmail)) {
-        attendees.push(clientEmail);
-      }
-
       // Calculate end time (1 hour after start)
       const startDate = new Date(meeting.meeting_date);
       const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
@@ -147,7 +105,7 @@ export const useMeetingCalendarSync = () => {
             description: `Reunião Hub Vivaz\n\nID da reunião: ${meeting.id}`,
             startDateTime: startDate.toISOString(),
             endDateTime: endDate.toISOString(),
-            attendees: attendees,
+            attendees: meeting.participants || [],
           }),
         }
       );

@@ -79,6 +79,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingMinute | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
+  const [clientEmail, setClientEmail] = useState<string | null>(null);
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [syncingAll, setSyncingAll] = useState(false);
   const [syncedMeetingIds, setSyncedMeetingIds] = useState<Set<string>>(new Set());
@@ -109,12 +110,13 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     try {
       const { data: clientData, error: clientError } = await supabase
         .from("clients")
-        .select("company_name")
+        .select("company_name, contact_email")
         .eq("id", clientId)
         .single();
 
       if (clientError) throw clientError;
       setClientName(clientData.company_name);
+      setClientEmail(clientData.contact_email || null);
 
       const { data: dashboardsData, error: dashboardsError } = await supabase
         .from("client_dashboards")
@@ -399,7 +401,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
                 <RefreshCw className={`mr-2 h-4 w-4 ${syncingAll ? "animate-spin" : ""}`} />
                 Sincronizar Todas
               </Button>
-              <GoogleCalendarManager onImportEvent={handleImportEvent} />
+              <GoogleCalendarManager clientEmail={clientEmail || undefined} onImportEvent={handleImportEvent} />
             </>
           )}
           <Button onClick={handleCreateMeeting}>
