@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Pencil, Share2, Download, Trash2, CheckSquare, RefreshCw, Calendar, Check } from "lucide-react";
+import { Plus, Users, Pencil, Share2, Download, Trash2, CheckSquare, RefreshCw, Calendar, Check, FileText, Rocket, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -15,6 +15,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ShareMeetingDialog } from "@/components/meeting-editor/ShareMeetingDialog";
 import { GoogleCalendarManager } from "@/components/calendar/GoogleCalendarManager";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
@@ -24,6 +31,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { getMeetingTemplate, MEETING_TEMPLATE_OPTIONS, type MeetingTemplateType } from "@/lib/meetingTemplates";
 
 interface MeetingMinute {
   id: string;
@@ -49,27 +57,6 @@ interface Dashboard {
   dashboard_type: string;
 }
 
-const INITIAL_TEMPLATE = `<h2>📊 Dashboards Analisados</h2>
-<p><em>Os dashboards serão inseridos automaticamente aqui.</em></p>
-
-<h2>📈 Análise de Resultados</h2>
-<p>Descreva os principais resultados observados nos dashboards...</p>
-
-<h2>💡 Insights e Oportunidades</h2>
-<ul>
-  <li>Insight 1...</li>
-  <li>Insight 2...</li>
-</ul>
-
-<h2>🎯 Estratégias Propostas</h2>
-<p>Detalhe as estratégias sugeridas para o próximo período...</p>
-
-<h2>✅ Ações Definidas</h2>
-<p>As atividades vinculadas serão listadas automaticamente abaixo.</p>
-
-<h2>📝 Observações Adicionais</h2>
-<p>Adicione quaisquer observações relevantes...</p>`;
-
 export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const navigate = useNavigate();
   const [meetings, setMeetings] = useState<MeetingMinute[]>([]);
@@ -83,6 +70,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [syncingAll, setSyncingAll] = useState(false);
   const [syncedMeetingIds, setSyncedMeetingIds] = useState<Set<string>>(new Set());
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const { isConnected } = useGoogleCalendar();
   const { syncMeetingToCalendar, deleteMeetingFromCalendar, syncAllMeetings } = useMeetingCalendarSync();
 
@@ -149,7 +137,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     }
   };
 
-  const handleCreateMeeting = async () => {
+  const handleCreateMeeting = async (templateType: MeetingTemplateType = 'performance') => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const now = new Date();
@@ -161,9 +149,8 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
           client_id: clientId,
           title: `Vivaz - ${clientName} - Nova Reunião`,
           meeting_date: localDateTime,
-          content: INITIAL_TEMPLATE,
+          content: getMeetingTemplate(templateType),
           created_by: user?.id,
-          linked_dashboards: dashboards.map(d => d.id),
         })
         .select()
         .single();
@@ -181,6 +168,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         fetchSyncedMeetings();
       }
 
+      setTemplateDialogOpen(false);
       toast.success("Reunião criada! Redirecionando para edição...");
       navigate(`/clientes/${clientId}/reunioes/${newMeeting.id}?mode=edit`);
     } catch (error) {
@@ -205,9 +193,8 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
           client_id: clientId,
           title: event.title,
           meeting_date: localDateTime,
-          content: event.description || INITIAL_TEMPLATE,
+          content: event.description || getMeetingTemplate('performance'),
           created_by: user?.id,
-          linked_dashboards: dashboards.map(d => d.id),
         })
         .select()
         .single();
@@ -404,7 +391,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
               <GoogleCalendarManager clientEmail={clientEmail || undefined} onImportEvent={handleImportEvent} />
             </>
           )}
-          <Button onClick={handleCreateMeeting}>
+          <Button onClick={() => setTemplateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nova Reunião
           </Button>
@@ -415,7 +402,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center h-64">
             <p className="text-muted-foreground mb-4">Nenhuma reunião encontrada</p>
-            <Button onClick={handleCreateMeeting}>
+            <Button onClick={() => setTemplateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Criar Primeira Reunião
             </Button>
@@ -537,6 +524,42 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Template Selection Dialog */}
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Escolher Template</DialogTitle>
+            <DialogDescription>
+              Selecione um modelo para sua reunião
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-4">
+            {MEETING_TEMPLATE_OPTIONS.map((option) => {
+              const icons: Record<MeetingTemplateType, React.ReactNode> = {
+                performance: <FileText className="h-5 w-5 text-primary" />,
+                kickoff: <Rocket className="h-5 w-5 text-emerald-600" />,
+                simple: <ClipboardList className="h-5 w-5 text-blue-600" />,
+              };
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => handleCreateMeeting(option.value)}
+                  className="flex items-start gap-4 p-4 rounded-lg border hover:border-primary hover:bg-muted/50 transition-all text-left"
+                >
+                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    {icons[option.value]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium">{option.label}</p>
+                    <p className="text-sm text-muted-foreground">{option.description}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
