@@ -189,6 +189,87 @@ export const useGoogleCalendar = () => {
     },
   });
 
+  // Update event in Google Calendar
+  const updateEventMutation = useMutation({
+    mutationFn: async ({
+      eventId,
+      summary,
+      description,
+      startDateTime,
+      endDateTime,
+      attendees,
+    }: {
+      eventId: string;
+      summary: string;
+      description?: string;
+      startDateTime: string;
+      endDateTime: string;
+      attendees?: string[];
+    }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar?action=update-event`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            eventId,
+            summary,
+            description,
+            startDateTime,
+            endDateTime,
+            attendees,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to update event");
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["google-calendar-events"] });
+      toast.success("Evento atualizado no Google Calendar");
+    },
+    onError: (error: Error) => {
+      toast.error("Erro ao atualizar evento: " + error.message);
+    },
+  });
+
+  // Delete event from Google Calendar
+  const deleteEventMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar?action=delete-event&eventId=${eventId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to delete event");
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["google-calendar-events"] });
+      toast.success("Evento excluído do Google Calendar");
+    },
+    onError: (error: Error) => {
+      toast.error("Erro ao excluir evento: " + error.message);
+    },
+  });
+
   return {
     isConnected,
     isCheckingConnection,
@@ -201,5 +282,9 @@ export const useGoogleCalendar = () => {
     refetchEvents,
     createEvent: createEventMutation.mutate,
     isCreatingEvent: createEventMutation.isPending,
+    updateEvent: updateEventMutation.mutate,
+    isUpdatingEvent: updateEventMutation.isPending,
+    deleteEvent: deleteEventMutation.mutate,
+    isDeletingEvent: deleteEventMutation.isPending,
   };
 };
