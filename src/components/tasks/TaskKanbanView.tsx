@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, User, GripVertical, Clock, CheckCircle, Eye, Play, Pause, XCircle, FileText, Rocket, Settings } from "lucide-react";
+import { Calendar, User, GripVertical, Clock, CheckCircle, Eye, Play, Pause, XCircle, FileText, Rocket, Settings, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TaskCategory, getCategoryStatuses, getStatusLabel, getStatusColor, getPriorityColor, getPriorityLabel } from "@/lib/taskCategories";
+import { isAfter, startOfDay, parseISO } from "date-fns";
 
 interface Task {
   id: string;
@@ -142,10 +143,25 @@ export function TaskKanbanView({ tasks, category, onTaskClick, onUpdate }: TaskK
     return Clock;
   };
 
+  const isTaskOverdue = (task: Task) => {
+    if (!task.due_date) return false;
+    // Skip completed/finalized statuses
+    if (task.status.includes("concluido") || task.status.includes("aprovado") || 
+        task.status.includes("entregue") || task.status.includes("publicado") || 
+        task.status.includes("enviado") || task.status.includes("publicada") ||
+        task.status.includes("finalizada") || task.status.includes("encerrada")) {
+      return false;
+    }
+    const today = startOfDay(new Date());
+    const dueDate = startOfDay(parseISO(task.due_date));
+    return isAfter(today, dueDate);
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {statuses.map((status) => {
         const columnTasks = tasks.filter((task) => task.status === status.value);
+        const overdueTasks = columnTasks.filter(isTaskOverdue);
         const isDragOver = dragOverStatus === status.value;
         const StatusIcon = getStatusIcon(status.value);
         
@@ -162,9 +178,17 @@ export function TaskKanbanView({ tasks, category, onTaskClick, onUpdate }: TaskK
                 <StatusIcon className="h-4 w-4" />
                 <h3 className="font-semibold text-sm">{status.label}</h3>
               </div>
-              <Badge variant="secondary" className="text-xs bg-white/20 text-white border-0">
-                {columnTasks.length}
-              </Badge>
+              <div className="flex items-center gap-1.5">
+                {overdueTasks.length > 0 && (
+                  <Badge variant="destructive" className="text-xs bg-red-600 text-white border-0 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {overdueTasks.length}
+                  </Badge>
+                )}
+                <Badge variant="secondary" className="text-xs bg-white/20 text-white border-0">
+                  {columnTasks.length}
+                </Badge>
+              </div>
             </div>
             
             <div 
@@ -177,53 +201,57 @@ export function TaskKanbanView({ tasks, category, onTaskClick, onUpdate }: TaskK
                   {isDragOver ? "Solte aqui" : "Nenhuma atividade"}
                 </div>
               ) : (
-                columnTasks.map((task) => (
-                  <Card 
-                    key={task.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, task)}
-                    onDragEnd={handleDragEnd}
-                    className={`cursor-grab hover:shadow-md transition-all ${
-                      draggingTask?.id === task.id ? "opacity-50 scale-95" : ""
-                    }`}
-                    onClick={() => onTaskClick?.(task)}
-                  >
-                    <CardHeader className="p-3 pb-2">
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex items-start gap-2 flex-1">
-                          <GripVertical className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                          <CardTitle className="text-sm font-medium line-clamp-2">
-                            {task.title}
-                          </CardTitle>
+                columnTasks.map((task) => {
+                  const overdue = isTaskOverdue(task);
+                  return (
+                    <Card 
+                      key={task.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, task)}
+                      onDragEnd={handleDragEnd}
+                      className={`cursor-grab hover:shadow-md transition-all ${
+                        draggingTask?.id === task.id ? "opacity-50 scale-95" : ""
+                      } ${overdue ? "border-red-500 border-2 bg-red-50 dark:bg-red-950/20" : ""}`}
+                      onClick={() => onTaskClick?.(task)}
+                    >
+                      <CardHeader className="p-3 pb-2">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex items-start gap-2 flex-1">
+                            <GripVertical className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                            <CardTitle className="text-sm font-medium line-clamp-2">
+                              {task.title}
+                            </CardTitle>
+                          </div>
+                          <Badge className={getPriorityColor(task.priority)} variant="outline">
+                            {getPriorityLabel(task.priority)}
+                          </Badge>
                         </div>
-                        <Badge className={getPriorityColor(task.priority)} variant="outline">
-                          {getPriorityLabel(task.priority)}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-3 pt-0 space-y-2">
-                      {task.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {task.description}
-                        </p>
-                      )}
-                      <div className="flex flex-col gap-1 text-xs">
-                        {task.due_date && (
-                          <span className="flex items-center gap-1 text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(task.due_date).toLocaleDateString("pt-BR")}
-                          </span>
+                      </CardHeader>
+                      <CardContent className="p-3 pt-0 space-y-2">
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {task.description}
+                          </p>
                         )}
-                        {task.assigned_profile && (
-                          <span className="flex items-center gap-1 text-muted-foreground">
-                            <User className="h-3 w-3" />
-                            {task.assigned_profile.full_name}
-                          </span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                        <div className="flex flex-col gap-1 text-xs">
+                          {task.due_date && (
+                            <span className={`flex items-center gap-1 ${overdue ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                              {overdue ? <AlertTriangle className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
+                              {new Date(task.due_date).toLocaleDateString("pt-BR")}
+                              {overdue && " (Atrasada)"}
+                            </span>
+                          )}
+                          {task.assigned_profile && (
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              <User className="h-3 w-3" />
+                              {task.assigned_profile.full_name}
+                            </span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
               )}
             </div>
           </div>
