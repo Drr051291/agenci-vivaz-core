@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, User, GripVertical } from "lucide-react";
+import { Calendar, User, GripVertical, Clock, CheckCircle, Eye, Play, Pause, XCircle, FileText, Rocket, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TaskCategory, getCategoryStatuses, getStatusLabel, getStatusColor, getPriorityColor, getPriorityLabel } from "@/lib/taskCategories";
@@ -113,11 +113,41 @@ export function TaskKanbanView({ tasks, category, onTaskClick, onUpdate }: TaskK
     return "bg-orange-500 text-white";
   };
 
+  const getStatusIcon = (statusValue: string) => {
+    if (statusValue === "pendente") return Clock;
+    if (statusValue.includes("aprovado") || statusValue.includes("concluido") || statusValue.includes("entregue") || statusValue.includes("publicado") || statusValue.includes("enviado") || statusValue.includes("publicada")) {
+      return CheckCircle;
+    }
+    if (statusValue.includes("revisao") || statusValue.includes("aguardando") || statusValue.includes("analise")) {
+      return Eye;
+    }
+    if (statusValue.includes("ativa") || statusValue.includes("em_andamento")) {
+      return Play;
+    }
+    if (statusValue.includes("execucao") || statusValue.includes("desenvolvimento") || statusValue.includes("producao")) {
+      return Rocket;
+    }
+    if (statusValue.includes("criacao") || statusValue.includes("briefing")) {
+      return FileText;
+    }
+    if (statusValue.includes("pausada")) {
+      return Pause;
+    }
+    if (statusValue.includes("encerrada") || statusValue.includes("finalizada")) {
+      return XCircle;
+    }
+    if (statusValue.includes("configuracao") || statusValue.includes("planejamento") || statusValue.includes("agendado")) {
+      return Settings;
+    }
+    return Clock;
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {statuses.map((status) => {
         const columnTasks = tasks.filter((task) => task.status === status.value);
         const isDragOver = dragOverStatus === status.value;
+        const StatusIcon = getStatusIcon(status.value);
         
         return (
           <div 
@@ -128,7 +158,10 @@ export function TaskKanbanView({ tasks, category, onTaskClick, onUpdate }: TaskK
             onDrop={(e) => handleDrop(e, status.value)}
           >
             <div className={`flex items-center justify-between px-3 py-2 ${getHeaderColor(status.value)}`}>
-              <h3 className="font-semibold text-sm">{status.label}</h3>
+              <div className="flex items-center gap-2">
+                <StatusIcon className="h-4 w-4" />
+                <h3 className="font-semibold text-sm">{status.label}</h3>
+              </div>
               <Badge variant="secondary" className="text-xs bg-white/20 text-white border-0">
                 {columnTasks.length}
               </Badge>
