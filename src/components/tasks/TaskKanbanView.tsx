@@ -79,6 +79,40 @@ export function TaskKanbanView({ tasks, category, onTaskClick, onUpdate }: TaskK
     }
   };
 
+  const getColumnColor = (statusValue: string) => {
+    if (statusValue === "pendente") return "bg-purple-500/10 border-purple-500/30";
+    if (statusValue.includes("aprovado") || statusValue.includes("concluido") || statusValue.includes("entregue") || statusValue.includes("publicado") || statusValue.includes("enviado") || statusValue.includes("publicada")) {
+      return "bg-green-500/10 border-green-500/30";
+    }
+    if (statusValue.includes("revisao") || statusValue.includes("aguardando") || statusValue.includes("analise")) {
+      return "bg-yellow-500/10 border-yellow-500/30";
+    }
+    if (statusValue.includes("ativa") || statusValue.includes("execucao") || statusValue.includes("criacao") || statusValue.includes("desenvolvimento") || statusValue.includes("producao") || statusValue.includes("em_andamento")) {
+      return "bg-blue-500/10 border-blue-500/30";
+    }
+    if (statusValue.includes("pausada") || statusValue.includes("encerrada") || statusValue.includes("finalizada")) {
+      return "bg-gray-500/10 border-gray-500/30";
+    }
+    return "bg-orange-500/10 border-orange-500/30";
+  };
+
+  const getHeaderColor = (statusValue: string) => {
+    if (statusValue === "pendente") return "bg-purple-500 text-white";
+    if (statusValue.includes("aprovado") || statusValue.includes("concluido") || statusValue.includes("entregue") || statusValue.includes("publicado") || statusValue.includes("enviado") || statusValue.includes("publicada")) {
+      return "bg-green-500 text-white";
+    }
+    if (statusValue.includes("revisao") || statusValue.includes("aguardando") || statusValue.includes("analise")) {
+      return "bg-yellow-500 text-white";
+    }
+    if (statusValue.includes("ativa") || statusValue.includes("execucao") || statusValue.includes("criacao") || statusValue.includes("desenvolvimento") || statusValue.includes("producao") || statusValue.includes("em_andamento")) {
+      return "bg-blue-500 text-white";
+    }
+    if (statusValue.includes("pausada") || statusValue.includes("encerrada") || statusValue.includes("finalizada")) {
+      return "bg-gray-500 text-white";
+    }
+    return "bg-orange-500 text-white";
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {statuses.map((status) => {
@@ -88,21 +122,21 @@ export function TaskKanbanView({ tasks, category, onTaskClick, onUpdate }: TaskK
         return (
           <div 
             key={status.value} 
-            className="space-y-3"
+            className={`rounded-lg border ${getColumnColor(status.value)} overflow-hidden`}
             onDragOver={(e) => handleDragOver(e, status.value)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, status.value)}
           >
-            <div className="flex items-center justify-between px-2">
+            <div className={`flex items-center justify-between px-3 py-2 ${getHeaderColor(status.value)}`}>
               <h3 className="font-semibold text-sm">{status.label}</h3>
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs bg-white/20 text-white border-0">
                 {columnTasks.length}
               </Badge>
             </div>
             
             <div 
-              className={`space-y-3 min-h-[100px] p-2 rounded-lg transition-colors ${
-                isDragOver ? "bg-primary/10 border-2 border-dashed border-primary/50" : "bg-muted/30"
+              className={`space-y-3 min-h-[100px] p-3 transition-colors ${
+                isDragOver ? "bg-primary/20 border-2 border-dashed border-primary/50" : ""
               }`}
             >
               {columnTasks.length === 0 ? (
