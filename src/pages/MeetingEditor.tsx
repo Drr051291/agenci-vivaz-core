@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, CheckSquare, LayoutDashboard, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, CheckSquare, LayoutDashboard, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, RefreshCw, Check } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -19,6 +19,7 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { useMeetingCalendarSync } from "@/hooks/useMeetingCalendarSync";
 
 interface Dashboard {
   id: string;
@@ -59,6 +60,9 @@ export default function MeetingEditor() {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
+  const [isSynced, setIsSynced] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const { isConnected, updateMeetingInCalendar, syncMeetingToCalendar, getMeetingSyncStatus } = useMeetingCalendarSync();
   const [meetingData, setMeetingData] = useState({
     meeting_date: "",
     participants: [] as string[],
@@ -202,6 +206,12 @@ export default function MeetingEditor() {
       });
       setSelectedDashboards(meetingDataRes.linked_dashboards || []);
       setSelectedTasks(meetingDataRes.linked_tasks || []);
+
+      // Check sync status
+      if (isConnected && meetingId) {
+        const syncStatus = await getMeetingSyncStatus(meetingId);
+        setIsSynced(!!syncStatus);
+      }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       toast.error("Erro ao carregar reunião");
@@ -236,10 +246,11 @@ export default function MeetingEditor() {
 
     setIsSaving(true);
     try {
+      const newTitle = generateTitle(meetingData.meeting_date, meetingData.created_at);
       const { error } = await supabase
         .from("meeting_minutes")
         .update({
-          title: generateTitle(meetingData.meeting_date, meetingData.created_at),
+          title: newTitle,
           meeting_date: meetingData.meeting_date,
           participants: meetingData.participants.length > 0 ? meetingData.participants : null,
           content: meetingData.content,
@@ -250,16 +261,50 @@ export default function MeetingEditor() {
         .eq("id", meetingId);
 
       if (error) throw error;
+
+      // Sync to Google Calendar if connected and already synced
+      if (isConnected && isSynced) {
+        await updateMeetingInCalendar({
+          id: meetingId,
+          title: newTitle,
+          meeting_date: meetingData.meeting_date,
+          participants: meetingData.participants,
+        });
+      }
     } catch (error) {
       console.error("Erro no autosave:", error);
     } finally {
       setIsSaving(false);
     }
-  }, [meetingData, selectedDashboards, selectedTasks, meetingId, isSaving, clientName]);
+  }, [meetingData, selectedDashboards, selectedTasks, meetingId, isSaving, clientName, isConnected, isSynced, updateMeetingInCalendar]);
 
   const handleSave = async () => {
     await handleAutoSave();
     toast.success("Reunião salva com sucesso!");
+  };
+
+  const handleSyncToCalendar = async () => {
+    if (!meetingId) return;
+    setIsSyncing(true);
+    try {
+      const result = await syncMeetingToCalendar({
+        id: meetingId,
+        title: meetingData.title,
+        meeting_date: meetingData.meeting_date,
+        participants: meetingData.participants,
+      });
+      if (result) {
+        setIsSynced(true);
+        toast.success("Reunião sincronizada com Google Calendar");
+      } else {
+        toast.error("Erro ao sincronizar com Google Calendar");
+      }
+    } catch (error) {
+      console.error("Erro ao sincronizar:", error);
+      toast.error("Erro ao sincronizar");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleDashboardToggle = (dashboardId: string) => {
@@ -514,6 +559,25 @@ export default function MeetingEditor() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {isConnected && (
+                isSynced ? (
+                  <Badge variant="outline" className="text-xs flex items-center gap-1">
+                    <CalendarIcon className="h-3 w-3" />
+                    <Check className="h-3 w-3" />
+                    Sincronizado
+                  </Badge>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSyncToCalendar}
+                    disabled={isSyncing}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
+                    Sincronizar
+                  </Button>
+                )
+              )}
               {isEditMode && (
                 <span className={cn(
                   "text-sm",
