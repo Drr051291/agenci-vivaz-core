@@ -45,6 +45,7 @@ interface GoogleCalendarManagerProps {
     title: string;
     date: Date;
     description?: string;
+    googleEventId?: string;
   }) => Promise<void>;
 }
 
@@ -96,6 +97,7 @@ export const GoogleCalendarManager = ({ onImportEvent }: GoogleCalendarManagerPr
         title: event.summary || "Evento sem título",
         date: startDate,
         description: event.description,
+        googleEventId: event.id,
       });
 
       setOpen(false);

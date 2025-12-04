@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Pencil, Share2, Download, Trash2, CheckSquare } from "lucide-react";
+import { Plus, Users, Pencil, Share2, Download, Trash2, CheckSquare, RefreshCw, Calendar, Check } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -18,6 +18,8 @@ import {
 import { ShareMeetingDialog } from "@/components/meeting-editor/ShareMeetingDialog";
 import { GoogleCalendarManager } from "@/components/calendar/GoogleCalendarManager";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
+import { useMeetingCalendarSync } from "@/hooks/useMeetingCalendarSync";
+import { Badge } from "@/components/ui/badge";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { format } from "date-fns";
@@ -34,6 +36,7 @@ interface MeetingMinute {
   share_token?: string;
   linked_dashboards?: string[];
   linked_tasks?: string[];
+  is_synced?: boolean;
 }
 
 interface ClientMeetingsProps {
@@ -77,12 +80,30 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [syncedMeetingIds, setSyncedMeetingIds] = useState<Set<string>>(new Set());
   const { isConnected } = useGoogleCalendar();
+  const { syncMeetingToCalendar, deleteMeetingFromCalendar, syncAllMeetings } = useMeetingCalendarSync();
 
   useEffect(() => {
     fetchMeetings();
     fetchClientData();
-  }, [clientId]);
+    if (isConnected) {
+      fetchSyncedMeetings();
+    }
+  }, [clientId, isConnected]);
+
+  const fetchSyncedMeetings = async () => {
+    try {
+      const { data } = await supabase
+        .from("google_calendar_events")
+        .select("meeting_id");
+      
+      setSyncedMeetingIds(new Set(data?.map(e => e.meeting_id) || []));
+    } catch (error) {
+      console.error("Erro ao buscar reuniões sincronizadas:", error);
+    }
+  };
 
   const fetchClientData = async () => {
     try {
@@ -147,6 +168,17 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
 
       if (error) throw error;
 
+      // Sync to Google Calendar if connected
+      if (isConnected) {
+        await syncMeetingToCalendar({
+          id: newMeeting.id,
+          title: newMeeting.title,
+          meeting_date: newMeeting.meeting_date,
+          participants: [],
+        });
+        fetchSyncedMeetings();
+      }
+
       toast.success("Reunião criada! Redirecionando para edição...");
       navigate(`/clientes/${clientId}/reunioes/${newMeeting.id}?mode=edit`);
     } catch (error) {
@@ -159,6 +191,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     title: string;
     date: Date;
     description?: string;
+    googleEventId?: string;
   }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -178,6 +211,16 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         .single();
 
       if (error) throw error;
+
+      // Link to existing Google Calendar event if imported
+      if (event.googleEventId) {
+        await supabase.from("google_calendar_events").insert({
+          meeting_id: newMeeting.id,
+          google_event_id: event.googleEventId,
+          calendar_id: "primary",
+        });
+        fetchSyncedMeetings();
+      }
 
       toast.success("Reunião importada! Redirecionando para edição...");
       navigate(`/clientes/${clientId}/reunioes/${newMeeting.id}?mode=edit`);
@@ -210,6 +253,11 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     if (!selectedMeeting) return;
 
     try {
+      // Delete from Google Calendar first if synced
+      if (isConnected && syncedMeetingIds.has(selectedMeeting.id)) {
+        await deleteMeetingFromCalendar(selectedMeeting.id);
+      }
+
       const { error } = await supabase
         .from("meeting_minutes")
         .delete()
@@ -221,9 +269,28 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       setDeleteDialogOpen(false);
       setSelectedMeeting(null);
       fetchMeetings();
+      if (isConnected) fetchSyncedMeetings();
     } catch (error) {
       console.error("Erro ao deletar reunião:", error);
       toast.error("Erro ao deletar reunião");
+    }
+  };
+
+  const handleSyncAll = async () => {
+    setSyncingAll(true);
+    try {
+      const count = await syncAllMeetings(clientId);
+      if (count > 0) {
+        toast.success(`${count} reunião(ões) sincronizada(s) com Google Calendar`);
+        fetchSyncedMeetings();
+      } else {
+        toast.info("Todas as reuniões já estão sincronizadas");
+      }
+    } catch (error) {
+      console.error("Erro ao sincronizar:", error);
+      toast.error("Erro ao sincronizar reuniões");
+    } finally {
+      setSyncingAll(false);
     }
   };
 
@@ -322,7 +389,18 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
         <h2 className="text-xl font-bold">Reuniões</h2>
         <div className="flex gap-2">
           {isConnected && (
-            <GoogleCalendarManager onImportEvent={handleImportEvent} />
+            <>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleSyncAll}
+                disabled={syncingAll}
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${syncingAll ? "animate-spin" : ""}`} />
+                Sincronizar Todas
+              </Button>
+              <GoogleCalendarManager onImportEvent={handleImportEvent} />
+            </>
           )}
           <Button onClick={handleCreateMeeting}>
             <Plus className="mr-2 h-4 w-4" />
@@ -350,9 +428,17 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
               onClick={() => handleViewMeeting(meeting.id)}
             >
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium leading-tight">
-                  {meeting.title}
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium leading-tight">
+                    {meeting.title}
+                  </CardTitle>
+                  {isConnected && syncedMeetingIds.has(meeting.id) && (
+                    <Badge variant="outline" className="text-xs flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      <Check className="h-3 w-3" />
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 {meeting.linked_tasks && meeting.linked_tasks.length > 0 && (
