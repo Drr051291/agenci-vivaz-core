@@ -332,7 +332,7 @@ const ClientFinancial = () => {
                             </div>
                             <div className="flex gap-4 text-sm text-muted-foreground">
                               <span className="font-medium text-foreground">
-                                R$ {payment.value?.toFixed(2)}
+                                {payment.value?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                               </span>
                               <span>
                                 Venc:{' '}
@@ -401,7 +401,7 @@ const ClientFinancial = () => {
                         </div>
                         <div className="flex gap-4 text-sm text-muted-foreground">
                           <span className="font-medium text-foreground">
-                            R$ {sub.value?.toFixed(2)}
+                            {sub.value?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </span>
                           <span>Ciclo: {sub.cycle}</span>
                           {sub.nextDueDate && (

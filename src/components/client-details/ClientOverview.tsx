@@ -193,7 +193,7 @@ export function ClientOverview({ clientId, client }: ClientOverviewProps) {
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">Mensalidade</p>
                   <p className="font-semibold text-primary">
-                    R$ {client.monthly_fee.toFixed(2)}
+                    {client.monthly_fee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </p>
                 </div>
               </div>

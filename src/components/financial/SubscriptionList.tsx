@@ -59,7 +59,7 @@ export function SubscriptionList() {
                   Cliente: {subscription.customer}
                 </p>
                 <div className="flex gap-4 text-sm">
-                  <span>Valor: R$ {subscription.value?.toFixed(2)}</span>
+                  <span>Valor: {subscription.value?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                   <span>Ciclo: {subscription.cycle}</span>
                   {subscription.nextDueDate && (
                     <span>

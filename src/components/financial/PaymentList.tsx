@@ -65,7 +65,7 @@ export function PaymentList() {
                 </p>
                 <div className="flex gap-4 text-sm">
                   <span className="font-semibold">
-                    R$ {payment.value?.toFixed(2)}
+                    {payment.value?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </span>
                   <span>
                     Vencimento:{' '}
