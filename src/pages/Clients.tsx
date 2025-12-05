@@ -617,7 +617,7 @@ const Clients = () => {
                         animate={{ opacity: 1 }}
                         transition={{ delay: index * 0.05 + 0.3 }}
                       >
-                        R$ {client.monthly_fee.toFixed(2)}/mês
+                        {client.monthly_fee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
                       </motion.div>
                     )}
                     {client.website && (
