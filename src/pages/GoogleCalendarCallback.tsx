@@ -66,7 +66,7 @@ export default function GoogleCalendarCallback() {
           setStatus("success");
           setMessage("Google Calendar conectado com sucesso!");
           setTimeout(() => {
-            navigate("/integracoes");
+            navigate("/dashboard");
           }, 2000);
         } else {
           throw new Error(data.error || "Falha ao processar autenticação");
@@ -98,7 +98,7 @@ export default function GoogleCalendarCallback() {
                 <CheckCircle2 className="h-12 w-12 text-green-500" />
                 <h2 className="text-xl font-semibold text-green-600">{message}</h2>
                 <p className="text-sm text-muted-foreground">
-                  Redirecionando para integrações...
+                  Redirecionando para o dashboard...
                 </p>
               </>
             )}
@@ -107,8 +107,8 @@ export default function GoogleCalendarCallback() {
               <>
                 <XCircle className="h-12 w-12 text-destructive" />
                 <h2 className="text-xl font-semibold text-destructive">{message}</h2>
-                <Button onClick={() => navigate("/integracoes")} className="mt-4">
-                  Voltar para Integrações
+                <Button onClick={() => navigate("/dashboard")} className="mt-4">
+                  Voltar para o Dashboard
                 </Button>
               </>
             )}

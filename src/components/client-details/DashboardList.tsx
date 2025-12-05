@@ -3,7 +3,34 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ExternalLink, BarChart3, TrendingUp } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardViewerDialog } from "./DashboardViewerDialog";
 
@@ -20,11 +47,43 @@ interface DashboardListProps {
   clientId: string;
 }
 
+const PLATFORM_OPTIONS = [
+  {
+    value: "reportei",
+    label: "Reportei",
+    color: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: TrendingUp,
+    placeholder: "https://app.reportei.com/public/...",
+    help: "Acesse seu relatório no Reportei → Clique em 'Compartilhar' → Copie o link público",
+  },
+  {
+    value: "pipedrive",
+    label: "Pipedrive",
+    color: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+    icon: BarChart3,
+    placeholder: "https://suaempresa.pipedrive.com/insights/shared/...",
+    help: "Acesse o Dashboard no Pipedrive → Clique em 'Compartilhar' → Copie o link de embed",
+  },
+];
+
 export function DashboardList({ clientId }: DashboardListProps) {
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDashboardId, setSelectedDashboardId] = useState<string | null>(null);
+  
+  // Form state
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [editingDashboard, setEditingDashboard] = useState<Dashboard | null>(null);
+  const [formName, setFormName] = useState("");
+  const [formType, setFormType] = useState("reportei");
+  const [formUrl, setFormUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  
+  // Delete state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [dashboardToDelete, setDashboardToDelete] = useState<Dashboard | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchDashboards();
@@ -50,33 +109,14 @@ export function DashboardList({ clientId }: DashboardListProps) {
   };
 
   const getPlatformInfo = (type: string) => {
-    const normalizedType = type === "analytics" ? "reportei" : type;
-    
-    if (normalizedType === "reportei") {
-      return {
-        name: "Reportei",
-        color: "bg-green-500/10 text-green-600 border-green-500/20",
-        icon: TrendingUp,
-      };
-    } else if (normalizedType === "pipedrive") {
-      return {
-        name: "Pipedrive",
-        color: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-        icon: BarChart3,
-      };
-    }
-    return {
-      name: normalizedType,
-      color: "bg-muted",
-      icon: BarChart3,
-    };
+    const platform = PLATFORM_OPTIONS.find(p => p.value === type || (type === "analytics" && p.value === "reportei"));
+    return platform || PLATFORM_OPTIONS[0];
   };
 
   const getDisplayName = (dashboard: Dashboard) => {
-    // If name looks like a URL, show a generic name based on platform
     if (dashboard.name.startsWith("http://") || dashboard.name.startsWith("https://")) {
       const platform = getPlatformInfo(dashboard.dashboard_type);
-      return `Dashboard ${platform.name}`;
+      return `Dashboard ${platform.label}`;
     }
     return dashboard.name;
   };
@@ -86,6 +126,99 @@ export function DashboardList({ clientId }: DashboardListProps) {
     setDialogOpen(true);
   };
 
+  const openCreateDialog = () => {
+    setEditingDashboard(null);
+    setFormName("");
+    setFormType("reportei");
+    setFormUrl("");
+    setFormDialogOpen(true);
+  };
+
+  const openEditDialog = (dashboard: Dashboard) => {
+    setEditingDashboard(dashboard);
+    setFormName(dashboard.name);
+    setFormType(dashboard.dashboard_type === "analytics" ? "reportei" : dashboard.dashboard_type);
+    setFormUrl(dashboard.embed_url || "");
+    setFormDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!formName.trim()) {
+      toast.error("Informe o nome do dashboard");
+      return;
+    }
+    if (!formUrl.trim()) {
+      toast.error("Informe a URL de embed");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (editingDashboard) {
+        // Update
+        const { error } = await supabase
+          .from("client_dashboards")
+          .update({
+            name: formName.trim(),
+            dashboard_type: formType,
+            embed_url: formUrl.trim(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", editingDashboard.id);
+
+        if (error) throw error;
+        toast.success("Dashboard atualizado com sucesso");
+      } else {
+        // Create
+        const { error } = await supabase
+          .from("client_dashboards")
+          .insert({
+            client_id: clientId,
+            name: formName.trim(),
+            dashboard_type: formType,
+            embed_url: formUrl.trim(),
+            is_active: true,
+          });
+
+        if (error) throw error;
+        toast.success("Dashboard criado com sucesso");
+      }
+
+      setFormDialogOpen(false);
+      fetchDashboards();
+    } catch (error) {
+      console.error("Erro ao salvar dashboard:", error);
+      toast.error("Erro ao salvar dashboard");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!dashboardToDelete) return;
+
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("client_dashboards")
+        .update({ is_active: false })
+        .eq("id", dashboardToDelete.id);
+
+      if (error) throw error;
+      toast.success("Dashboard excluído com sucesso");
+      setDeleteDialogOpen(false);
+      setDashboardToDelete(null);
+      fetchDashboards();
+    } catch (error) {
+      console.error("Erro ao excluir dashboard:", error);
+      toast.error("Erro ao excluir dashboard");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const selectedPlatform = PLATFORM_OPTIONS.find(p => p.value === formType);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-250px)]">
@@ -94,73 +227,114 @@ export function DashboardList({ clientId }: DashboardListProps) {
     );
   }
 
-  if (dashboards.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-250px)] gap-4">
-        <p className="text-muted-foreground">
-          Nenhum dashboard configurado.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-        {dashboards.map((dashboard) => {
-          const platform = getPlatformInfo(dashboard.dashboard_type);
-          const Icon = platform.icon;
+      {/* Header com botão criar */}
+      <div className="flex items-center justify-between p-4 border-b">
+        <div>
+          <h2 className="text-lg font-semibold">Dashboards</h2>
+          <p className="text-sm text-muted-foreground">
+            Gerencie os dashboards do cliente (Reportei e Pipedrive)
+          </p>
+        </div>
+        <Button onClick={openCreateDialog}>
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Dashboard
+        </Button>
+      </div>
 
-          return (
-            <Card key={dashboard.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${platform.color}`}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-base">{getDisplayName(dashboard)}</h3>
-                        <Badge className={`${platform.color} border text-xs mt-1`}>
-                          {platform.name}
-                        </Badge>
+      {dashboards.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-350px)] gap-4">
+          <div className="text-center">
+            <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">Nenhum dashboard configurado</h3>
+            <p className="text-muted-foreground mb-4">
+              Adicione dashboards do Reportei ou Pipedrive para visualização.
+            </p>
+            <Button onClick={openCreateDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Dashboard
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+          {dashboards.map((dashboard) => {
+            const platform = getPlatformInfo(dashboard.dashboard_type);
+            const Icon = platform.icon;
+
+            return (
+              <Card key={dashboard.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${platform.color}`}>
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-base">{getDisplayName(dashboard)}</h3>
+                          <Badge className={`${platform.color} border text-xs mt-1`}>
+                            {platform.label}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleViewDashboard(dashboard.id)}
-                      className="flex-1"
-                    >
-                      Visualizar
-                    </Button>
-                    {dashboard.embed_url && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleViewDashboard(dashboard.id)}
+                        className="flex-1"
+                      >
+                        Visualizar
+                      </Button>
+                      {dashboard.embed_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          title="Abrir em Nova Aba"
+                        >
+                          <a
+                            href={dashboard.embed_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
-                        asChild
-                        title="Abrir em Nova Aba"
+                        onClick={() => openEditDialog(dashboard)}
+                        title="Editar"
                       >
-                        <a
-                          href={dashboard.embed_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
+                        <Pencil className="h-4 w-4" />
                       </Button>
-                    )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setDashboardToDelete(dashboard);
+                          setDeleteDialogOpen(true);
+                        }}
+                        title="Excluir"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
+      {/* Dialog Viewer */}
       {selectedDashboardId && (
         <DashboardViewerDialog
           open={dialogOpen}
@@ -169,6 +343,105 @@ export function DashboardList({ clientId }: DashboardListProps) {
           initialDashboardId={selectedDashboardId}
         />
       )}
+
+      {/* Dialog Criar/Editar */}
+      <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingDashboard ? "Editar Dashboard" : "Novo Dashboard"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingDashboard 
+                ? "Atualize as informações do dashboard."
+                : "Adicione um novo dashboard do Reportei ou Pipedrive."
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome do Dashboard *</Label>
+              <Input
+                id="name"
+                placeholder="Ex: Dashboard de Vendas Mensal"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="type">Plataforma *</Label>
+              <Select value={formType} onValueChange={setFormType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a plataforma" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLATFORM_OPTIONS.map((platform) => {
+                    const Icon = platform.icon;
+                    return (
+                      <SelectItem key={platform.value} value={platform.value}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          {platform.label}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="url">URL de Embed *</Label>
+              <Input
+                id="url"
+                placeholder={selectedPlatform?.placeholder}
+                value={formUrl}
+                onChange={(e) => setFormUrl(e.target.value)}
+              />
+              {selectedPlatform && (
+                <div className="flex items-start gap-2 p-3 bg-muted rounded-lg text-sm">
+                  <Info className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                  <span className="text-muted-foreground">{selectedPlatform.help}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alert Dialog Excluir */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Dashboard</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o dashboard "{dashboardToDelete?.name}"? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
