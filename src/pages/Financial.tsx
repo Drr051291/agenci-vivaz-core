@@ -5,7 +5,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Users, FileText, CreditCard, Settings } from "lucide-react";
+import { DollarSign, Users, FileText, CreditCard, Settings, Eye, EyeOff } from "lucide-react";
 import { AsaasCustomerList } from "@/components/financial/AsaasCustomerList";
 import { SubscriptionList } from "@/components/financial/SubscriptionList";
 import { PaymentList } from "@/components/financial/PaymentList";
@@ -24,6 +24,7 @@ export default function Financial() {
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
+  const [hideValues, setHideValues] = useState(false);
 
   const handlePeriodChange = (newStartDate: Date, newEndDate: Date) => {
     setStartDate(newStartDate);
@@ -113,6 +114,27 @@ export default function Financial() {
           onPeriodChange={handlePeriodChange}
         />
 
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setHideValues(!hideValues)}
+            className="text-muted-foreground"
+          >
+            {hideValues ? (
+              <>
+                <EyeOff className="h-4 w-4 mr-2" />
+                Mostrar valores
+              </>
+            ) : (
+              <>
+                <Eye className="h-4 w-4 mr-2" />
+                Esconder valores
+              </>
+            )}
+          </Button>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -121,7 +143,7 @@ export default function Financial() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {paymentsLoading ? '...' : totalReceivable.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                {paymentsLoading ? '...' : hideValues ? '••••••' : totalReceivable.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </div>
               <p className="text-xs text-muted-foreground">
                 Cobranças pendentes de clientes vinculados
@@ -136,7 +158,7 @@ export default function Financial() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {paymentsLoading ? '...' : receivedInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                {paymentsLoading ? '...' : hideValues ? '••••••' : receivedInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </div>
               <p className="text-xs text-muted-foreground">
                 Total confirmado no período selecionado
@@ -151,7 +173,7 @@ export default function Financial() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-destructive">
-                {paymentsLoading ? '...' : overdue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                {paymentsLoading ? '...' : hideValues ? '••••••' : overdue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </div>
               <p className="text-xs text-muted-foreground">
                 Cobranças vencidas
