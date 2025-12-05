@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -53,8 +54,9 @@ const PLATFORM_OPTIONS = [
     label: "Reportei",
     color: "bg-green-500/10 text-green-600 border-green-500/20",
     icon: TrendingUp,
-    placeholder: "https://app.reportei.com/public/...",
-    help: "Acesse seu relatório no Reportei → Clique em 'Compartilhar' → Copie o link público",
+    placeholder: '<iframe title="report" src="https://app.reportei.com/embed/..." width="500" height="300"></iframe>',
+    help: "Acesse seu relatório no Reportei → Clique em 'Incorporar' ou 'Embed' → Copie o código iframe completo",
+    useTextarea: true,
   },
   {
     value: "pipedrive",
@@ -63,8 +65,27 @@ const PLATFORM_OPTIONS = [
     icon: BarChart3,
     placeholder: "https://suaempresa.pipedrive.com/insights/shared/...",
     help: "Acesse o Dashboard no Pipedrive → Clique em 'Compartilhar' → Copie o link de embed",
+    useTextarea: false,
   },
 ];
+
+// Extrai URL do atributo src de um iframe ou retorna a URL direta
+const extractUrlFromIframe = (input: string): string => {
+  const trimmed = input.trim();
+  
+  // Se já é uma URL válida, retorna direto
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  
+  // Tenta extrair src do iframe
+  const srcMatch = trimmed.match(/src=["']([^"']+)["']/i);
+  if (srcMatch && srcMatch[1]) {
+    return srcMatch[1].trim();
+  }
+  
+  return trimmed;
+};
 
 export function DashboardList({ clientId }: DashboardListProps) {
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
@@ -148,7 +169,15 @@ export function DashboardList({ clientId }: DashboardListProps) {
       return;
     }
     if (!formUrl.trim()) {
-      toast.error("Informe a URL de embed");
+      toast.error("Informe a URL ou código de embed");
+      return;
+    }
+
+    // Extrai URL se for iframe (para Reportei)
+    const finalUrl = extractUrlFromIframe(formUrl);
+    
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+      toast.error("URL inválida. Verifique o código ou link informado.");
       return;
     }
 
@@ -161,7 +190,7 @@ export function DashboardList({ clientId }: DashboardListProps) {
           .update({
             name: formName.trim(),
             dashboard_type: formType,
-            embed_url: formUrl.trim(),
+            embed_url: finalUrl,
             updated_at: new Date().toISOString(),
           })
           .eq("id", editingDashboard.id);
@@ -176,7 +205,7 @@ export function DashboardList({ clientId }: DashboardListProps) {
             client_id: clientId,
             name: formName.trim(),
             dashboard_type: formType,
-            embed_url: formUrl.trim(),
+            embed_url: finalUrl,
             is_active: true,
           });
 
@@ -393,13 +422,26 @@ export function DashboardList({ clientId }: DashboardListProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="url">URL de Embed *</Label>
-              <Input
-                id="url"
-                placeholder={selectedPlatform?.placeholder}
-                value={formUrl}
-                onChange={(e) => setFormUrl(e.target.value)}
-              />
+              <Label htmlFor="url">
+                {selectedPlatform?.useTextarea ? "Código de Embed (iframe) *" : "URL de Embed *"}
+              </Label>
+              {selectedPlatform?.useTextarea ? (
+                <Textarea
+                  id="url"
+                  placeholder={selectedPlatform?.placeholder}
+                  value={formUrl}
+                  onChange={(e) => setFormUrl(e.target.value)}
+                  rows={4}
+                  className="font-mono text-sm"
+                />
+              ) : (
+                <Input
+                  id="url"
+                  placeholder={selectedPlatform?.placeholder}
+                  value={formUrl}
+                  onChange={(e) => setFormUrl(e.target.value)}
+                />
+              )}
               {selectedPlatform && (
                 <div className="flex items-start gap-2 p-3 bg-muted rounded-lg text-sm">
                   <Info className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
