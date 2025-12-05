@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import logoVivaz from "@/assets/logo-vivaz.png";
 
 const Auth = () => {
   const [loading, setLoading] = useState(false);
@@ -66,9 +67,11 @@ const Auth = () => {
       <div className="w-full max-w-sm relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-vivaz mb-4 shadow-lg shadow-primary/25">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
+          <img 
+            src={logoVivaz} 
+            alt="Vivaz Logo" 
+            className="w-16 h-16 mx-auto mb-4 rounded-xl shadow-lg"
+          />
           <h1 className="font-display text-2xl font-bold text-foreground mb-1">
             HUB Vivaz
           </h1>
