@@ -379,14 +379,14 @@ export default function MeetingEditor() {
           </Button>
         )}
 
-        <div className="max-w-4xl mx-auto px-8 pt-24 pb-16">
+        <div className="w-full px-16 lg:px-24 pt-20 pb-16">
           {/* Header */}
-          <div className="mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium mb-4">
+          <div className="mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium mb-3">
               <FileText className="h-4 w-4" />
               Ata de Reunião
             </div>
-            <h1 className="text-4xl font-bold mb-4">{meetingData.title}</h1>
+            <h1 className="text-3xl lg:text-4xl font-bold mb-3">{meetingData.title}</h1>
             <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
               <div className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4" />
@@ -412,11 +412,11 @@ export default function MeetingEditor() {
           <div 
             id="section-0"
             className={cn(
-              "mb-12 p-8 rounded-2xl bg-card border transition-all",
+              "mb-8 p-6 lg:p-8 rounded-xl bg-card border transition-all",
               currentSection === 0 && "ring-2 ring-primary/20"
             )}
           >
-            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
               Discussões e Anotações
             </h2>
@@ -430,21 +430,21 @@ export default function MeetingEditor() {
             <div 
               id={`section-${sections.length - 1}`}
               className={cn(
-                "p-8 rounded-2xl bg-card border transition-all",
+                "p-6 lg:p-8 rounded-xl bg-card border transition-all",
                 currentSection === sections.length - 1 && "ring-2 ring-primary/20"
               )}
             >
-              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <CheckSquare className="h-5 w-5 text-primary" />
                 Itens de Ação
               </h2>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {meetingData.action_items.map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-4 p-4 rounded-xl bg-muted/50">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <span className="text-sm font-bold text-primary">{idx + 1}</span>
                     </div>
-                    <span className="flex-1 pt-1">{item}</span>
+                    <span className="flex-1 pt-0.5">{item}</span>
                   </div>
                 ))}
               </div>
