@@ -20,6 +20,7 @@ import SharedMeeting from "./pages/SharedMeeting";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import NotFound from "./pages/NotFound";
 import Financial from "./pages/Financial";
+import Integrations from "./pages/Integrations";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
           <Route path="/clientes/:clientId/reunioes/:meetingId" element={<MeetingEditor />} />
           <Route path="/usuarios" element={<Users />} />
           <Route path="/financeiro" element={<Financial />} />
+          <Route path="/integracoes/:clientId" element={<Integrations />} />
           <Route path="/atas/:token" element={<SharedMeeting />} />
           <Route path="/google-calendar/callback" element={<GoogleCalendarCallback />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
