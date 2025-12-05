@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardViewerDialog } from "./DashboardViewerDialog";
 
@@ -105,10 +105,24 @@ export function DashboardList({ clientId }: DashboardListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [dashboardToDelete, setDashboardToDelete] = useState<Dashboard | null>(null);
   const [deleting, setDeleting] = useState(false);
+  
+  // Preview state
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
     fetchDashboards();
   }, [clientId]);
+
+  // Trigger loading state when URL changes
+  useEffect(() => {
+    const url = extractUrlFromIframe(formUrl);
+    const isValid = url.startsWith('http://') || url.startsWith('https://');
+    if (isValid && formUrl.trim()) {
+      setPreviewLoading(true);
+      setPreviewKey(prev => prev + 1);
+    }
+  }, [formUrl]);
 
   const fetchDashboards = async () => {
     try {
@@ -462,25 +476,44 @@ export function DashboardList({ clientId }: DashboardListProps) {
                       <Eye className="h-4 w-4" />
                       Preview
                     </Label>
-                    {isValidUrl ? (
-                      <Badge variant="outline" className="text-green-600 border-green-500/30 bg-green-500/10">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        URL válida
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        URL inválida
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {previewLoading && (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Carregando...
+                        </Badge>
+                      )}
+                      {isValidUrl ? (
+                        <Badge variant="outline" className="text-green-600 border-green-500/30 bg-green-500/10">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          URL válida
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          URL inválida
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   {isValidUrl ? (
-                    <div className="border rounded-lg overflow-hidden bg-muted/50">
+                    <div className="border rounded-lg overflow-hidden bg-muted/50 relative">
+                      {previewLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <span className="text-sm text-muted-foreground">Carregando preview...</span>
+                          </div>
+                        </div>
+                      )}
                       <iframe
+                        key={previewKey}
                         src={previewUrl}
                         className="w-full h-[250px]"
                         title="Preview do Dashboard"
                         sandbox="allow-scripts allow-same-origin"
+                        onLoad={() => setPreviewLoading(false)}
+                        onError={() => setPreviewLoading(false)}
                       />
                     </div>
                   ) : (
