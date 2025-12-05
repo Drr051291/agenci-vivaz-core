@@ -34,6 +34,7 @@ import {
 import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardViewerDialog } from "./DashboardViewerDialog";
+import { DashboardAIAnalysis } from "./DashboardAIAnalysis";
 
 interface Dashboard {
   id: string;
@@ -46,6 +47,8 @@ interface Dashboard {
 
 interface DashboardListProps {
   clientId: string;
+  clientName?: string;
+  showAIAnalysis?: boolean;
 }
 
 const PLATFORM_OPTIONS = [
@@ -87,7 +90,7 @@ const extractUrlFromIframe = (input: string): string => {
   return trimmed;
 };
 
-export function DashboardList({ clientId }: DashboardListProps) {
+export function DashboardList({ clientId, clientName, showAIAnalysis = true }: DashboardListProps) {
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -280,10 +283,15 @@ export function DashboardList({ clientId }: DashboardListProps) {
             Gerencie os dashboards do cliente (Reportei e Pipedrive)
           </p>
         </div>
-        <Button onClick={openCreateDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Dashboard
-        </Button>
+        <div className="flex items-center gap-2">
+          {showAIAnalysis && (
+            <DashboardAIAnalysis clientId={clientId} clientName={clientName} />
+          )}
+          <Button onClick={openCreateDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Dashboard
+          </Button>
+        </div>
       </div>
 
       {dashboards.length === 0 ? (

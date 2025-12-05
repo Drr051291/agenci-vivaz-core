@@ -2,3 +2,6 @@ project_id = "dxvgiodsfbdmifqynfog"
 
 [functions.google-calendar]
 verify_jwt = false
+
+[functions.ai-dashboard-analysis]
+verify_jwt = false
