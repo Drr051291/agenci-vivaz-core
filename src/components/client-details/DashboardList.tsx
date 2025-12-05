@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info } from "lucide-react";
+import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardViewerDialog } from "./DashboardViewerDialog";
 
@@ -375,7 +375,7 @@ export function DashboardList({ clientId }: DashboardListProps) {
 
       {/* Dialog Criar/Editar */}
       <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingDashboard ? "Editar Dashboard" : "Novo Dashboard"}
@@ -449,6 +449,51 @@ export function DashboardList({ clientId }: DashboardListProps) {
                 </div>
               )}
             </div>
+
+            {/* Preview Section */}
+            {formUrl.trim() && (() => {
+              const previewUrl = extractUrlFromIframe(formUrl);
+              const isValidUrl = previewUrl.startsWith('http://') || previewUrl.startsWith('https://');
+              
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <Eye className="h-4 w-4" />
+                      Preview
+                    </Label>
+                    {isValidUrl ? (
+                      <Badge variant="outline" className="text-green-600 border-green-500/30 bg-green-500/10">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        URL válida
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        URL inválida
+                      </Badge>
+                    )}
+                  </div>
+                  {isValidUrl ? (
+                    <div className="border rounded-lg overflow-hidden bg-muted/50">
+                      <iframe
+                        src={previewUrl}
+                        className="w-full h-[250px]"
+                        title="Preview do Dashboard"
+                        sandbox="allow-scripts allow-same-origin"
+                      />
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg p-8 bg-muted/50 text-center">
+                      <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        Cole o código iframe ou URL válida para visualizar o preview
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           <DialogFooter>
