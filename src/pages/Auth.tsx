@@ -69,8 +69,8 @@ const Auth = () => {
         <div className="text-center mb-8">
           <img 
             src={logoVivaz} 
-            alt="Vivaz Logo" 
-            className="w-16 h-16 mx-auto mb-4 rounded-xl shadow-lg"
+            alt="Vivaz" 
+            className="w-10 h-10 mx-auto mb-4 object-contain"
           />
           <h1 className="font-display text-2xl font-bold text-foreground mb-1">
             HUB Vivaz
