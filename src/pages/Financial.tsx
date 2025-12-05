@@ -121,7 +121,7 @@ export default function Financial() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {paymentsLoading ? '...' : `R$ ${totalReceivable.toFixed(2)}`}
+                {paymentsLoading ? '...' : totalReceivable.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </div>
               <p className="text-xs text-muted-foreground">
                 Cobranças pendentes de clientes vinculados
@@ -136,7 +136,7 @@ export default function Financial() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {paymentsLoading ? '...' : `R$ ${receivedInPeriod.toFixed(2)}`}
+                {paymentsLoading ? '...' : receivedInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </div>
               <p className="text-xs text-muted-foreground">
                 Total confirmado no período selecionado
@@ -151,7 +151,7 @@ export default function Financial() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-destructive">
-                {paymentsLoading ? '...' : `R$ ${overdue.toFixed(2)}`}
+                {paymentsLoading ? '...' : overdue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </div>
               <p className="text-xs text-muted-foreground">
                 Cobranças vencidas
