@@ -17,39 +17,36 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    console.log('Auth header present:', !!authHeader);
     
-    // Create user-scoped client for authentication
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader || '' },
-        },
-      }
-    );
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser();
-
-    console.log('User found:', !!user, 'Error:', userError?.message);
-
-    if (!user) {
-      console.error('Authentication failed:', userError);
+    if (!authHeader) {
+      console.error('No authorization header');
       return new Response(
-        JSON.stringify({ error: 'Unauthorized', details: userError?.message }),
+        JSON.stringify({ error: 'Unauthorized', details: 'No authorization header' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
 
-    // Create admin client for reading Asaas config (bypasses RLS)
+    // Extract the JWT token from the Authorization header
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Create admin client to verify the token
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Verify the user using the token directly
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+
+    if (userError || !user) {
+      console.error('Authentication failed:', userError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', details: userError?.message || 'Invalid token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    console.log('User authenticated:', user.id);
 
     // Get Asaas config using admin client
     const { data: config, error: configError } = await supabaseAdmin
@@ -82,7 +79,7 @@ Deno.serve(async (req) => {
     }
 
     const action = requestBody?.action || '';
-    console.log('Action:', action, 'Method:', req.method);
+    console.log('Action:', action);
 
     // GET /customers - List customers
     if (action === 'customers') {
