@@ -16,23 +16,33 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     // Create user-scoped client for authentication
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader || '' },
         },
       }
     );
 
     const {
       data: { user },
+      error: userError,
     } = await supabaseClient.auth.getUser();
 
+    console.log('User found:', !!user, 'Error:', userError?.message);
+
     if (!user) {
-      throw new Error('Unauthorized');
+      console.error('Authentication failed:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', details: userError?.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
     }
 
     // Create admin client for reading Asaas config (bypasses RLS)
@@ -72,7 +82,7 @@ Deno.serve(async (req) => {
     }
 
     const action = requestBody?.action || '';
-    console.log('Action:', action);
+    console.log('Action:', action, 'Method:', req.method);
 
     // GET /customers - List customers
     if (action === 'customers') {
