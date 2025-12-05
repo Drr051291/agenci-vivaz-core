@@ -12,8 +12,8 @@ export function PaymentList() {
   const { data: payments, isLoading } = useQuery({
     queryKey: ['asaas-payments'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('asaas-api/payments', {
-        method: 'GET',
+      const { data, error } = await supabase.functions.invoke('asaas-api', {
+        body: { action: 'payments' },
       });
 
       if (error) throw error;

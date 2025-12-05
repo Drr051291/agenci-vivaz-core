@@ -45,19 +45,16 @@ export function EditPaymentDialog({
 
   const updatePaymentMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { data: result, error } = await supabase.functions.invoke(
-        `asaas-api/update-payment-${payment.id}`,
-        {
-          method: "PUT",
-          body: data,
-        }
-      );
+      const { data: result, error } = await supabase.functions.invoke('asaas-api', {
+        body: { action: 'update-payment', paymentId: payment.id, ...data },
+      });
 
       if (error) throw error;
       return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["asaas-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["client-payments"] });
       toast.success("Cobrança atualizada com sucesso!");
       onOpenChange(false);
     },

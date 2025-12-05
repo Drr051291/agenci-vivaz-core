@@ -100,9 +100,8 @@ export function CreatePaymentDialog({
         billingType: data.billingType,
       };
 
-      const { data: result, error } = await supabase.functions.invoke('asaas-api/payments', {
-        method: 'POST',
-        body: payload,
+      const { data: result, error } = await supabase.functions.invoke('asaas-api', {
+        body: { action: 'create-payment', ...payload },
       });
 
       if (error) throw error;
