@@ -15,8 +15,8 @@ export function AsaasCustomerList() {
   const { data: asaasCustomers, isLoading, error } = useQuery({
     queryKey: ['asaas-customers'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('asaas-api/customers', {
-        method: 'GET',
+      const { data, error } = await supabase.functions.invoke('asaas-api', {
+        body: { action: 'customers' },
       });
 
       if (error) {

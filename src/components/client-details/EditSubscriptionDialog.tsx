@@ -45,19 +45,16 @@ export function EditSubscriptionDialog({
 
   const updateSubscriptionMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { data: result, error } = await supabase.functions.invoke(
-        `asaas-api/update-subscription-${subscription.id}`,
-        {
-          method: "PUT",
-          body: data,
-        }
-      );
+      const { data: result, error } = await supabase.functions.invoke('asaas-api', {
+        body: { action: 'update-subscription', subscriptionId: subscription.id, ...data },
+      });
 
       if (error) throw error;
       return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["asaas-subscriptions"] });
       toast.success("Assinatura atualizada com sucesso!");
       onOpenChange(false);
     },

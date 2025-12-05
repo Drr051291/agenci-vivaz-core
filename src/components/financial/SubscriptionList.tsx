@@ -12,8 +12,8 @@ export function SubscriptionList() {
   const { data: subscriptions, isLoading } = useQuery({
     queryKey: ['asaas-subscriptions'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('asaas-api/subscriptions', {
-        method: 'GET',
+      const { data, error } = await supabase.functions.invoke('asaas-api', {
+        body: { action: 'subscriptions' },
       });
 
       if (error) throw error;

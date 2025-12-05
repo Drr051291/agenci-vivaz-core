@@ -48,8 +48,8 @@ export default function Financial() {
   const { data: allPayments, isLoading: paymentsLoading } = useQuery({
     queryKey: ['all-asaas-payments'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('asaas-api/payments', {
-        method: 'GET',
+      const { data, error } = await supabase.functions.invoke('asaas-api', {
+        body: { action: 'payments' },
       });
 
       if (error) throw error;

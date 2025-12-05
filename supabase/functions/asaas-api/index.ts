@@ -63,33 +63,20 @@ Deno.serve(async (req) => {
         ? 'https://sandbox.asaas.com/api/v3'
         : 'https://api.asaas.com/v3';
 
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split('/').filter(Boolean);
-    let action = pathParts[pathParts.length - 1];
-    
-    // Suporte para action via body (quando chamado via supabase.functions.invoke)
-    let requestBody: any = null;
-    if (req.method === 'POST') {
-      try {
-        const clonedReq = req.clone();
-        requestBody = await clonedReq.json();
-        if (requestBody?.action && action === 'asaas-api') {
-          action = requestBody.action;
-        }
-      } catch (e) {
-        // Ignore parse errors
-      }
+    // Parse request body to get action
+    let requestBody: any = {};
+    try {
+      requestBody = await req.json();
+    } catch (e) {
+      // Empty body is ok for some requests
     }
 
-    console.log('Action:', action, 'Method:', req.method);
+    const action = requestBody?.action || '';
+    console.log('Action:', action);
 
-    // GET /customers - List customers (via URL ou body action)
-    if ((action === 'customers' && req.method === 'GET') || 
-        (action === 'customers' && req.method === 'POST' && requestBody?.action === 'customers' && !requestBody?.name)) {
-      const offset = url.searchParams.get('offset') || '0';
-      const limit = url.searchParams.get('limit') || '100';
-      
-      const response = await fetch(`${baseUrl}/customers?offset=${offset}&limit=${limit}`, {
+    // GET /customers - List customers
+    if (action === 'customers') {
+      const response = await fetch(`${baseUrl}/customers?offset=0&limit=100`, {
         headers: {
           'access_token': apiKey,
           'Content-Type': 'application/json',
@@ -99,58 +86,12 @@ Deno.serve(async (req) => {
       const data = await response.json();
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // GET /customers/:id - Get customer details
-    if (action.startsWith('customer-') && req.method === 'GET') {
-      const customerId = action.replace('customer-', '');
-      
-      const response = await fetch(`${baseUrl}/customers/${customerId}`, {
-        headers: {
-          'access_token': apiKey,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-      return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // POST /customers - Create customer
-    if (action === 'customers' && req.method === 'POST') {
-      const body = await req.json();
-      
-      const response = await fetch(`${baseUrl}/customers`, {
-        method: 'POST',
-        headers: {
-          'access_token': apiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-      return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: response.status,
       });
     }
 
     // GET /subscriptions - List subscriptions
-    if (action === 'subscriptions' && req.method === 'GET') {
-      const offset = url.searchParams.get('offset') || '0';
-      const limit = url.searchParams.get('limit') || '100';
-      const customer = url.searchParams.get('customer') || '';
-      
-      let apiUrl = `${baseUrl}/subscriptions?offset=${offset}&limit=${limit}`;
-      if (customer) {
-        apiUrl += `&customer=${customer}`;
-      }
-      
-      const response = await fetch(apiUrl, {
+    if (action === 'subscriptions') {
+      const response = await fetch(`${baseUrl}/subscriptions?offset=0&limit=100`, {
         headers: {
           'access_token': apiKey,
           'Content-Type': 'application/json',
@@ -160,45 +101,12 @@ Deno.serve(async (req) => {
       const data = await response.json();
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // POST /subscriptions - Create subscription
-    if (action === 'subscriptions' && req.method === 'POST') {
-      const body = await req.json();
-      
-      const response = await fetch(`${baseUrl}/subscriptions`, {
-        method: 'POST',
-        headers: {
-          'access_token': apiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-      return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: response.status,
       });
     }
 
     // GET /payments - List payments
-    if (action === 'payments' && req.method === 'GET') {
-      const offset = url.searchParams.get('offset') || '0';
-      const limit = url.searchParams.get('limit') || '100';
-      const customer = url.searchParams.get('customer') || '';
-      const status = url.searchParams.get('status') || '';
-      
-      let apiUrl = `${baseUrl}/payments?offset=${offset}&limit=${limit}`;
-      if (customer) {
-        apiUrl += `&customer=${customer}`;
-      }
-      if (status) {
-        apiUrl += `&status=${status}`;
-      }
-      
-      const response = await fetch(apiUrl, {
+    if (action === 'payments') {
+      const response = await fetch(`${baseUrl}/payments?offset=0&limit=100`, {
         headers: {
           'access_token': apiKey,
           'Content-Type': 'application/json',
@@ -212,8 +120,10 @@ Deno.serve(async (req) => {
     }
 
     // POST /payments - Create payment
-    if (action === 'payments' && req.method === 'POST') {
-      const body = await req.json();
+    if (action === 'create-payment') {
+      const { action: _, ...paymentData } = requestBody;
+      
+      console.log('Creating payment:', paymentData);
       
       const response = await fetch(`${baseUrl}/payments`, {
         method: 'POST',
@@ -221,7 +131,7 @@ Deno.serve(async (req) => {
           'access_token': apiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(paymentData),
       });
 
       const data = await response.json();
@@ -231,31 +141,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // GET /payment-info/:id - Get payment billing info
-    if (action.startsWith('payment-info-') && req.method === 'GET') {
-      const paymentId = action.replace('payment-info-', '');
+    // PUT /payments/:id - Update payment
+    if (action === 'update-payment') {
+      const { action: _, paymentId, ...updateData } = requestBody;
       
-      console.log('Getting payment info:', paymentId);
-      
-      const response = await fetch(`${baseUrl}/payments/${paymentId}`, {
-        headers: {
-          'access_token': apiKey,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-      return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // PUT /update-payment/:id - Update payment
-    if (action.startsWith('update-payment-') && req.method === 'PUT') {
-      const paymentId = action.replace('update-payment-', '');
-      const body = await req.json();
-      
-      console.log('Updating payment:', paymentId, 'Body:', body);
+      console.log('Updating payment:', paymentId, 'Body:', updateData);
       
       const response = await fetch(`${baseUrl}/payments/${paymentId}`, {
         method: 'PUT',
@@ -263,7 +153,7 @@ Deno.serve(async (req) => {
           'access_token': apiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(updateData),
       });
 
       const data = await response.json();
@@ -275,12 +165,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // PUT /update-subscription/:id - Update subscription
-    if (action.startsWith('update-subscription-') && req.method === 'PUT') {
-      const subscriptionId = action.replace('update-subscription-', '');
-      const body = await req.json();
+    // PUT /subscriptions/:id - Update subscription
+    if (action === 'update-subscription') {
+      const { action: _, subscriptionId, ...updateData } = requestBody;
       
-      console.log('Updating subscription:', subscriptionId, 'Body:', body);
+      console.log('Updating subscription:', subscriptionId, 'Body:', updateData);
       
       const response = await fetch(`${baseUrl}/subscriptions/${subscriptionId}`, {
         method: 'PUT',
@@ -288,7 +177,7 @@ Deno.serve(async (req) => {
           'access_token': apiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(updateData),
       });
 
       const data = await response.json();
@@ -301,7 +190,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ error: 'Endpoint não encontrado' }),
+      JSON.stringify({ error: 'Ação não encontrada', action }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
     );
   } catch (error) {

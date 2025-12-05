@@ -52,8 +52,8 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
     queryKey: ['client-subscriptions', asaasLink?.asaas_customer_id],
     enabled: !!asaasLink?.asaas_customer_id,
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('asaas-api/subscriptions', {
-        method: 'GET',
+      const { data, error } = await supabase.functions.invoke('asaas-api', {
+        body: { action: 'subscriptions' },
       });
 
       if (error) throw error;
@@ -72,8 +72,8 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
     queryKey: ['client-payments', asaasLink?.asaas_customer_id],
     enabled: !!asaasLink?.asaas_customer_id,
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('asaas-api/payments', {
-        method: 'GET',
+      const { data, error } = await supabase.functions.invoke('asaas-api', {
+        body: { action: 'payments' },
       });
 
       if (error) throw error;
