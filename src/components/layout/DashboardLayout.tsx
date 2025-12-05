@@ -104,12 +104,12 @@ const AppSidebar = ({ user }: { user: User | null }) => {
           transition={{ duration: 0.3 }}
         >
           <motion.div 
-            className="flex items-center justify-center w-8 h-8 rounded-lg overflow-hidden"
+            className="flex items-center justify-center w-10 h-10 rounded-lg overflow-hidden"
             whileHover={{ scale: 1.05, rotate: 5 }}
             whileTap={{ scale: 0.95 }}
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
           >
-            <img src={logoVivaz} alt="Vivaz" className="w-8 h-8 object-contain" />
+            <img src={logoVivaz} alt="Vivaz" className="w-10 h-10 object-contain" />
           </motion.div>
           <AnimatePresence>
             {!isCollapsed && (
