@@ -65,12 +65,27 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
-    const action = pathParts[pathParts.length - 1];
+    let action = pathParts[pathParts.length - 1];
+    
+    // Suporte para action via body (quando chamado via supabase.functions.invoke)
+    let requestBody: any = null;
+    if (req.method === 'POST') {
+      try {
+        const clonedReq = req.clone();
+        requestBody = await clonedReq.json();
+        if (requestBody?.action && action === 'asaas-api') {
+          action = requestBody.action;
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
 
     console.log('Action:', action, 'Method:', req.method);
 
-    // GET /customers - List customers
-    if (action === 'customers' && req.method === 'GET') {
+    // GET /customers - List customers (via URL ou body action)
+    if ((action === 'customers' && req.method === 'GET') || 
+        (action === 'customers' && req.method === 'POST' && requestBody?.action === 'customers' && !requestBody?.name)) {
       const offset = url.searchParams.get('offset') || '0';
       const limit = url.searchParams.get('limit') || '100';
       
