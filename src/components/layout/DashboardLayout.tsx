@@ -5,16 +5,15 @@ import { User } from "@supabase/supabase-js";
 import {
   LayoutDashboard,
   Users,
-  Briefcase,
-  MessageSquare,
   LogOut,
-  Menu,
+  PanelLeftClose,
+  PanelLeft,
   UserCog,
   FileText,
   CheckSquare,
   BarChart3,
-  Plug,
   DollarSign,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +21,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -32,6 +30,8 @@ import {
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 const adminMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: false },
@@ -88,35 +88,47 @@ const AppSidebar = ({ user }: { user: User | null }) => {
     navigate("/auth");
   };
 
-  // Determinar qual menu usar baseado no role
   const menuItems = userRole === "client" ? clientMenuItems : adminMenuItems;
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarContent>
-        <div className="p-4">
-          <h2 className="text-xl font-bold bg-gradient-vivaz bg-clip-text text-transparent">
-            {!isCollapsed && "HUB Vivaz"}
-          </h2>
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+      <SidebarContent className="flex flex-col h-full">
+        {/* Logo */}
+        <div className={cn(
+          "flex items-center gap-2 px-4 py-5 border-b border-sidebar-border",
+          isCollapsed && "justify-center px-2"
+        )}>
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-vivaz">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          {!isCollapsed && (
+            <span className="font-display font-bold text-lg text-foreground tracking-tight">
+              HUB Vivaz
+            </span>
+          )}
         </div>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+        {/* Navigation */}
+        <SidebarGroup className="flex-1 py-4">
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1 px-2">
               {menuItems
                 .filter((item) => !item.adminOnly || isAdmin)
                 .map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
+                    <SidebarMenuButton asChild className="h-9">
                       <NavLink
                         to={item.url}
-                        end
-                        className="hover:bg-muted/50"
-                        activeClassName="bg-primary/10 text-primary font-medium"
+                        end={item.url === "/dashboard" || item.url === "/area-cliente"}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium",
+                          "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+                          "transition-colors duration-150"
+                        )}
+                        activeClassName="bg-primary/10 text-primary font-semibold"
                       >
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
+                        <item.icon className="h-4 w-4 flex-shrink-0" />
+                        {!isCollapsed && <span>{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -125,14 +137,19 @@ const AppSidebar = ({ user }: { user: User | null }) => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <div className="mt-auto p-4">
+        {/* Footer */}
+        <div className="mt-auto border-t border-sidebar-border p-3">
           <Button
-            variant="outline"
-            className="w-full justify-start"
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "w-full justify-start gap-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent h-9",
+              isCollapsed && "justify-center px-0"
+            )}
             onClick={handleLogout}
           >
-            <LogOut className="h-4 w-4" />
-            <span className="ml-2">Sair</span>
+            <LogOut className="h-4 w-4 flex-shrink-0" />
+            {!isCollapsed && <span className="text-sm font-medium">Sair</span>}
           </Button>
         </div>
       </SidebarContent>
@@ -168,8 +185,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-vivaz animate-pulse" />
+          <div className="text-sm text-muted-foreground">Carregando...</div>
+        </div>
       </div>
     );
   }
@@ -178,13 +198,17 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar user={user} />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 h-14 border-b bg-card/80 backdrop-blur-sm flex items-center px-4">
-            <SidebarTrigger>
-              <Menu className="h-5 w-5" />
+        <main className="flex-1 flex flex-col min-w-0">
+          <header className="sticky top-0 z-10 h-14 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center px-4 gap-4">
+            <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground transition-colors">
+              <PanelLeft className="h-4 w-4" />
             </SidebarTrigger>
           </header>
-          <div className="p-6">{children}</div>
+          <div className="flex-1 p-6 overflow-auto">
+            <div className="animate-fade-in">
+              {children}
+            </div>
+          </div>
         </main>
       </div>
     </SidebarProvider>

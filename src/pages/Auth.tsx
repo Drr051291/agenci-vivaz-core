@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 
 const Auth = () => {
   const [loading, setLoading] = useState(false);
@@ -56,24 +56,36 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
+      {/* Background decoration */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="w-full max-w-sm relative z-10">
+        {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-vivaz bg-clip-text text-transparent mb-2">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-vivaz mb-4 shadow-lg shadow-primary/25">
+            <Sparkles className="w-6 h-6 text-white" />
+          </div>
+          <h1 className="font-display text-2xl font-bold text-foreground mb-1">
             HUB Vivaz
           </h1>
-          <p className="text-muted-foreground">Marketing e Growth</p>
+          <p className="text-sm text-muted-foreground">Marketing e Growth</p>
         </div>
 
-        <Card className="border-border/50 shadow-xl">
-          <CardHeader>
-            <CardTitle>Bem-vindo</CardTitle>
-            <CardDescription>Acesse sua conta</CardDescription>
+        <Card className="shadow-lg border-border/40">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-xl">Bem-vindo</CardTitle>
+            <CardDescription>Acesse sua conta para continuar</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
+                <Label htmlFor="login-email" className="text-sm font-medium">
+                  Email
+                </Label>
                 <Input
                   id="login-email"
                   type="email"
@@ -82,10 +94,13 @@ const Auth = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={loading}
+                  className="h-10"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="login-password">Senha</Label>
+                <Label htmlFor="login-password" className="text-sm font-medium">
+                  Senha
+                </Label>
                 <Input
                   id="login-password"
                   type="password"
@@ -94,9 +109,10 @@ const Auth = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={loading}
+                  className="h-10"
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full h-10" disabled={loading}>
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -109,6 +125,10 @@ const Auth = () => {
             </form>
           </CardContent>
         </Card>
+
+        <p className="text-center text-xs text-muted-foreground mt-6">
+          © {new Date().getFullYear()} Vivaz Marketing e Growth
+        </p>
       </div>
     </div>
   );
