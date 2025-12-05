@@ -27,6 +27,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Building2, Globe, Pencil, User, Phone, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { motion } from "framer-motion";
+import { StaggerContainer, StaggerItem } from "@/components/ui/animated";
 
 interface Client {
   id: string;
@@ -474,97 +476,123 @@ const Clients = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {clients.map((client) => (
-              <Card
-                key={client.id}
-                className="border-border/50 hover:border-primary/50 transition-colors cursor-pointer"
-                onClick={() => navigate(`/clientes/${client.id}`)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CardTitle className="text-lg">{client.company_name}</CardTitle>
-                        <Badge className={getSegmentColor(client.segment)}>
-                          {getSegmentLabel(client.segment)}
-                        </Badge>
+          <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {clients.map((client, index) => (
+              <StaggerItem key={client.id}>
+                <Card
+                  interactive
+                  className="h-full group"
+                  onClick={() => navigate(`/clientes/${client.id}`)}
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                            {client.company_name}
+                          </CardTitle>
+                          <Badge className={getSegmentColor(client.segment)}>
+                            {getSegmentLabel(client.segment)}
+                          </Badge>
+                        </div>
+                        {client.cnpj && (
+                          <CardDescription className="text-xs mt-1">
+                            CNPJ: {client.cnpj}
+                          </CardDescription>
+                        )}
                       </div>
-                      {client.cnpj && (
-                        <CardDescription className="text-xs mt-1">
-                          CNPJ: {client.cnpj}
-                        </CardDescription>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditClient(client);
+                            }}
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </motion.div>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
+                            client.status
+                          )}`}
+                        >
+                          {getStatusLabel(client.status)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditClient(client);
-                        }}
-                        className="h-8 w-8"
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {client.contact_name && (
+                      <motion.div 
+                        className="flex items-center text-sm text-muted-foreground"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
                       >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                          client.status
-                        )}`}
+                        <User className="h-4 w-4 mr-2 text-primary/60" />
+                        <span>{client.contact_name}</span>
+                      </motion.div>
+                    )}
+                    {client.contact_phone && (
+                      <motion.div 
+                        className="flex items-center text-sm text-muted-foreground"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 + 0.1 }}
                       >
-                        {getStatusLabel(client.status)}
-                      </span>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {client.contact_name && (
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <User className="h-4 w-4 mr-2" />
-                      <span>{client.contact_name}</span>
-                    </div>
-                  )}
-                  {client.contact_phone && (
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Phone className="h-4 w-4 mr-2" />
-                      <span>{client.contact_phone}</span>
-                    </div>
-                  )}
-                  {client.contact_email && (
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Mail className="h-4 w-4 mr-2" />
-                      <span>{client.contact_email}</span>
-                    </div>
-                  )}
-                  {client.monthly_fee && (
-                    <div className="text-sm font-medium text-primary">
-                      R$ {client.monthly_fee.toFixed(2)}/mês
-                    </div>
-                  )}
-                  {client.website && (
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Globe className="h-4 w-4 mr-2" />
-                      <a
-                        href={client.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-primary truncate"
-                        onClick={(e) => e.stopPropagation()}
+                        <Phone className="h-4 w-4 mr-2 text-primary/60" />
+                        <span>{client.contact_phone}</span>
+                      </motion.div>
+                    )}
+                    {client.contact_email && (
+                      <motion.div 
+                        className="flex items-center text-sm text-muted-foreground"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 + 0.2 }}
                       >
-                        {client.website}
-                      </a>
-                    </div>
-                  )}
-                  {client.notes && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {client.notes}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+                        <Mail className="h-4 w-4 mr-2 text-primary/60" />
+                        <span>{client.contact_email}</span>
+                      </motion.div>
+                    )}
+                    {client.monthly_fee && (
+                      <motion.div 
+                        className="text-sm font-semibold text-primary"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: index * 0.05 + 0.3 }}
+                      >
+                        R$ {client.monthly_fee.toFixed(2)}/mês
+                      </motion.div>
+                    )}
+                    {client.website && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Globe className="h-4 w-4 mr-2 text-primary/60" />
+                        <a
+                          href={client.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-primary truncate transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {client.website}
+                        </a>
+                      </div>
+                    )}
+                    {client.notes && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {client.notes}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerContainer>
         )}
       </div>
     </DashboardLayout>
