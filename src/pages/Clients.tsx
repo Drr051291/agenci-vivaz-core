@@ -307,7 +307,7 @@ const Clients = () => {
             <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
             <p className="text-muted-foreground">Gerencie seus clientes</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={handleCloseDialog}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => open ? setDialogOpen(true) : handleCloseDialog()}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
