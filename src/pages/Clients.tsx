@@ -112,7 +112,7 @@ const Clients = () => {
     }
 
     // Prepare data with proper types
-    const submitData: any = {
+    const submitData = {
       company_name: formData.company_name,
       cnpj: formData.cnpj || null,
       address: formData.address || null,
@@ -149,11 +149,12 @@ const Clients = () => {
         fetchClients();
       }
     } else {
-      // Criar novo cliente
-      const { error } = await supabase.from("clients").insert([{
-        ...submitData,
-        user_id: user.id
-      }]);
+      // Criar novo cliente (sem user_id - será vinculado depois via página de Usuários)
+      const { data: newClient, error } = await supabase
+        .from("clients")
+        .insert([submitData])
+        .select()
+        .single();
 
       if (error) {
         toast({
@@ -166,9 +167,59 @@ const Clients = () => {
           title: "Cliente adicionado!",
           description: "Cliente cadastrado com sucesso.",
         });
+        
+        // Tentar vincular automaticamente com Asaas se houver CNPJ ou email
+        if (newClient && (formData.cnpj || formData.contact_email)) {
+          await tryLinkAsaasCustomer(newClient.id, formData.cnpj, formData.contact_email);
+        }
+        
         handleCloseDialog();
         fetchClients();
       }
+    }
+  };
+
+  const tryLinkAsaasCustomer = async (clientId: string, cnpj: string | null, email: string | null) => {
+    try {
+      // Buscar clientes no Asaas
+      const response = await supabase.functions.invoke('asaas-api', {
+        body: { action: 'customers' }
+      });
+
+      if (response.error || !response.data?.data) return;
+
+      const asaasCustomers = response.data.data;
+      
+      // Tentar encontrar cliente por CPF/CNPJ ou email
+      const cleanCnpj = cnpj?.replace(/\D/g, '') || '';
+      const matchedCustomer = asaasCustomers.find((c: any) => {
+        const customerCpfCnpj = c.cpfCnpj?.replace(/\D/g, '') || '';
+        return (cleanCnpj && customerCpfCnpj === cleanCnpj) || 
+               (email && c.email?.toLowerCase() === email.toLowerCase());
+      });
+
+      if (matchedCustomer) {
+        // Criar vínculo automaticamente
+        const { error: linkError } = await supabase
+          .from('asaas_customer_links')
+          .insert({
+            client_id: clientId,
+            asaas_customer_id: matchedCustomer.id,
+            asaas_customer_name: matchedCustomer.name,
+            asaas_customer_email: matchedCustomer.email,
+            asaas_customer_cpf_cnpj: matchedCustomer.cpfCnpj
+          });
+
+        if (!linkError) {
+          toast({
+            title: "Cliente Asaas vinculado!",
+            description: `Cliente financeiro "${matchedCustomer.name}" vinculado automaticamente.`,
+          });
+        }
+      }
+    } catch (err) {
+      // Silently fail - não bloquear criação do cliente
+      console.error('Erro ao tentar vincular Asaas:', err);
     }
   };
 
