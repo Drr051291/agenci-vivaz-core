@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, User, Phone, Mail, Calendar, DollarSign, Plug } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { ClientOverview } from "@/components/client-details/ClientOverview";
 import { ClientTasks } from "@/components/client-details/ClientTasks";
@@ -71,25 +70,6 @@ export default function ClientDetails() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    const colors = {
-      active: "bg-green-500/10 text-green-500 border-green-500/20",
-      inactive: "bg-red-500/10 text-red-500 border-red-500/20",
-      pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-    };
-    return colors[status as keyof typeof colors] || colors.active;
-  };
-
-  const getStatusLabel = (status: string) => {
-    const labels = {
-      active: "Ativo",
-      inactive: "Inativo",
-      pending: "Pendente",
-      prospecting: "Prospecção",
-    };
-    return labels[status as keyof typeof labels] || status;
-  };
-
   const getSegmentColor = (segment: string) => {
     const colors = {
       inside_sales: "bg-blue-500/10 text-blue-500 border-blue-500/20",
@@ -147,14 +127,6 @@ export default function ClientDetails() {
               <p className="text-sm text-muted-foreground">Detalhes e gestão do cliente</p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/integracoes/${client.id}`)}
-          >
-            <Plug className="h-4 w-4 mr-2" />
-            Configurar Integrações
-          </Button>
         </div>
 
         {/* Tabs com foco no conteúdo */}
