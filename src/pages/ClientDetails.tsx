@@ -152,7 +152,7 @@ export default function ClientDetails() {
           </TabsContent>
 
           <TabsContent value="dashboards" className="mt-4">
-            <ClientDashboardsNew clientId={client.id} />
+            <ClientDashboardsNew clientId={client.id} clientName={client.company_name} />
           </TabsContent>
 
           <TabsContent value="financial" className="mt-4">

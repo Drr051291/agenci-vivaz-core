@@ -81,7 +81,7 @@ const ClientDashboards = () => {
         </div>
 
         {clientId ? (
-          <DashboardList clientId={clientId} />
+          <DashboardList clientId={clientId} showAIAnalysis={false} />
         ) : (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
