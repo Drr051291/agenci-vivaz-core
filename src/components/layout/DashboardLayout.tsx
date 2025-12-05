@@ -1,12 +1,12 @@
 import { ReactNode, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   Users,
   LogOut,
-  PanelLeftClose,
   PanelLeft,
   UserCog,
   FileText,
@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
 import { useToast } from "@/hooks/use-toast";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const adminMenuItems = [
@@ -55,6 +54,7 @@ interface DashboardLayoutProps {
 const AppSidebar = ({ user }: { user: User | null }) => {
   const { state } = useSidebar();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const isCollapsed = state === "collapsed";
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -94,19 +94,37 @@ const AppSidebar = ({ user }: { user: User | null }) => {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       <SidebarContent className="flex flex-col h-full">
         {/* Logo */}
-        <div className={cn(
-          "flex items-center gap-2 px-4 py-5 border-b border-sidebar-border",
-          isCollapsed && "justify-center px-2"
-        )}>
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-vivaz">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          {!isCollapsed && (
-            <span className="font-display font-bold text-lg text-foreground tracking-tight">
-              HUB Vivaz
-            </span>
+        <motion.div 
+          className={cn(
+            "flex items-center gap-2.5 px-4 py-5 border-b border-sidebar-border",
+            isCollapsed && "justify-center px-2"
           )}
-        </div>
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <motion.div 
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-vivaz shadow-sm"
+            whileHover={{ scale: 1.05, rotate: 5 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+          >
+            <Sparkles className="w-4 h-4 text-white" />
+          </motion.div>
+          <AnimatePresence>
+            {!isCollapsed && (
+              <motion.span 
+                className="font-display font-bold text-lg text-foreground tracking-tight"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                HUB Vivaz
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
         {/* Navigation */}
         <SidebarGroup className="flex-1 py-4">
@@ -114,31 +132,56 @@ const AppSidebar = ({ user }: { user: User | null }) => {
             <SidebarMenu className="space-y-1 px-2">
               {menuItems
                 .filter((item) => !item.adminOnly || isAdmin)
-                .map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild className="h-9">
-                      <NavLink
-                        to={item.url}
-                        end={item.url === "/dashboard" || item.url === "/area-cliente"}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium",
-                          "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                          "transition-colors duration-150"
-                        )}
-                        activeClassName="bg-primary/10 text-primary font-semibold"
-                      >
-                        <item.icon className="h-4 w-4 flex-shrink-0" />
-                        {!isCollapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                .map((item, index) => {
+                  const isActive = location.pathname === item.url || 
+                    (item.url !== "/dashboard" && item.url !== "/area-cliente" && location.pathname.startsWith(item.url));
+                  
+                  return (
+                    <motion.div
+                      key={item.title}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                    >
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild className="h-9">
+                          <NavLink
+                            to={item.url}
+                            end={item.url === "/dashboard" || item.url === "/area-cliente"}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium relative overflow-hidden",
+                              "text-sidebar-foreground/70 hover:text-sidebar-foreground",
+                              "transition-colors duration-200"
+                            )}
+                            activeClassName="text-primary font-semibold"
+                          >
+                            {isActive && (
+                              <motion.div
+                                className="absolute inset-0 bg-primary/10 rounded-md"
+                                layoutId="activeMenuItem"
+                                initial={false}
+                                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                              />
+                            )}
+                            <item.icon className="h-4 w-4 flex-shrink-0 relative z-10" />
+                            {!isCollapsed && <span className="relative z-10">{item.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </motion.div>
+                  );
+                })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         {/* Footer */}
-        <div className="mt-auto border-t border-sidebar-border p-3">
+        <motion.div 
+          className="mt-auto border-t border-sidebar-border p-3"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
           <Button
             variant="ghost"
             size="sm"
@@ -151,7 +194,7 @@ const AppSidebar = ({ user }: { user: User | null }) => {
             <LogOut className="h-4 w-4 flex-shrink-0" />
             {!isCollapsed && <span className="text-sm font-medium">Sair</span>}
           </Button>
-        </div>
+        </motion.div>
       </SidebarContent>
     </Sidebar>
   );
@@ -161,6 +204,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -186,10 +230,26 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-vivaz animate-pulse" />
-          <div className="text-sm text-muted-foreground">Carregando...</div>
-        </div>
+        <motion.div 
+          className="flex flex-col items-center gap-3"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <motion.div 
+            className="w-10 h-10 rounded-xl bg-gradient-vivaz shadow-lg"
+            animate={{ 
+              scale: [1, 1.1, 1],
+              rotate: [0, 5, -5, 0]
+            }}
+            transition={{ 
+              duration: 1.5, 
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+          <span className="text-sm text-muted-foreground">Carregando...</span>
+        </motion.div>
       </div>
     );
   }
@@ -205,9 +265,17 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             </SidebarTrigger>
           </header>
           <div className="flex-1 p-6 overflow-auto">
-            <div className="animate-fade-in">
-              {children}
-            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                {children}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </main>
       </div>
