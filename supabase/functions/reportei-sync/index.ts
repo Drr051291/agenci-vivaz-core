@@ -166,8 +166,6 @@ serve(async (req) => {
               // Buscar widgets da integração
               const widgetsResponse = await fetchReportei(`/integrations/${integration.reportei_integration_id}/widgets`);
               
-              console.log(`Widgets response for ${integration.channel_type}:`, JSON.stringify(widgetsResponse, null, 2));
-              
               const widgets = widgetsResponse?.data || widgetsResponse || [];
               
               if (!Array.isArray(widgets) || widgets.length === 0) {
@@ -177,50 +175,44 @@ serve(async (req) => {
 
               console.log(`Found ${widgets.length} widgets for integration ${integration.channel_type}`);
 
-              // Para cada widget, verificar se tem dados diretamente na resposta
-              // ou buscar dados individualmente
+              // Coletar todos os widget IDs para buscar valores em batch
+              const widgetIds = widgets.map((w: any) => w.id);
+              
+              // Usar endpoint correto POST /integrations/{integration}/widgets/value
+              let widgetValues: any = {};
+              try {
+                await delay(300);
+                const valuesResponse = await fetchReportei(
+                  `/integrations/${integration.reportei_integration_id}/widgets/value`,
+                  'POST',
+                  {
+                    widgets: widgetIds,
+                    start_date: periodStart,
+                    end_date: periodEnd
+                  }
+                );
+                widgetValues = valuesResponse?.data || valuesResponse || {};
+                console.log(`Got values for ${Object.keys(widgetValues).length} widgets`);
+              } catch (valuesError) {
+                console.error(`Error fetching widget values:`, valuesError);
+              }
+
+              // Processar cada widget
               for (const widget of widgets) {
                 try {
-                  // Delay entre widgets para evitar rate limiting
-                  await delay(500);
+                  const widgetId = widget.id.toString();
+                  const widgetName = widget.name || widget.title || `Widget ${widget.id}`;
                   
-                  // Tentar buscar dados do widget individualmente
-                  let widgetData = null;
+                  // Pegar valor do batch response ou do widget diretamente
+                  let value = widgetValues[widgetId]?.value 
+                    ?? widgetValues[widgetId]?.current_value 
+                    ?? widget.value 
+                    ?? widget.current_value;
                   
-                  // Verifica se o widget já tem valor na resposta inicial
-                  if (widget.value !== undefined || widget.current_value !== undefined) {
-                    widgetData = {
-                      value: widget.value ?? widget.current_value,
-                      previous_value: widget.previous_value,
-                    };
-                  } else {
-                    // Tentar buscar dados do widget com período específico
-                    try {
-                      const widgetValueResponse = await fetchReportei(
-                        `/widgets/${widget.id}/data?start_date=${periodStart}&end_date=${periodEnd}`
-                      );
-                      widgetData = widgetValueResponse?.data || widgetValueResponse;
-                    } catch (widgetError) {
-                      // Se falhar, tentar endpoint alternativo
-                      try {
-                        const altResponse = await fetchReportei(
-                          `/integrations/${integration.reportei_integration_id}/widgets/${widget.id}?start_date=${periodStart}&end_date=${periodEnd}`
-                        );
-                        widgetData = altResponse?.data || altResponse;
-                      } catch {
-                        console.log(`Could not fetch data for widget ${widget.id}, using available data`);
-                        widgetData = { value: widget.value };
-                      }
-                    }
-                  }
-                  
-                  if (!widgetData || (widgetData.value === undefined && widgetData.current_value === undefined)) {
+                  if (value === undefined || value === null) {
                     continue;
                   }
 
-                  const value = widgetData.value ?? widgetData.current_value;
-                  const widgetName = widget.name || widget.title || `Widget ${widget.id}`;
-                  
                   // Determinar tipo de métrica baseado no nome/tipo do widget
                   const metricType = determineMetricType(widgetName);
                   
@@ -245,14 +237,14 @@ serve(async (req) => {
                     .from('reportei_metrics')
                     .insert({
                       integration_id: integration.id,
-                      widget_id: widget.id.toString(),
+                      widget_id: widgetId,
                       widget_name: widgetName,
                       metric_type: metricType,
                       metric_value: metricValue,
                       metric_value_text: metricValueText,
                       period_start: periodStart,
                       period_end: periodEnd,
-                      raw_data: widgetData,
+                      raw_data: widgetValues[widgetId] || { value },
                     });
 
                   if (insertError) {
