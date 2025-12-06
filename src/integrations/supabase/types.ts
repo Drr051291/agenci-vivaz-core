@@ -826,6 +826,100 @@ export type Database = {
         }
         Relationships: []
       }
+      vivaz_dashboard_config: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          webhook_token: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          webhook_token?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          webhook_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vivaz_dashboard_config_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vivaz_metrics: {
+        Row: {
+          channel: string
+          clicks: number | null
+          client_id: string
+          conversions: number | null
+          cost: number | null
+          cpc: number | null
+          created_at: string
+          ctr: number | null
+          id: string
+          impressions: number | null
+          metadata: Json | null
+          metric_date: string
+          reach: number | null
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          clicks?: number | null
+          client_id: string
+          conversions?: number | null
+          cost?: number | null
+          cpc?: number | null
+          created_at?: string
+          ctr?: number | null
+          id?: string
+          impressions?: number | null
+          metadata?: Json | null
+          metric_date: string
+          reach?: number | null
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          clicks?: number | null
+          client_id?: string
+          conversions?: number | null
+          cost?: number | null
+          cpc?: number | null
+          created_at?: string
+          ctr?: number | null
+          id?: string
+          impressions?: number | null
+          metadata?: Json | null
+          metric_date?: string
+          reach?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vivaz_metrics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
