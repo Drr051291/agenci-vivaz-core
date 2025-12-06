@@ -6,10 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, RefreshCw, Settings, TrendingUp, DollarSign, MousePointer, Eye, Target, Users, Loader2, ExternalLink } from "lucide-react";
+import { Copy, RefreshCw, Settings, TrendingUp, DollarSign, MousePointer, Eye, Target, Users, Loader2, ExternalLink, Save } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { format, subDays, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AdAccountsConfig } from "./AdAccountsConfig";
 
 interface VivazDashboardProps {
   clientId: string;
@@ -20,6 +23,9 @@ interface VivazConfig {
   id: string;
   webhook_token: string;
   is_active: boolean;
+  meta_ad_account_id?: string | null;
+  google_ads_account_id?: string | null;
+  ga4_property_id?: string | null;
 }
 
 interface VivazMetric {
@@ -553,6 +559,8 @@ export function VivazDashboard({ clientId, clientName }: VivazDashboardProps) {
                   </Badge>
                 </div>
               </div>
+
+              <AdAccountsConfig config={config} onUpdate={setConfig} />
 
               <div className="border-t pt-6">
                 <h4 className="font-medium mb-3">Formato do JSON esperado</h4>

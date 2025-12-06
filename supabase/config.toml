@@ -1,5 +1,23 @@
 project_id = "dxvgiodsfbdmifqynfog"
 
+[functions.asaas-api]
+verify_jwt = true
+
+[functions.google-calendar]
+verify_jwt = true
+
+[functions.pipedrive-data]
+verify_jwt = true
+
+[functions.reportei-data]
+verify_jwt = true
+
+[functions.vivaz-webhook]
+verify_jwt = false
+
+[functions.vivaz-clients]
+verify_jwt = false
+
 [functions.google-calendar]
 verify_jwt = false
 
