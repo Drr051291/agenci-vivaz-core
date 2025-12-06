@@ -9,6 +9,9 @@ const corsHeaders = {
 
 const REPORTEI_BASE_URL = 'https://app.reportei.com/api/v1';
 
+// Helper to add delay between requests to avoid rate limiting
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -28,26 +31,43 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Helper function to fetch from Reportei API
-    async function fetchReportei(endpoint: string, method = 'GET', body?: any) {
+    // Helper function to fetch from Reportei API with retry logic
+    async function fetchReportei(endpoint: string, method = 'GET', requestBody?: any, retries = 3): Promise<any> {
       const options: RequestInit = {
         method,
         headers: {
           'Authorization': `Bearer ${reporteiApiKey}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
       };
-      if (body) options.body = JSON.stringify(body);
+      if (requestBody) options.body = JSON.stringify(requestBody);
       
-      const response = await fetch(`${REPORTEI_BASE_URL}${endpoint}`, options);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Reportei API error (${endpoint}):`, response.status, errorText);
-        throw new Error(`Reportei API error: ${response.status}`);
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          const response = await fetch(`${REPORTEI_BASE_URL}${endpoint}`, options);
+          
+          // Handle rate limiting with exponential backoff
+          if (response.status === 429) {
+            console.log(`Rate limited on ${endpoint}, attempt ${attempt}/${retries}, waiting...`);
+            if (attempt < retries) {
+              await delay(2000 * attempt); // 2s, 4s, 6s backoff
+              continue;
+            }
+          }
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Reportei API error (${endpoint}):`, response.status, errorText.substring(0, 200));
+            throw new Error(`Reportei API error: ${response.status}`);
+          }
+          
+          return response.json();
+        } catch (error) {
+          if (attempt === retries) throw error;
+          await delay(1000 * attempt);
+        }
       }
-      
-      return response.json();
     }
 
     switch (action) {
@@ -81,7 +101,10 @@ serve(async (req) => {
         if (error) throw error;
 
         // Após vincular, buscar e salvar as integrações
+        console.log(`Fetching integrations for Reportei client ${reporteiClientId}...`);
         const integrations = await fetchReportei(`/clients/${reporteiClientId}/integrations`);
+        
+        console.log('Integrations response:', JSON.stringify(integrations, null, 2));
         
         if (integrations?.data?.length > 0) {
           for (const integration of integrations.data) {
@@ -131,51 +154,99 @@ serve(async (req) => {
         }
 
         let totalMetrics = 0;
+        const errors: string[] = [];
 
         for (const link of clientLinks) {
+          console.log(`Processing link ${link.id} with ${link.reportei_integrations?.length || 0} integrations`);
+          
           for (const integration of (link.reportei_integrations || [])) {
             try {
+              console.log(`Fetching widgets for integration ${integration.reportei_integration_id} (${integration.channel_type})...`);
+              
               // Buscar widgets da integração
-              const widgets = await fetchReportei(`/integrations/${integration.reportei_integration_id}/widgets`);
+              const widgetsResponse = await fetchReportei(`/integrations/${integration.reportei_integration_id}/widgets`);
               
-              if (!widgets?.data?.length) continue;
-
-              const widgetIds = widgets.data.map((w: any) => w.id);
+              console.log(`Widgets response for ${integration.channel_type}:`, JSON.stringify(widgetsResponse, null, 2));
               
-              // Buscar valores dos widgets
-              const values = await fetchReportei('/widgets/values', 'POST', {
-                widget_ids: widgetIds,
-                start_date: periodStart,
-                end_date: periodEnd,
-              });
+              const widgets = widgetsResponse?.data || widgetsResponse || [];
+              
+              if (!Array.isArray(widgets) || widgets.length === 0) {
+                console.log(`No widgets found for integration ${integration.reportei_integration_id}`);
+                continue;
+              }
 
-              if (values?.data?.length > 0) {
-                for (const widgetData of values.data) {
-                  const widgetInfo = widgets.data.find((w: any) => w.id === widgetData.widget_id);
+              console.log(`Found ${widgets.length} widgets for integration ${integration.channel_type}`);
+
+              // Para cada widget, verificar se tem dados diretamente na resposta
+              // ou buscar dados individualmente
+              for (const widget of widgets) {
+                try {
+                  // Delay entre widgets para evitar rate limiting
+                  await delay(500);
+                  
+                  // Tentar buscar dados do widget individualmente
+                  let widgetData = null;
+                  
+                  // Verifica se o widget já tem valor na resposta inicial
+                  if (widget.value !== undefined || widget.current_value !== undefined) {
+                    widgetData = {
+                      value: widget.value ?? widget.current_value,
+                      previous_value: widget.previous_value,
+                    };
+                  } else {
+                    // Tentar buscar dados do widget com período específico
+                    try {
+                      const widgetValueResponse = await fetchReportei(
+                        `/widgets/${widget.id}/data?start_date=${periodStart}&end_date=${periodEnd}`
+                      );
+                      widgetData = widgetValueResponse?.data || widgetValueResponse;
+                    } catch (widgetError) {
+                      // Se falhar, tentar endpoint alternativo
+                      try {
+                        const altResponse = await fetchReportei(
+                          `/integrations/${integration.reportei_integration_id}/widgets/${widget.id}?start_date=${periodStart}&end_date=${periodEnd}`
+                        );
+                        widgetData = altResponse?.data || altResponse;
+                      } catch {
+                        console.log(`Could not fetch data for widget ${widget.id}, using available data`);
+                        widgetData = { value: widget.value };
+                      }
+                    }
+                  }
+                  
+                  if (!widgetData || (widgetData.value === undefined && widgetData.current_value === undefined)) {
+                    continue;
+                  }
+
+                  const value = widgetData.value ?? widgetData.current_value;
+                  const widgetName = widget.name || widget.title || `Widget ${widget.id}`;
                   
                   // Determinar tipo de métrica baseado no nome/tipo do widget
-                  const metricType = determineMetricType(widgetInfo?.name || widgetInfo?.title || '');
+                  const metricType = determineMetricType(widgetName);
                   
                   // Extrair valor numérico se possível
                   let metricValue = null;
                   let metricValueText = null;
                   
-                  if (typeof widgetData.value === 'number') {
-                    metricValue = widgetData.value;
-                  } else if (typeof widgetData.value === 'string') {
-                    const numValue = parseFloat(widgetData.value.replace(/[^0-9.-]/g, ''));
+                  if (typeof value === 'number') {
+                    metricValue = value;
+                  } else if (typeof value === 'string') {
+                    const numValue = parseFloat(value.replace(/[^0-9.,-]/g, '').replace(',', '.'));
                     if (!isNaN(numValue)) {
                       metricValue = numValue;
                     }
-                    metricValueText = widgetData.value;
+                    metricValueText = value;
+                  } else if (value !== null && value !== undefined) {
+                    metricValueText = JSON.stringify(value);
                   }
 
-                  await supabase
+                  // Inserir métrica no banco
+                  const { error: insertError } = await supabase
                     .from('reportei_metrics')
                     .insert({
                       integration_id: integration.id,
-                      widget_id: widgetData.widget_id.toString(),
-                      widget_name: widgetInfo?.name || widgetInfo?.title,
+                      widget_id: widget.id.toString(),
+                      widget_name: widgetName,
                       metric_type: metricType,
                       metric_value: metricValue,
                       metric_value_text: metricValueText,
@@ -184,12 +255,20 @@ serve(async (req) => {
                       raw_data: widgetData,
                     });
 
-                  totalMetrics++;
+                  if (insertError) {
+                    console.error(`Error inserting metric for widget ${widget.id}:`, insertError);
+                  } else {
+                    totalMetrics++;
+                    console.log(`Saved metric: ${widgetName} = ${metricValue ?? metricValueText}`);
+                  }
+                } catch (widgetError) {
+                  console.error(`Error processing widget ${widget.id}:`, widgetError);
                 }
               }
             } catch (integrationError) {
-              console.error(`Error syncing integration ${integration.id}:`, integrationError);
-              // Continue with other integrations
+              const errorMsg = integrationError instanceof Error ? integrationError.message : 'Unknown error';
+              console.error(`Error syncing integration ${integration.id}:`, errorMsg);
+              errors.push(`${integration.channel_type}: ${errorMsg}`);
             }
           }
         }
@@ -198,7 +277,8 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({ 
           success: true, 
-          metricsCount: totalMetrics 
+          metricsCount: totalMetrics,
+          errors: errors.length > 0 ? errors : undefined
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -267,10 +347,17 @@ serve(async (req) => {
 
         if (error) throw error;
 
+        // Buscar contagem de métricas para este cliente
+        const { count } = await supabase
+          .from('reportei_metrics')
+          .select('*', { count: 'exact', head: true })
+          .in('integration_id', (data?.[0]?.reportei_integrations || []).map((i: any) => i.id));
+
         return new Response(JSON.stringify({ 
           success: true, 
           data: data?.[0] || null,
-          isLinked: data && data.length > 0
+          isLinked: data && data.length > 0,
+          metricsCount: count || 0
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
