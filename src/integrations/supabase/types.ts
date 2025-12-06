@@ -554,6 +554,135 @@ export type Database = {
           },
         ]
       }
+      reportei_clients: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          reportei_client_id: string
+          reportei_client_name: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          reportei_client_id: string
+          reportei_client_name: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          reportei_client_id?: string
+          reportei_client_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reportei_clients_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reportei_integrations: {
+        Row: {
+          channel_name: string | null
+          channel_type: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          reportei_client_link_id: string
+          reportei_integration_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel_name?: string | null
+          channel_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          reportei_client_link_id: string
+          reportei_integration_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel_name?: string | null
+          channel_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          reportei_client_link_id?: string
+          reportei_integration_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reportei_integrations_reportei_client_link_id_fkey"
+            columns: ["reportei_client_link_id"]
+            isOneToOne: false
+            referencedRelation: "reportei_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reportei_metrics: {
+        Row: {
+          created_at: string
+          fetched_at: string
+          id: string
+          integration_id: string
+          metric_type: string | null
+          metric_value: number | null
+          metric_value_text: string | null
+          period_end: string
+          period_start: string
+          raw_data: Json | null
+          widget_id: string
+          widget_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          integration_id: string
+          metric_type?: string | null
+          metric_value?: number | null
+          metric_value_text?: string | null
+          period_end: string
+          period_start: string
+          raw_data?: Json | null
+          widget_id: string
+          widget_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          integration_id?: string
+          metric_type?: string | null
+          metric_value?: number | null
+          metric_value_text?: string | null
+          period_end?: string
+          period_start?: string
+          raw_data?: Json | null
+          widget_id?: string
+          widget_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reportei_metrics_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "reportei_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_comments: {
         Row: {
           content: string

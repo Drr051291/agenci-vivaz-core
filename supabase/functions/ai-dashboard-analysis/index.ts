@@ -45,99 +45,63 @@ serve(async (req) => {
 
     console.log(`Iniciando análise IA para cliente ${clientId} (${clientName})`);
 
-    // Fetch Reportei data
+    // Fetch stored Reportei metrics from database
     let reporteiData = null;
-    const reporteiApiKey = Deno.env.get('REPORTEI_API_KEY');
     
-    if (reporteiApiKey) {
-      try {
-        console.log('Buscando dados do Reportei...');
+    try {
+      console.log('Buscando métricas armazenadas do Reportei...');
+      
+      const periodStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const periodEnd = endDate || new Date().toISOString().split('T')[0];
+      
+      // Get stored metrics from database
+      const { data: metrics, error: metricsError } = await supabaseAdmin
+        .from('reportei_metrics')
+        .select(`
+          *,
+          reportei_integrations!inner(
+            channel_type,
+            channel_name,
+            reportei_clients!inner(
+              client_id,
+              reportei_client_name
+            )
+          )
+        `)
+        .eq('reportei_integrations.reportei_clients.client_id', clientId)
+        .gte('period_start', periodStart)
+        .lte('period_end', periodEnd)
+        .order('created_at', { ascending: false });
+
+      if (!metricsError && metrics && metrics.length > 0) {
+        // Organize metrics by channel
+        const metricsByChannel: Record<string, any[]> = {};
         
-        // Get Reportei clients
-        const clientsResponse = await fetch('https://app.reportei.com/api/v1/clients', {
-          headers: {
-            'Authorization': `Bearer ${reporteiApiKey}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (clientsResponse.ok) {
-          const clientsData = await clientsResponse.json();
-          console.log(`Reportei: ${clientsData.data?.length || 0} clientes encontrados`);
-          
-          // Find matching client by name (partial match)
-          const matchingClient = clientsData.data?.find((c: any) => 
-            clientName && c.name?.toLowerCase().includes(clientName.toLowerCase().split(' ')[0])
-          );
-          
-          if (matchingClient) {
-            console.log(`Cliente Reportei encontrado: ${matchingClient.name}`);
-            
-            // Get integrations for this client
-            const integrationsResponse = await fetch(
-              `https://app.reportei.com/api/v1/clients/${matchingClient.id}/integrations`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${reporteiApiKey}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-            
-            if (integrationsResponse.ok) {
-              const integrationsData = await integrationsResponse.json();
-              console.log(`Reportei: ${integrationsData.data?.length || 0} integrações encontradas`);
-              
-              // Get widgets from first integration
-              if (integrationsData.data?.length > 0) {
-                const integration = integrationsData.data[0];
-                const widgetsResponse = await fetch(
-                  `https://app.reportei.com/api/v1/integrations/${integration.id}/widgets`,
-                  {
-                    headers: {
-                      'Authorization': `Bearer ${reporteiApiKey}`,
-                      'Content-Type': 'application/json',
-                    },
-                  }
-                );
-                
-                if (widgetsResponse.ok) {
-                  const widgetsData = await widgetsResponse.json();
-                  console.log(`Reportei: ${widgetsData.data?.length || 0} widgets encontrados`);
-                  
-                  // Get values for first 10 widgets
-                  const widgetIds = widgetsData.data?.slice(0, 10).map((w: any) => w.id) || [];
-                  
-                  if (widgetIds.length > 0) {
-                    const valuesResponse = await fetch(
-                      'https://app.reportei.com/api/v1/widgets/values',
-                      {
-                        method: 'POST',
-                        headers: {
-                          'Authorization': `Bearer ${reporteiApiKey}`,
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                          widget_ids: widgetIds,
-                          start_date: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                          end_date: endDate || new Date().toISOString().split('T')[0],
-                        }),
-                      }
-                    );
-                    
-                    if (valuesResponse.ok) {
-                      reporteiData = await valuesResponse.json();
-                      console.log('Reportei: Dados de métricas obtidos com sucesso');
-                    }
-                  }
-                }
-              }
-            }
+        for (const metric of metrics) {
+          const channel = metric.reportei_integrations?.channel_type || 'unknown';
+          if (!metricsByChannel[channel]) {
+            metricsByChannel[channel] = [];
           }
+          metricsByChannel[channel].push({
+            name: metric.widget_name,
+            type: metric.metric_type,
+            value: metric.metric_value ?? metric.metric_value_text,
+            period: `${metric.period_start} a ${metric.period_end}`,
+          });
         }
-      } catch (reporteiError) {
-        console.error('Erro ao buscar dados do Reportei:', reporteiError);
+
+        reporteiData = {
+          channels: metricsByChannel,
+          totalMetrics: metrics.length,
+          period: { start: periodStart, end: periodEnd },
+        };
+        
+        console.log(`Reportei: ${metrics.length} métricas encontradas em ${Object.keys(metricsByChannel).length} canais`);
+      } else {
+        console.log('Nenhuma métrica Reportei armazenada encontrada para este cliente');
       }
+    } catch (reporteiError) {
+      console.error('Erro ao buscar métricas do Reportei:', reporteiError);
     }
 
     // Fetch Pipedrive data
@@ -193,11 +157,19 @@ serve(async (req) => {
     // Build context for AI
     let dataContext = `## Dados disponíveis para análise do cliente ${clientName || clientId}\n\n`;
     
-    if (reporteiData) {
-      dataContext += `### Métricas de Marketing (Reportei)\n`;
-      dataContext += JSON.stringify(reporteiData, null, 2) + '\n\n';
+    if (reporteiData && reporteiData.totalMetrics > 0) {
+      dataContext += `### Métricas de Marketing Digital (Reportei)\n`;
+      dataContext += `Período analisado: ${reporteiData.period.start} a ${reporteiData.period.end}\n\n`;
+      
+      for (const [channel, metrics] of Object.entries(reporteiData.channels)) {
+        dataContext += `#### ${channel.toUpperCase()}\n`;
+        for (const metric of (metrics as any[])) {
+          dataContext += `- ${metric.name}: ${metric.value}\n`;
+        }
+        dataContext += '\n';
+      }
     } else {
-      dataContext += `### Marketing\nDados do Reportei não disponíveis ou não configurados para este cliente.\n\n`;
+      dataContext += `### Marketing Digital\nNenhuma métrica do Reportei armazenada para este cliente. Configure o vínculo com Reportei e sincronize os dados.\n\n`;
     }
     
     if (pipedriveData) {
