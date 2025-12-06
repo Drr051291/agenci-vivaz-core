@@ -15,7 +15,8 @@ serve(async (req) => {
   }
 
   try {
-    const { action, clientId, startDate, endDate } = await req.json();
+    const body = await req.json();
+    const { action, clientId, startDate, endDate, hubClientId, reporteiClientId, reporteiClientName } = body;
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -61,7 +62,9 @@ serve(async (req) => {
 
       case 'linkClient': {
         // Vincula um cliente do Reportei ao Hub
-        const { hubClientId, reporteiClientId, reporteiClientName } = await req.json();
+        if (!hubClientId || !reporteiClientId || !reporteiClientName) {
+          throw new Error('hubClientId, reporteiClientId and reporteiClientName are required');
+        }
         
         const { data, error } = await supabase
           .from('reportei_clients')
