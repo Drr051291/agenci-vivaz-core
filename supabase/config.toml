@@ -2,3 +2,6 @@ project_id = "dxvgiodsfbdmifqynfog"
 
 [functions.google-calendar]
 verify_jwt = false
+
+[functions.vivaz-webhook]
+verify_jwt = false
