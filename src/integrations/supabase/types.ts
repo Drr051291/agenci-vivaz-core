@@ -830,24 +830,33 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string
+          ga4_property_id: string | null
+          google_ads_account_id: string | null
           id: string
           is_active: boolean
+          meta_ad_account_id: string | null
           updated_at: string
           webhook_token: string
         }
         Insert: {
           client_id: string
           created_at?: string
+          ga4_property_id?: string | null
+          google_ads_account_id?: string | null
           id?: string
           is_active?: boolean
+          meta_ad_account_id?: string | null
           updated_at?: string
           webhook_token?: string
         }
         Update: {
           client_id?: string
           created_at?: string
+          ga4_property_id?: string | null
+          google_ads_account_id?: string | null
           id?: string
           is_active?: boolean
+          meta_ad_account_id?: string | null
           updated_at?: string
           webhook_token?: string
         }
