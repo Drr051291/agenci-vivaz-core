@@ -4,7 +4,7 @@ project_id = "dxvgiodsfbdmifqynfog"
 verify_jwt = true
 
 [functions.google-calendar]
-verify_jwt = true
+verify_jwt = false
 
 [functions.pipedrive-data]
 verify_jwt = true
@@ -18,8 +18,8 @@ verify_jwt = false
 [functions.vivaz-clients]
 verify_jwt = false
 
-[functions.google-calendar]
+[functions.inside-sales-copilot]
 verify_jwt = false
 
-[functions.vivaz-webhook]
+[functions.inside-sales-copilot-v2]
 verify_jwt = false
