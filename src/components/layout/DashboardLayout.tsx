@@ -13,6 +13,7 @@ import {
   CheckSquare,
   BarChart3,
   DollarSign,
+  Wrench,
 } from "lucide-react";
 import logoVivaz from "@/assets/logo-vivaz.png";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ const adminMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: false },
   { title: "Clientes", url: "/clientes", icon: Users, adminOnly: false },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign, adminOnly: false },
+  { title: "Ferramentas", url: "/ferramentas", icon: Wrench, adminOnly: true },
   { title: "Usuários", url: "/usuarios", icon: UserCog, adminOnly: true },
 ];
 
