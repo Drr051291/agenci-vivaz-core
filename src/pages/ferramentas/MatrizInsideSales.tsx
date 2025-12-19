@@ -339,10 +339,11 @@ export default function MatrizInsideSales() {
             </div>
 
             {/* Context chips */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {clientName && <Badge variant="secondary">{clientName}</Badge>}
               {periodLabel && <Badge variant="outline">{periodLabel}</Badge>}
               {channel && <Badge variant="outline">{CHANNELS.find(c => c.value === channel)?.label || channel}</Badge>}
+              <ConfidenceChip confidence={confidenceScore} size="sm" />
             </div>
 
             {/* Actions */}
@@ -525,6 +526,17 @@ export default function MatrizInsideSales() {
           onApplyPlan={applyAIPlan}
           cachedAnalysis={cachedAnalysis}
           onAnalysisGenerated={setCachedAnalysis}
+        />
+
+        {/* Mobile Bottom Bar */}
+        <MobileBottomBar
+          gargalo1={gargalo1}
+          impacts={impacts}
+          confidence={confidenceScore}
+          eligibleStages={eligibleStages}
+          actionItems={actionItems}
+          onOpenCopilot={() => setCopilotOpen(true)}
+          canUseAI={!!canUseAI}
         />
       </div>
     </DashboardLayout>
