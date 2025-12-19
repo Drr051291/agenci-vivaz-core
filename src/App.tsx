@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 import Financial from "./pages/Financial";
 import Ferramentas from "./pages/Ferramentas";
 import ProjecaoFaturamento from "./pages/ferramentas/ProjecaoFaturamento";
+import MatrizInsideSales from "./pages/ferramentas/MatrizInsideSales";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
           <Route path="/financeiro" element={<Financial />} />
           <Route path="/ferramentas" element={<Ferramentas />} />
           <Route path="/ferramentas/projecao" element={<ProjecaoFaturamento />} />
+          <Route path="/ferramentas/matriz-inside-sales" element={<MatrizInsideSales />} />
           <Route path="/atas/:token" element={<SharedMeeting />} />
           <Route path="/google-calendar/callback" element={<GoogleCalendarCallback />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
