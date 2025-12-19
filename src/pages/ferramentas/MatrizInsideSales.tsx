@@ -48,12 +48,14 @@ import { MobileBottomBar } from "@/components/insideSalesMatrix/MobileBottomBar"
 
 import type { Json } from "@/integrations/supabase/types";
 
-const CHANNELS = [
-  { value: 'landing', label: 'Tráfego para landing' },
-  { value: 'lead_ads', label: 'Lead Ads' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'outro', label: 'Outro' },
-];
+import { 
+  CHANNELS_LIST, 
+  FORM_COMPLEXITY_OPTIONS, 
+  FormComplexity,
+  getPeriodDays,
+  getChannelAdjustedTargets,
+  getChannelInsights,
+} from "@/lib/insideSalesMatrix/channelLogic";
 
 export default function MatrizInsideSales() {
   usePageMeta({
@@ -67,8 +69,8 @@ export default function MatrizInsideSales() {
   const [clientId, setClientId] = useState<string>('');
   const [clientName, setClientName] = useState('');
   const [periodRange, setPeriodRange] = useState<PeriodRange | null>(null);
-  const [periodNotes, setPeriodNotes] = useState('');
   const [channel, setChannel] = useState('');
+  const [formComplexity, setFormComplexity] = useState<FormComplexity | ''>('');
 
   // Clients from DB
   const [clients, setClients] = useState<{ id: string; company_name: string }[]>([]);
@@ -162,17 +164,39 @@ export default function MatrizInsideSales() {
     toast.info('Metas restauradas para o padrão.');
   }
 
+  // Period in days for density calculation
+  const periodDays = useMemo(() => {
+    if (!periodRange) return 0;
+    return getPeriodDays(periodRange.startDate, periodRange.endDate);
+  }, [periodRange]);
+
+  // Dynamic targets based on channel
+  const adjustedTargets = useMemo(() => {
+    if (!channel) return targets;
+    return getChannelAdjustedTargets(
+      targets, 
+      channel, 
+      formComplexity as FormComplexity || undefined
+    );
+  }, [targets, channel, formComplexity]);
+
+  // Channel insights
+  const channelInsights = useMemo(() => {
+    if (!channel) return null;
+    return getChannelInsights(channel, formComplexity as FormComplexity || undefined);
+  }, [channel, formComplexity]);
+
   // Computed outputs
   const outputs = useMemo(() => calculateOutputs(inputs), [inputs]);
 
-  // Stage impacts with status and impact calculation
-  const impacts = useMemo(() => calculateStageImpacts(inputs, outputs, targets), [inputs, outputs, targets]);
+  // Stage impacts with status and impact calculation (use adjusted targets)
+  const impacts = useMemo(() => calculateStageImpacts(inputs, outputs, adjustedTargets), [inputs, outputs, adjustedTargets]);
 
   // Find bottlenecks
   const { gargalo1, gargalo2, melhorEtapa } = useMemo(() => findBottlenecks(impacts), [impacts]);
 
-  // Confidence score (new deterministic 0-100)
-  const confidenceScore = useMemo(() => calculateConfidenceScore(inputs), [inputs]);
+  // Confidence score with period days for investment density
+  const confidenceScore = useMemo(() => calculateConfidenceScore(inputs, { periodDays }), [inputs, periodDays]);
   
   // Eligible stages
   const eligibleStages = useMemo(() => getEligibleStages(inputs), [inputs]);
@@ -183,13 +207,13 @@ export default function MatrizInsideSales() {
   // Period label for display
   const periodLabel = useMemo(() => formatPeriodLabel(periodRange), [periodRange]);
 
-  // Stage evaluations for diagnostics
+  // Stage evaluations for diagnostics (use adjusted targets)
   const stageResults = useMemo(() => {
     return STAGES.map(stage => ({
       stage,
-      ...evaluateStage(stage, inputs, outputs, targets),
+      ...evaluateStage(stage, inputs, outputs, adjustedTargets),
     }));
-  }, [inputs, outputs, targets]);
+  }, [inputs, outputs, adjustedTargets]);
 
   // Diagnostics per stage
   const stageDiagnostics = useMemo(() => {
@@ -305,7 +329,6 @@ export default function MatrizInsideSales() {
   function loadDiagnostic(diag: any) {
     setClientId(diag.client_id || '');
     setClientName(diag.client_name || '');
-    setPeriodNotes(diag.period_label || '');
     setChannel(diag.channel || '');
     setInputs(diag.inputs as InsideSalesInputs);
     setTargets(diag.targets as Targets);
@@ -342,7 +365,7 @@ export default function MatrizInsideSales() {
             <div className="flex flex-wrap items-center gap-2">
               {clientName && <Badge variant="secondary">{clientName}</Badge>}
               {periodLabel && <Badge variant="outline">{periodLabel}</Badge>}
-              {channel && <Badge variant="outline">{CHANNELS.find(c => c.value === channel)?.label || channel}</Badge>}
+              {channel && <Badge variant="outline">{CHANNELS_LIST.find(c => c.value === channel)?.label || channel}</Badge>}
               <ConfidenceChip confidence={confidenceScore} size="sm" />
             </div>
 
@@ -438,32 +461,86 @@ export default function MatrizInsideSales() {
                     <PeriodPickerPresets
                       value={periodRange}
                       onChange={setPeriodRange}
-                      notes={periodNotes}
-                      onNotesChange={setPeriodNotes}
                     />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Canal</Label>
-                  <Select value={channel} onValueChange={setChannel}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione (opcional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CHANNELS.map(c => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Canal de conversão</Label>
+                    <Select value={channel} onValueChange={(v) => {
+                      setChannel(v);
+                      if (v !== 'lead_nativo') setFormComplexity('');
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CHANNELS_LIST.map(c => (
+                          <SelectItem key={c.value} value={c.value}>
+                            <div className="flex flex-col">
+                              <span>{c.label}</span>
+                              <span className="text-xs text-muted-foreground">{c.description}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Form complexity - only for lead_nativo */}
+                  {channel === 'lead_nativo' && (
+                    <div className="space-y-1.5">
+                      <Label>Complexidade do formulário</Label>
+                      <Select value={formComplexity} onValueChange={(v) => setFormComplexity(v as FormComplexity)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FORM_COMPLEXITY_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              <div className="flex flex-col">
+                                <span>{opt.label}</span>
+                                <span className="text-xs text-muted-foreground">{opt.description}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
+                
+                {/* Channel insights */}
+                {channelInsights && (
+                  <div className="mt-3 p-3 bg-muted/50 rounded-lg text-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">{CHANNELS_LIST.find(c => c.value === channel)?.label}</span>
+                      <Badge variant="outline" className="text-xs">{channelInsights.qualityNote}</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <span>CVR esperado: {channelInsights.expectedConversion}</span>
+                      <span>CPL: {channelInsights.expectedCpl}</span>
+                    </div>
+                    {channelInsights.recommendations.length > 0 && (
+                      <ul className="mt-2 text-xs text-muted-foreground space-y-1">
+                        {channelInsights.recommendations.slice(0, 2).map((rec, i) => (
+                          <li key={i} className="flex items-start gap-1">
+                            <span className="text-primary">•</span>
+                            <span>{rec}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Input Tabs */}
+            {/* Input Tabs - show adjusted targets */}
             <InputTabs
               inputs={inputs}
               outputs={outputs}
-              targets={targets}
+              targets={adjustedTargets}
               onInputChange={updateInput}
               onTargetChange={updateTarget}
               onResetTargets={resetTargets}
