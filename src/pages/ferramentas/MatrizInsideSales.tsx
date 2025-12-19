@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -428,121 +427,56 @@ export default function MatrizInsideSales() {
               </CardContent>
             </Card>
 
-            {/* Input Tabs */}
+            {/* Input Card - Simplified */}
             <Card>
-              <Tabs defaultValue="midia" className="w-full">
-                <CardHeader className="pb-2">
-                  <TabsList className="grid grid-cols-4 w-full">
-                    <TabsTrigger value="midia">Mídia paga</TabsTrigger>
-                    <TabsTrigger value="funil">Funil</TabsTrigger>
-                    <TabsTrigger value="inside">Inside Sales</TabsTrigger>
-                    <TabsTrigger value="metas">Metas</TabsTrigger>
-                  </TabsList>
-                </CardHeader>
-                <CardContent>
-                  <TabsContent value="midia" className="space-y-4 mt-0">
-                    <div className="grid grid-cols-2 gap-4">
-                      <InputField id="investimento" label="Investimento" value={inputs.investimento ?? ''} onChange={v => updateInput('investimento', v)} prefix="R$" tooltip="Valor total investido em mídia paga" />
-                      <InputField id="impressoes" label="Impressões" value={inputs.impressoes ?? ''} onChange={v => updateInput('impressoes', v)} tooltip="Total de impressões dos anúncios" />
-                      <InputField id="cliques" label="Cliques" value={inputs.cliques ?? ''} onChange={v => updateInput('cliques', v)} tooltip="Total de cliques nos anúncios" />
-                    </div>
-                    <div className="pt-2 border-t">
-                      <p className="text-xs text-muted-foreground mb-2">Métricas calculadas:</p>
-                      <div className="grid grid-cols-3 gap-2 text-sm">
-                        <div className="bg-muted/50 rounded p-2">
-                          <span className="text-muted-foreground">CTR:</span>{' '}
-                          <span className="font-medium">{formatMetricByKey('ctr', outputs.ctr)}</span>
-                        </div>
-                        <div className="bg-muted/50 rounded p-2">
-                          <span className="text-muted-foreground">CPC:</span>{' '}
-                          <span className="font-medium">{formatMetricByKey('cpc', outputs.cpc)}</span>
-                        </div>
-                        <div className="bg-muted/50 rounded p-2">
-                          <span className="text-muted-foreground">CPM:</span>{' '}
-                          <span className="font-medium">{formatMetricByKey('cpm', outputs.cpm)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Dados do Funil</CardTitle>
+                <CardDescription>Preencha os números principais do funil</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <InputField id="investimento" label="Investimento" value={inputs.investimento ?? ''} onChange={v => updateInput('investimento', v)} prefix="R$" tooltip="Valor total investido em mídia" />
+                  <InputField id="leads" label="Leads" value={inputs.leads ?? ''} onChange={v => updateInput('leads', v)} tooltip="Total de leads captados" />
+                  <InputField id="mql" label="MQL" value={inputs.mql ?? ''} onChange={v => updateInput('mql', v)} tooltip="Marketing Qualified Leads" />
+                  <InputField id="sql" label="SQL" value={inputs.sql ?? ''} onChange={v => updateInput('sql', v)} tooltip="Sales Qualified Leads" />
+                  <InputField id="reunioes" label="Reuniões" value={inputs.reunioes ?? ''} onChange={v => updateInput('reunioes', v)} tooltip="Reuniões agendadas" />
+                  <InputField id="contratos" label="Contratos" value={inputs.contratos ?? ''} onChange={v => updateInput('contratos', v)} tooltip="Contratos fechados (wins)" />
+                  <InputField id="receita" label="Receita" value={inputs.receita ?? ''} onChange={v => updateInput('receita', v)} prefix="R$" tooltip="Receita total gerada (opcional)" />
+                </div>
 
-                  <TabsContent value="funil" className="space-y-4 mt-0">
-                    <div className="grid grid-cols-2 gap-4">
-                      <InputField id="leads" label="Leads" value={inputs.leads ?? ''} onChange={v => updateInput('leads', v)} tooltip="Total de leads captados" />
-                      <InputField id="invalidLeadRate" label="% Leads inválidos" value={inputs.invalidLeadRate ?? ''} onChange={v => updateInput('invalidLeadRate', v)} suffix="%" tooltip="Percentual de leads spam ou com dados ruins" />
-                      <InputField id="fitFillRate" label="% Leads com fit preenchido" value={inputs.fitFillRate ?? ''} onChange={v => updateInput('fitFillRate', v)} suffix="%" tooltip="Leads com cargo/empresa/porte preenchidos" />
-                      <InputField id="mql" label="MQL" value={inputs.mql ?? ''} onChange={v => updateInput('mql', v)} tooltip="Marketing Qualified Leads" />
-                      <InputField id="sql" label="SQL" value={inputs.sql ?? ''} onChange={v => updateInput('sql', v)} tooltip="Sales Qualified Leads" />
-                      <InputField id="reunioes" label="Reuniões agendadas" value={inputs.reunioes ?? ''} onChange={v => updateInput('reunioes', v)} />
-                      <InputField id="contratos" label="Contratos fechados" value={inputs.contratos ?? ''} onChange={v => updateInput('contratos', v)} />
-                      <InputField id="receita" label="Receita" value={inputs.receita ?? ''} onChange={v => updateInput('receita', v)} prefix="R$" />
+                {/* Computed metrics */}
+                <div className="pt-3 border-t">
+                  <p className="text-xs text-muted-foreground mb-2">Taxas de conversão calculadas:</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                    <div className="bg-muted/50 rounded p-2 text-center">
+                      <span className="text-xs text-muted-foreground block">Lead → MQL</span>
+                      <span className="font-medium">{formatMetricByKey('leadToMql', outputs.leadToMql)}</span>
                     </div>
-                    <div className="pt-2 border-t">
-                      <p className="text-xs text-muted-foreground mb-2">Métricas calculadas:</p>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="bg-muted/50 rounded p-2">
-                          <span className="text-muted-foreground">CVR clique→lead:</span>{' '}
-                          <span className="font-medium">{formatMetricByKey('cvrClickLead', outputs.cvrClickLead)}</span>
-                        </div>
-                        <div className="bg-muted/50 rounded p-2">
-                          <span className="text-muted-foreground">CPL:</span>{' '}
-                          <span className="font-medium">{formatMetricByKey('cpl', outputs.cpl)}</span>
-                        </div>
-                      </div>
+                    <div className="bg-muted/50 rounded p-2 text-center">
+                      <span className="text-xs text-muted-foreground block">MQL → SQL</span>
+                      <span className="font-medium">{formatMetricByKey('mqlToSql', outputs.mqlToSql)}</span>
                     </div>
-                  </TabsContent>
-
-                  <TabsContent value="inside" className="space-y-4 mt-0">
-                    <div className="grid grid-cols-2 gap-4">
-                      <InputField id="ttft" label="TTFT (min)" value={inputs.ttft ?? ''} onChange={v => updateInput('ttft', v)} tooltip="Tempo até primeiro contato" suffix="min" />
-                      <InputField id="contactRate24h" label="Contact rate 24h" value={inputs.contactRate24h ?? ''} onChange={v => updateInput('contactRate24h', v)} suffix="%" tooltip="% MQLs contatados em até 24h" />
-                      <InputField id="connectRate" label="Connect rate" value={inputs.connectRate ?? ''} onChange={v => updateInput('connectRate', v)} suffix="%" tooltip="% que atende/responde" />
-                      <InputField id="salRate" label="SAL rate" value={inputs.salRate ?? ''} onChange={v => updateInput('salRate', v)} suffix="%" tooltip="% MQL aceitos por vendas" />
-                      <InputField id="mqlAgingDays" label="Aging MQL (dias)" value={inputs.mqlAgingDays ?? ''} onChange={v => updateInput('mqlAgingDays', v)} tooltip="Tempo médio em MQL" suffix="dias" />
-                      <InputField id="responseRate" label="Taxa de resposta" value={inputs.responseRate ?? ''} onChange={v => updateInput('responseRate', v)} suffix="%" tooltip="(opcional)" />
-                      <InputField id="attemptsPerSql" label="Tentativas/SQL" value={inputs.attemptsPerSql ?? ''} onChange={v => updateInput('attemptsPerSql', v)} tooltip="Nº médio de tentativas por SQL (opcional)" />
-                      <InputField id="meetingWithDecisionMakerRate" label="% Reuniões com decisor" value={inputs.meetingWithDecisionMakerRate ?? ''} onChange={v => updateInput('meetingWithDecisionMakerRate', v)} suffix="%" />
-                      <InputField id="timeToScheduleDays" label="Tempo até agendar" value={inputs.timeToScheduleDays ?? ''} onChange={v => updateInput('timeToScheduleDays', v)} suffix="dias" />
-                      <InputField id="salesCycleDays" label="Ciclo de vendas" value={inputs.salesCycleDays ?? ''} onChange={v => updateInput('salesCycleDays', v)} suffix="dias" />
-                      <InputField id="discountRate" label="Taxa de desconto" value={inputs.discountRate ?? ''} onChange={v => updateInput('discountRate', v)} suffix="%" />
+                    <div className="bg-muted/50 rounded p-2 text-center">
+                      <span className="text-xs text-muted-foreground block">SQL → Reunião</span>
+                      <span className="font-medium">{formatMetricByKey('sqlToMeeting', outputs.sqlToMeeting)}</span>
                     </div>
-                  </TabsContent>
-
-                  <TabsContent value="metas" className="space-y-4 mt-0">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs text-muted-foreground">Benchmarks são estimativas — ajuste conforme histórico do cliente.</p>
-                      <Button variant="outline" size="sm" onClick={resetTargets}>
-                        <RefreshCw className="h-3.5 w-3.5 mr-1" />
-                        Restaurar padrão
-                      </Button>
+                    <div className="bg-muted/50 rounded p-2 text-center">
+                      <span className="text-xs text-muted-foreground block">Win Rate</span>
+                      <span className="font-medium">{formatMetricByKey('meetingToWin', outputs.meetingToWin)}</span>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2">
-                      {Object.entries(targets).map(([key, config]) => (
-                        <div key={key} className="flex items-center gap-2 bg-muted/30 rounded p-2">
-                          <span className="text-sm flex-1 min-w-0 truncate">{config.label}</span>
-                          <Select
-                            value={config.direction}
-                            onValueChange={(v) => updateTarget(key, 'direction', v)}
-                          >
-                            <SelectTrigger className="w-20 h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="min">Mín</SelectItem>
-                              <SelectItem value="max">Máx</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            type="number"
-                            value={config.value}
-                            onChange={(e) => updateTarget(key, 'value', e.target.value)}
-                            className="w-20 h-8 text-sm"
-                          />
-                        </div>
-                      ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+                    <div className="bg-muted/50 rounded p-2 text-center">
+                      <span className="text-xs text-muted-foreground block">CPL</span>
+                      <span className="font-medium">{formatMetricByKey('cpl', outputs.cpl)}</span>
                     </div>
-                  </TabsContent>
-                </CardContent>
-              </Tabs>
+                    <div className="bg-muted/50 rounded p-2 text-center">
+                      <span className="text-xs text-muted-foreground block">CAC</span>
+                      <span className="font-medium">{formatMetricByKey('cac', outputs.cac)}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
 
             {/* Actions */}
