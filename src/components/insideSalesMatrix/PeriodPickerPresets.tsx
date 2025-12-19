@@ -18,8 +18,6 @@ export interface PeriodRange {
 interface PeriodPickerPresetsProps {
   value: PeriodRange | null;
   onChange: (range: PeriodRange) => void;
-  notes?: string;
-  onNotesChange?: (notes: string) => void;
 }
 
 const PRESETS = [
@@ -49,8 +47,6 @@ function getPresetDates(presetId: string): { startDate: Date; endDate: Date } {
 export function PeriodPickerPresets({
   value,
   onChange,
-  notes,
-  onNotesChange,
 }: PeriodPickerPresetsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customStart, setCustomStart] = useState<Date | undefined>(value?.startDate);
@@ -87,92 +83,77 @@ export function PeriodPickerPresets({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-1.5">
-        <Label className="flex items-center gap-1">
-          <CalendarDays className="h-3.5 w-3.5" />
-          Período <span className="text-destructive">*</span>
-        </Label>
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full justify-between font-normal"
-            >
-              <span className={value ? 'text-foreground' : 'text-muted-foreground'}>
-                {displayLabel}
-              </span>
-              <ChevronDown className="h-4 w-4 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-3" align="start">
-            <div className="space-y-3">
-              {/* Presets */}
-              <div className="flex flex-wrap gap-2">
-                {PRESETS.map((preset) => (
-                  <Badge
-                    key={preset.id}
-                    variant={selectedPreset === preset.id ? 'default' : 'outline'}
-                    className="cursor-pointer hover:bg-primary/10"
-                    onClick={() => handlePresetSelect(preset.id)}
-                  >
-                    {preset.label}
-                  </Badge>
-                ))}
-              </div>
-
-              {/* Custom date picker */}
-              {selectedPreset === 'custom' && (
-                <div className="space-y-3 pt-2 border-t">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Início</Label>
-                      <Calendar
-                        mode="single"
-                        selected={customStart}
-                        onSelect={setCustomStart}
-                        className="rounded-md border p-0"
-                        locale={ptBR}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Fim</Label>
-                      <Calendar
-                        mode="single"
-                        selected={customEnd}
-                        onSelect={setCustomEnd}
-                        className="rounded-md border p-0"
-                        locale={ptBR}
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={handleApplyCustom}
-                    disabled={!customStart || !customEnd}
-                    className="w-full"
-                  >
-                    Aplicar
-                  </Button>
-                </div>
-              )}
+    <div className="space-y-1.5">
+      <Label className="flex items-center gap-1">
+        <CalendarDays className="h-3.5 w-3.5" />
+        Período <span className="text-destructive">*</span>
+      </Label>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full justify-between font-normal"
+          >
+            <span className={value ? 'text-foreground' : 'text-muted-foreground'}>
+              {displayLabel}
+            </span>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-3" align="start">
+          <div className="space-y-3">
+            {/* Presets */}
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((preset) => (
+                <Badge
+                  key={preset.id}
+                  variant={selectedPreset === preset.id ? 'default' : 'outline'}
+                  className="cursor-pointer hover:bg-primary/10"
+                  onClick={() => handlePresetSelect(preset.id)}
+                >
+                  {preset.label}
+                </Badge>
+              ))}
             </div>
-          </PopoverContent>
-        </Popover>
-      </div>
 
-      {/* Optional notes */}
-      {onNotesChange && (
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Observações do período (opcional)</Label>
-          <Input
-            value={notes || ''}
-            onChange={(e) => onNotesChange(e.target.value)}
-            placeholder="Ex: Black Friday, campanha X..."
-            className="h-8 text-sm"
-          />
-        </div>
-      )}
+            {/* Custom date picker */}
+            {selectedPreset === 'custom' && (
+              <div className="space-y-3 pt-2 border-t">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Início</Label>
+                    <Calendar
+                      mode="single"
+                      selected={customStart}
+                      onSelect={setCustomStart}
+                      className="rounded-md border p-0"
+                      locale={ptBR}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Fim</Label>
+                    <Calendar
+                      mode="single"
+                      selected={customEnd}
+                      onSelect={setCustomEnd}
+                      className="rounded-md border p-0"
+                      locale={ptBR}
+                    />
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleApplyCustom}
+                  disabled={!customStart || !customEnd}
+                  className="w-full"
+                >
+                  Aplicar
+                </Button>
+              </div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

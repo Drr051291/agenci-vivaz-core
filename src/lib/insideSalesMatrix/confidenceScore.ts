@@ -1,12 +1,13 @@
 // Confidence Score calculation for Inside Sales Matrix
-// Deterministic scoring (0-100) based on sample size and data completeness
+// Deterministic scoring (0-100) based on sample size, data completeness, and investment density
 
 import { InsideSalesInputs } from './calc';
+import { calculateInvestmentDensity, getPeriodDays } from './channelLogic';
 
 export interface ConfidencePenalty {
   reason: string;
   penalty: number;
-  category: 'amostra' | 'completude' | 'consistencia';
+  category: 'amostra' | 'completude' | 'consistencia' | 'investimento';
 }
 
 export interface ConfidenceScoreResult {
@@ -18,11 +19,19 @@ export interface ConfidenceScoreResult {
   hasInconsistency: boolean;
 }
 
-export function calculateConfidenceScore(inputs: InsideSalesInputs): ConfidenceScoreResult {
+export interface ConfidenceScoreOptions {
+  periodDays?: number;
+}
+
+export function calculateConfidenceScore(
+  inputs: InsideSalesInputs,
+  options: ConfidenceScoreOptions = {}
+): ConfidenceScoreResult {
   const penalties: ConfidencePenalty[] = [];
   let score = 100;
 
   const { leads = 0, mql = 0, sql = 0, reunioes = 0, contratos = 0, investimento, cliques, impressoes } = inputs;
+  const { periodDays } = options;
 
   // A) Sample size penalties (most important)
   if (leads === 0) {
@@ -69,7 +78,20 @@ export function calculateConfidenceScore(inputs: InsideSalesInputs): ConfidenceS
     score -= 20;
   }
 
-  // B) Completeness penalties
+  // B) Investment density penalty
+  if (periodDays && periodDays > 0 && investimento) {
+    const density = calculateInvestmentDensity(investimento, periodDays);
+    if (density && density.confidencePenalty > 0) {
+      penalties.push({
+        reason: density.warning || 'Investimento diluído no período',
+        penalty: density.confidencePenalty,
+        category: 'investimento',
+      });
+      score -= density.confidencePenalty;
+    }
+  }
+
+  // C) Completeness penalties
   if (!investimento) {
     penalties.push({ reason: 'Investimento não informado', penalty: 10, category: 'completude' });
     score -= 10;
@@ -81,7 +103,7 @@ export function calculateConfidenceScore(inputs: InsideSalesInputs): ConfidenceS
     score -= 10;
   }
 
-  // C) Consistency penalties
+  // D) Consistency penalties
   let hasInconsistency = false;
   if (mql > leads && leads > 0) {
     hasInconsistency = true;
