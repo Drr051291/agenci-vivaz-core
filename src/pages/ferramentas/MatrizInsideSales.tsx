@@ -34,12 +34,13 @@ import {
 
 import { calculateStageImpacts, findBottlenecks, calculateConfidenceLevel, StageImpact } from "@/lib/insideSalesMatrix/impact";
 
-import { FunnelBarChart } from "@/components/insideSalesMatrix/FunnelBarChart";
-import { QuickSummary } from "@/components/insideSalesMatrix/QuickSummary";
+import { FunnelVisual } from "@/components/insideSalesMatrix/FunnelVisual";
+import { ScoreCard } from "@/components/insideSalesMatrix/ScoreCard";
+import { ActionSplitCard } from "@/components/insideSalesMatrix/ActionSplitCard";
 import { InputTabs } from "@/components/insideSalesMatrix/InputTabs";
-import { StageDiagnosis } from "@/components/insideSalesMatrix/StageDiagnosis";
-import { ActionPlan, ActionItem } from "@/components/insideSalesMatrix/ActionPlan";
-import { AICopilotDrawer } from "@/components/insideSalesMatrix/AICopilotDrawer";
+import { StageDiagnosisV2 } from "@/components/insideSalesMatrix/StageDiagnosisV2";
+import { ActionPlanV2, ActionItemV2 } from "@/components/insideSalesMatrix/ActionPlanV2";
+import { AICopilotDrawerV2 } from "@/components/insideSalesMatrix/AICopilotDrawerV2";
 
 import type { Json } from "@/integrations/supabase/types";
 
@@ -77,7 +78,7 @@ export default function MatrizInsideSales() {
   const [rules, setRules] = useState<MatrixRule[]>(DEFAULT_RULES);
 
   // Action Plan
-  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
+  const [actionItems, setActionItems] = useState<ActionItemV2[]>([]);
 
   // AI Copilot
   const [copilotOpen, setCopilotOpen] = useState(false);
@@ -202,11 +203,12 @@ export default function MatrizInsideSales() {
   // Check if we have minimum data for AI
   const canUseAI = inputs.leads && inputs.mql && inputs.sql && inputs.reunioes;
 
-  function addToActionPlan(action: { title: string; stage: string }) {
-    const newItem: ActionItem = {
+  function addToActionPlan(action: { title: string; stage: string; type?: 'midia' | 'processo' }) {
+    const newItem: ActionItemV2 = {
       id: crypto.randomUUID(),
       title: action.title,
       stage: action.stage,
+      type: action.type || 'processo',
       priority: 'Média',
       status: 'A Fazer',
     };
@@ -214,7 +216,7 @@ export default function MatrizInsideSales() {
     toast.success('Ação adicionada ao plano!');
   }
 
-  function applyAIPlan(items: ActionItem[]) {
+  function applyAIPlan(items: ActionItemV2[]) {
     setActionItems(prev => [...prev, ...items]);
   }
 
@@ -356,16 +358,15 @@ export default function MatrizInsideSales() {
           </div>
         </div>
 
-        {/* Placar do Funil - Top Overview */}
+        {/* Painel do Funil - Top Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            <FunnelBarChart impacts={impacts} />
-          </div>
-          <QuickSummary
-            gargalo1={gargalo1}
-            gargalo2={gargalo2}
-            melhorEtapa={melhorEtapa}
-            confidence={confidence}
+          <FunnelVisual inputs={inputs} outputs={outputs} impacts={impacts} />
+          <ScoreCard impacts={impacts} gargalo1={gargalo1} confidence={confidence} />
+          <ActionSplitCard 
+            impacts={impacts} 
+            outputs={outputs}
+            targets={targets}
+            rules={rules}
           />
         </div>
 
@@ -474,14 +475,14 @@ export default function MatrizInsideSales() {
           {/* RIGHT: Diagnosis */}
           <div className="space-y-4">
             {/* Stage Diagnosis */}
-            <StageDiagnosis
+            <StageDiagnosisV2
               impacts={impacts}
               stageDiagnostics={mappedStageDiagnostics}
               onAddToActionPlan={addToActionPlan}
             />
 
             {/* Action Plan */}
-            <ActionPlan
+            <ActionPlanV2
               items={actionItems}
               onChange={setActionItems}
             />
@@ -489,7 +490,7 @@ export default function MatrizInsideSales() {
         </div>
 
         {/* AI Copilot Drawer */}
-        <AICopilotDrawer
+        <AICopilotDrawerV2
           open={copilotOpen}
           onOpenChange={setCopilotOpen}
           inputs={inputs}
