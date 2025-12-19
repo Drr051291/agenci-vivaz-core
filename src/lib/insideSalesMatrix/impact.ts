@@ -1,6 +1,7 @@
 // Impact estimation calculations
 import { InsideSalesInputs, InsideSalesOutputs, safeDiv } from './calc';
 import { Targets, STAGES, evaluateMetricStatus } from './status';
+import { checkStageEligibility, STAGE_THRESHOLDS, StageId } from './eligibility';
 
 export interface StageImpact {
   stageId: string;
@@ -9,14 +10,14 @@ export interface StageImpact {
   target: { rate: number };
   gapPp: number | undefined;
   status: 'ok' | 'atencao' | 'critico' | 'sem_dados' | 'baixa_amostra';
+  isEligible: boolean;
+  eligibilityReason?: string;
   impact: {
     extraOutput: number;
     extraContratos: number;
     description: string;
   } | null;
 }
-
-const MINIMUM_SAMPLE_SIZE = 10;
 
 export function calculateStageImpacts(
   inputs: InsideSalesInputs,
@@ -60,13 +61,15 @@ export function calculateStageImpacts(
     const targetRatePercent = targetRate * 100;
     const currentRatePercent = currentRate !== undefined ? currentRate * 100 : undefined;
     
-    // Determine status
+    // Check eligibility
+    const eligibility = checkStageEligibility(stage.id, inputs);
+    const isEligible = eligibility.isEligible;
+    
+    // Determine status - respect eligibility
     let status: StageImpact['status'] = 'sem_dados';
     
-    if (stage.denominator === 0) {
-      status = 'sem_dados';
-    } else if (stage.denominator < MINIMUM_SAMPLE_SIZE) {
-      status = 'baixa_amostra';
+    if (!isEligible) {
+      status = eligibility.reason === 'sem_dados' ? 'sem_dados' : 'baixa_amostra';
     } else if (currentRate !== undefined) {
       const metricStatus = evaluateMetricStatus(currentRatePercent, targets[stage.key]);
       if (metricStatus === 'positivo') status = 'ok';
@@ -74,29 +77,45 @@ export function calculateStageImpacts(
       else if (metricStatus === 'negativo') status = 'critico';
     }
     
-    // Calculate gap
-    const gapPp = currentRatePercent !== undefined 
+    // Calculate gap only if eligible
+    const gapPp = isEligible && currentRatePercent !== undefined 
       ? currentRatePercent - targetRatePercent 
       : undefined;
     
-    // Calculate impact if hitting target
+    // Generate eligibility reason text
+    let eligibilityReason: string | undefined;
+    if (!isEligible) {
+      const threshold = STAGE_THRESHOLDS[stage.id as StageId];
+      if (threshold && eligibility.reason === 'baixa_amostra') {
+        eligibilityReason = `Requer ≥${threshold.minValue} ${threshold.denominator} (atual: ${eligibility.currentValue})`;
+      } else if (eligibility.reason === 'sem_dados') {
+        eligibilityReason = 'Dados não informados';
+      }
+    }
+    
+    // Calculate impact only if eligible and below target
     let impact: StageImpact['impact'] = null;
     
-    if (currentRate !== undefined && currentRate < targetRate && stage.denominator > 0) {
-      // Extra output at this stage if we hit target
+    if (isEligible && currentRate !== undefined && currentRate < targetRate && stage.denominator > 0) {
       const potentialOutput = stage.denominator * targetRate;
       const extraOutput = Math.round(potentialOutput - stage.numerator);
       
       if (extraOutput > 0) {
-        // Propagate downstream using current rates
+        // Check if downstream stages are also eligible before propagating
         let extraContratos = extraOutput;
+        let allDownstreamEligible = true;
         
         for (let i = index + 1; i < stageData.length; i++) {
+          const downstreamEligibility = checkStageEligibility(stageData[i].id, inputs);
+          if (!downstreamEligibility.isEligible) {
+            allDownstreamEligible = false;
+            break;
+          }
+          
           const downstreamRate = rates[stageData[i].key];
           if (downstreamRate !== undefined) {
             extraContratos = extraContratos * downstreamRate;
           } else {
-            // Use target rate as fallback
             extraContratos = extraContratos * targetRates[stageData[i].key];
           }
         }
@@ -106,11 +125,19 @@ export function calculateStageImpacts(
         const stageNames = ['MQL', 'SQL', 'Reuniões', 'Contratos'];
         const outputName = stageNames[index];
         
-        impact = {
-          extraOutput,
-          extraContratos,
-          description: `+${extraOutput} ${outputName}${extraContratos > 0 && index < 3 ? ` → +${extraContratos} contratos` : ''}`,
-        };
+        if (allDownstreamEligible) {
+          impact = {
+            extraOutput,
+            extraContratos,
+            description: `+${extraOutput} ${outputName}${extraContratos > 0 && index < 3 ? ` → +${extraContratos} contratos` : ''}`,
+          };
+        } else {
+          impact = {
+            extraOutput,
+            extraContratos: 0,
+            description: `+${extraOutput} ${outputName} (impacto final indisponível)`,
+          };
+        }
       }
     }
     
@@ -118,32 +145,51 @@ export function calculateStageImpacts(
       stageId: stage.id,
       stageName: stage.name,
       current: {
-        rate: currentRatePercent,
+        rate: isEligible ? currentRatePercent : undefined,
         numerator: stage.numerator,
         denominator: stage.denominator,
       },
       target: { rate: targetRatePercent },
       gapPp,
       status,
+      isEligible,
+      eligibilityReason,
       impact,
     };
   });
 }
+
+// Stage weights for bottleneck ranking (earlier stages have slightly more weight)
+const STAGE_WEIGHTS: Record<string, number> = {
+  'lead_to_mql': 1.2,
+  'mql_to_sql': 1.1,
+  'sql_to_meeting': 1.0,
+  'meeting_to_win': 1.0,
+};
 
 export function findBottlenecks(impacts: StageImpact[]): {
   gargalo1: StageImpact | null;
   gargalo2: StageImpact | null;
   melhorEtapa: StageImpact | null;
 } {
-  const criticalStages = impacts.filter(i => i.status === 'critico' && i.impact);
-  const okStages = impacts.filter(i => i.status === 'ok');
+  // Only consider eligible stages with critical status
+  const eligibleCritical = impacts.filter(i => 
+    i.isEligible && i.status === 'critico' && i.gapPp !== undefined
+  );
   
-  // Sort by impact (extra contracts potential)
-  criticalStages.sort((a, b) => (b.impact?.extraContratos || 0) - (a.impact?.extraContratos || 0));
+  // Rank by (gap magnitude * stage weight * impact estimate)
+  const ranked = eligibleCritical
+    .map(i => ({
+      impact: i,
+      score: Math.abs(i.gapPp!) * (STAGE_WEIGHTS[i.stageId] || 1) * (i.impact?.extraContratos || 1),
+    }))
+    .sort((a, b) => b.score - a.score);
+  
+  const okStages = impacts.filter(i => i.isEligible && i.status === 'ok');
   
   return {
-    gargalo1: criticalStages[0] || null,
-    gargalo2: criticalStages[1] || null,
+    gargalo1: ranked[0]?.impact || null,
+    gargalo2: ranked[1]?.impact || null,
     melhorEtapa: okStages[0] || null,
   };
 }
