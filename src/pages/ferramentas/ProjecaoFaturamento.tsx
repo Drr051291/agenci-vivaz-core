@@ -28,8 +28,7 @@ import {
   Users,
   Target,
   Percent,
-  Lightbulb,
-  RotateCcw
+  Lightbulb
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -76,7 +75,6 @@ export default function ProjecaoFaturamento() {
   const [channel, setChannel] = useState<Channel>('ecommerce');
   const [mode, setMode] = useState<Mode>('target_to_budget');
   const [clientName, setClientName] = useState('');
-  const [periodLabel, setPeriodLabel] = useState('');
   
   // Form inputs
   const [ticketMedio, setTicketMedio] = useState<number>(430);
@@ -139,7 +137,7 @@ export default function ProjecaoFaturamento() {
       const { error } = await supabase.from('projections').insert([{
         channel,
         mode,
-        period_label: periodLabel || null,
+        period_label: null,
         inputs: inputsData as unknown as Json,
         outputs: outputsData as unknown as Json,
         created_by: user.user.id,
@@ -178,24 +176,10 @@ export default function ProjecaoFaturamento() {
     },
   });
 
-  // Load benchmark
-  const loadBenchmark = () => {
-    const benchmark = BENCHMARKS[channel];
-    setTicketMedio(benchmark.ticketMedio);
-    setAprovacao(benchmark.aprovacao * 100);
-    setTaxaConversao(benchmark.taxaConversao * 100);
-    setCustoUnitario(benchmark.custoUnitario);
-    toast({
-      title: 'Benchmark carregado',
-      description: 'Os valores de benchmark foram aplicados. Ajuste conforme o histórico do cliente.',
-    });
-  };
-
   // Load saved projection
   const loadProjection = (projection: Projection) => {
     setChannel(projection.channel);
     setMode(projection.mode);
-    setPeriodLabel(projection.period_label || '');
     setTicketMedio(projection.inputs.ticketMedio);
     setAprovacao(projection.inputs.aprovacao * 100);
     setTaxaConversao(projection.inputs.taxaConversao * 100);
@@ -224,7 +208,7 @@ export default function ProjecaoFaturamento() {
     return calculateProjection(inputs, mode);
   }, [ticketMedio, aprovacao, taxaConversao, custoUnitario, metaReceitaFaturada, investimento, mode]);
 
-  const insights = useMemo(() => generateInsights(outputs, channel), [outputs, channel]);
+  const insights = useMemo(() => generateInsights(outputs, channel, ticketMedio), [outputs, channel, ticketMedio]);
   const labels = getChannelLabels(channel);
 
   // Update defaults when channel changes
@@ -259,18 +243,12 @@ export default function ProjecaoFaturamento() {
           {/* Left: Inputs */}
           <Card>
             <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Calculator className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">Parâmetros</CardTitle>
-                </div>
-                <Button variant="outline" size="sm" onClick={loadBenchmark}>
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Carregar benchmark
-                </Button>
+              <div className="flex items-center gap-2">
+                <Calculator className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">Parâmetros</CardTitle>
               </div>
               <CardDescription>
-                Benchmarks são estimativas — ajuste conforme o histórico do cliente.
+                Ajuste os valores conforme o histórico do cliente.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -301,17 +279,6 @@ export default function ProjecaoFaturamento() {
               </div>
 
               <Separator />
-
-              {/* Period */}
-              <div className="space-y-2">
-                <Label htmlFor="period">Período (opcional)</Label>
-                <Input
-                  id="period"
-                  placeholder="Ex: Janeiro 2025"
-                  value={periodLabel}
-                  onChange={(e) => setPeriodLabel(e.target.value)}
-                />
-              </div>
 
               {/* Mode-specific input */}
               {mode === 'target_to_budget' ? (
@@ -559,9 +526,6 @@ export default function ProjecaoFaturamento() {
                           <Badge variant="secondary" className="text-xs">
                             {p.mode === 'target_to_budget' ? 'Meta → Orç.' : 'Orç. → Proj.'}
                           </Badge>
-                          {p.period_label && (
-                            <span className="text-xs text-muted-foreground">{p.period_label}</span>
-                          )}
                         </div>
                         <div className="text-sm mt-1">
                           <span className="font-medium">{formatCurrency(p.outputs.receitaFaturada)}</span>
