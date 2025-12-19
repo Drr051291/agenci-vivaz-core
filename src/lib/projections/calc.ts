@@ -40,20 +40,28 @@ export interface ProjectionOutputs {
 }
 
 // Benchmarks by channel
+// E-commerce: Taxa conversão média 1.2% para ticket médio entre R$120-400
+// WhatsApp: Taxa conversão média 3-5%
+// % investimento em marketing: 15-30% do faturamento
 export const BENCHMARKS = {
   ecommerce: {
-    taxaConversao: 0.012,    // 1.2%
+    taxaConversao: 0.012,    // 1.2% - média para ticket médio (R$120-400)
     aprovacao: 0.90,         // 90%
-    ticketMedio: 430,        // R$ 430
+    ticketMedio: 250,        // R$ 250 - ticket médio médio
     custoUnitario: 0.35,     // R$ 0.35 CPS
   },
   whatsapp: {
-    taxaConversao: 0.08,     // 8%
+    taxaConversao: 0.04,     // 4% - média entre 3-5%
     aprovacao: 0.90,         // 90%
-    ticketMedio: 430,        // R$ 430
+    ticketMedio: 430,        // R$ 430 - ticket mais alto, melhor no WhatsApp
     custoUnitario: 2.50,     // R$ 2.50 CPCv
   },
 } as const;
+
+// Ticket médio reference:
+// Baixo: < R$ 120 (maior taxa de conversão, pode chegar a 2%+)
+// Médio: R$ 120 - R$ 400 (conversão média 1.2%)
+// Alto: > R$ 400 (conversão menor ~0.7%, melhor ir para WhatsApp)
 
 // Calculate projection based on mode
 export function calculateProjection(
@@ -126,21 +134,46 @@ export function calculateProjection(
   };
 }
 
-// Generate insights based on outputs
-export function generateInsights(outputs: ProjectionOutputs, channel: Channel): string[] {
+// Generate insights based on outputs and inputs
+export function generateInsights(
+  outputs: ProjectionOutputs, 
+  channel: Channel,
+  ticketMedio?: number
+): string[] {
   const insights: string[] = [];
   
-  // High media dependency warning
-  if (outputs.percentMidiaPago > 0.20) {
+  // % investimento em marketing check (15-30% é o range ideal)
+  if (outputs.percentMidiaPago > 0.30) {
     insights.push(
-      `⚠️ Alta dependência de mídia: ${formatPercent(outputs.percentMidiaPago)} do faturamento vai para investimento.`
+      `⚠️ Investimento muito alto: ${formatPercent(outputs.percentMidiaPago)} do faturamento. O ideal é entre 15-30%.`
     );
+  } else if (outputs.percentMidiaPago > 0.20 && outputs.percentMidiaPago <= 0.30) {
+    insights.push(
+      `📊 Investimento em ${formatPercent(outputs.percentMidiaPago)} do faturamento. Aceitável para produtos/processos ainda em validação.`
+    );
+  } else if (outputs.percentMidiaPago > 0 && outputs.percentMidiaPago <= 0.15) {
+    insights.push(
+      `✅ Eficiência de mídia boa: apenas ${formatPercent(outputs.percentMidiaPago)} do faturamento. Indica escala ou ticket alto.`
+    );
+  }
+  
+  // Ticket médio analysis
+  if (ticketMedio !== undefined && ticketMedio > 0) {
+    if (ticketMedio < 120) {
+      insights.push(
+        `💡 Ticket médio baixo (${formatCurrency(ticketMedio)}). Espere taxas de conversão mais altas (2%+).`
+      );
+    } else if (ticketMedio > 400 && channel === 'ecommerce') {
+      insights.push(
+        `💡 Ticket médio alto (${formatCurrency(ticketMedio)}). Considere WhatsApp para melhor conversão.`
+      );
+    }
   }
   
   // Low ROAS warning
   if (outputs.roasPago > 0 && outputs.roasPago < 3) {
     insights.push(
-      `⚠️ ROAS baixo (${formatNumber(outputs.roasPago)}x). Considere otimizar campanhas ou revisar o custo por ${channel === 'ecommerce' ? 'sessão' : 'conversa'}.`
+      `⚠️ ROAS baixo (${formatNumber(outputs.roasPago)}x). Revise custo por ${channel === 'ecommerce' ? 'sessão' : 'conversa'} ou taxa de conversão.`
     );
   }
   
@@ -151,22 +184,32 @@ export function generateInsights(outputs: ProjectionOutputs, channel: Channel): 
     );
   }
   
-  // Conversion bottleneck
-  const volumeLabel = channel === 'ecommerce' ? 'sessões' : 'conversas';
-  if (outputs.volumeTopoFunil > 0 && outputs.pedidosCaptados > 0) {
+  // Conversion rate check for e-commerce
+  if (channel === 'ecommerce' && outputs.volumeTopoFunil > 0 && outputs.pedidosCaptados > 0) {
     const convRate = outputs.pedidosCaptados / outputs.volumeTopoFunil;
-    if (convRate < 0.01) {
+    if (ticketMedio && ticketMedio > 400 && convRate > 0.01) {
       insights.push(
-        `🔍 Gargalo provável: taxa de conversão muito baixa. Revise a jornada de ${volumeLabel} até pedido.`
+        `📈 Taxa de conversão ${formatPercent(convRate)} está acima do esperado para ticket alto. Excelente!`
+      );
+    } else if (ticketMedio && ticketMedio < 120 && convRate < 0.015) {
+      insights.push(
+        `🔍 Taxa de conversão baixa para ticket baixo. Esperado 1.5%+ nessa faixa de preço.`
       );
     }
   }
   
-  // CPA check
-  if (outputs.cpaPago > outputs.receitaFaturada / (outputs.pedidosFaturados || 1) * 0.5) {
-    insights.push(
-      `💰 CPA elevado em relação ao ticket médio. Margem pode estar comprometida.`
-    );
+  // WhatsApp conversion check
+  if (channel === 'whatsapp' && outputs.volumeTopoFunil > 0 && outputs.pedidosCaptados > 0) {
+    const convRate = outputs.pedidosCaptados / outputs.volumeTopoFunil;
+    if (convRate < 0.03) {
+      insights.push(
+        `🔍 Taxa de conversão ${formatPercent(convRate)} abaixo da média para WhatsApp (3-5%).`
+      );
+    } else if (convRate >= 0.05) {
+      insights.push(
+        `✅ Excelente taxa de conversão no WhatsApp: ${formatPercent(convRate)}.`
+      );
+    }
   }
   
   return insights.slice(0, 3); // Max 3 insights
