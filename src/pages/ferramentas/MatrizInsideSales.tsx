@@ -44,6 +44,8 @@ import {
   DiagnosticItem,
 } from "@/lib/insideSalesMatrix/rules";
 
+import { FunnelChart } from "@/components/insideSalesMatrix/FunnelChart";
+
 import type { Json } from "@/integrations/supabase/types";
 
 const CHANNELS = [
@@ -556,6 +558,25 @@ export default function MatrizInsideSales() {
                     );
                   })}
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Funnel Chart */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Funil de Conversão</CardTitle>
+                <CardDescription>Visualização das quedas entre etapas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FunnelChart
+                  stages={[
+                    { id: 'leads', label: 'Leads', value: inputs.leads },
+                    { id: 'mql', label: 'MQL', value: inputs.mql, conversionRate: outputs.leadToMql, conversionKey: 'leadToMql' },
+                    { id: 'sql', label: 'SQL', value: inputs.sql, conversionRate: outputs.mqlToSql, conversionKey: 'mqlToSql' },
+                    { id: 'reunioes', label: 'Reuniões', value: inputs.reunioes, conversionRate: outputs.sqlToMeeting, conversionKey: 'sqlToMeeting' },
+                    { id: 'contratos', label: 'Contratos', value: inputs.contratos, conversionRate: outputs.meetingToWin, conversionKey: 'meetingToWin' },
+                  ]}
+                />
               </CardContent>
             </Card>
 
