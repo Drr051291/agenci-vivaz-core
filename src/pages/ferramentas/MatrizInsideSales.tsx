@@ -571,10 +571,10 @@ export default function MatrizInsideSales() {
                 <FunnelChart
                   stages={[
                     { id: 'leads', label: 'Leads', value: inputs.leads },
-                    { id: 'mql', label: 'MQL', value: inputs.mql, conversionRate: outputs.leadToMql, conversionKey: 'leadToMql' },
-                    { id: 'sql', label: 'SQL', value: inputs.sql, conversionRate: outputs.mqlToSql, conversionKey: 'mqlToSql' },
-                    { id: 'reunioes', label: 'Reuniões', value: inputs.reunioes, conversionRate: outputs.sqlToMeeting, conversionKey: 'sqlToMeeting' },
-                    { id: 'contratos', label: 'Contratos', value: inputs.contratos, conversionRate: outputs.meetingToWin, conversionKey: 'meetingToWin' },
+                    { id: 'mql', label: 'MQL', value: inputs.mql, conversionRate: outputs.leadToMql, conversionKey: 'leadToMql', conversionStatus: evaluateMetricStatus(outputs.leadToMql, targets.leadToMql) },
+                    { id: 'sql', label: 'SQL', value: inputs.sql, conversionRate: outputs.mqlToSql, conversionKey: 'mqlToSql', conversionStatus: evaluateMetricStatus(outputs.mqlToSql, targets.mqlToSql) },
+                    { id: 'reunioes', label: 'Reuniões', value: inputs.reunioes, conversionRate: outputs.sqlToMeeting, conversionKey: 'sqlToMeeting', conversionStatus: evaluateMetricStatus(outputs.sqlToMeeting, targets.sqlToMeeting) },
+                    { id: 'contratos', label: 'Contratos', value: inputs.contratos, conversionRate: outputs.meetingToWin, conversionKey: 'meetingToWin', conversionStatus: evaluateMetricStatus(outputs.meetingToWin, targets.meetingToWin) },
                   ]}
                 />
               </CardContent>
