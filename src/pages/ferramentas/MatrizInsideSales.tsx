@@ -33,14 +33,18 @@ import {
 } from "@/lib/insideSalesMatrix/rules";
 
 import { calculateStageImpacts, findBottlenecks, calculateConfidenceLevel, StageImpact } from "@/lib/insideSalesMatrix/impact";
+import { calculateConfidenceScore } from "@/lib/insideSalesMatrix/confidenceScore";
+import { getEligibleStages, hasMediaDataComplete } from "@/lib/insideSalesMatrix/eligibility";
 
 import { FunnelVisual } from "@/components/insideSalesMatrix/FunnelVisual";
-import { ScoreCard } from "@/components/insideSalesMatrix/ScoreCard";
-import { ActionSplitCard } from "@/components/insideSalesMatrix/ActionSplitCard";
 import { InputTabs } from "@/components/insideSalesMatrix/InputTabs";
 import { StageDiagnosisV2 } from "@/components/insideSalesMatrix/StageDiagnosisV2";
 import { ActionPlanV2, ActionItemV2 } from "@/components/insideSalesMatrix/ActionPlanV2";
 import { AICopilotDrawerV2 } from "@/components/insideSalesMatrix/AICopilotDrawerV2";
+import { PeriodPickerPresets, PeriodRange, formatPeriodLabel } from "@/components/insideSalesMatrix/PeriodPickerPresets";
+import { ConfidenceChip } from "@/components/insideSalesMatrix/ConfidenceChip";
+import { StickySummaryPanel } from "@/components/insideSalesMatrix/StickySummaryPanel";
+import { MobileBottomBar } from "@/components/insideSalesMatrix/MobileBottomBar";
 
 import type { Json } from "@/integrations/supabase/types";
 
@@ -62,7 +66,8 @@ export default function MatrizInsideSales() {
   // Context
   const [clientId, setClientId] = useState<string>('');
   const [clientName, setClientName] = useState('');
-  const [periodLabel, setPeriodLabel] = useState('');
+  const [periodRange, setPeriodRange] = useState<PeriodRange | null>(null);
+  const [periodNotes, setPeriodNotes] = useState('');
   const [channel, setChannel] = useState('');
 
   // Clients from DB
@@ -166,8 +171,17 @@ export default function MatrizInsideSales() {
   // Find bottlenecks
   const { gargalo1, gargalo2, melhorEtapa } = useMemo(() => findBottlenecks(impacts), [impacts]);
 
-  // Confidence level
-  const confidence = useMemo(() => calculateConfidenceLevel(inputs), [inputs]);
+  // Confidence score (new deterministic 0-100)
+  const confidenceScore = useMemo(() => calculateConfidenceScore(inputs), [inputs]);
+  
+  // Eligible stages
+  const eligibleStages = useMemo(() => getEligibleStages(inputs), [inputs]);
+  
+  // Has complete media data
+  const hasMediaData = useMemo(() => hasMediaDataComplete(inputs), [inputs]);
+  
+  // Period label for display
+  const periodLabel = useMemo(() => formatPeriodLabel(periodRange), [periodRange]);
 
   // Stage evaluations for diagnostics
   const stageResults = useMemo(() => {
@@ -291,7 +305,7 @@ export default function MatrizInsideSales() {
   function loadDiagnostic(diag: any) {
     setClientId(diag.client_id || '');
     setClientName(diag.client_name || '');
-    setPeriodLabel(diag.period_label || '');
+    setPeriodNotes(diag.period_label || '');
     setChannel(diag.channel || '');
     setInputs(diag.inputs as InsideSalesInputs);
     setTargets(diag.targets as Targets);
@@ -359,15 +373,25 @@ export default function MatrizInsideSales() {
         </div>
 
         {/* Painel do Funil - Top Overview */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <FunnelVisual inputs={inputs} outputs={outputs} impacts={impacts} />
-          <ScoreCard impacts={impacts} gargalo1={gargalo1} confidence={confidence} />
-          <ActionSplitCard 
-            impacts={impacts} 
-            outputs={outputs}
-            targets={targets}
-            rules={rules}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Funnel (8 cols on desktop) */}
+          <div className="lg:col-span-8">
+            <FunnelVisual inputs={inputs} outputs={outputs} impacts={impacts} />
+          </div>
+          
+          {/* Sticky Summary Panel (4 cols on desktop, hidden on mobile - use bottom bar) */}
+          <div className="hidden lg:block lg:col-span-4">
+            <StickySummaryPanel
+              gargalo1={gargalo1}
+              gargalo2={gargalo2}
+              impacts={impacts}
+              confidence={confidenceScore}
+              eligibleStages={eligibleStages}
+              hasMediaData={hasMediaData}
+              onOpenCopilot={() => setCopilotOpen(true)}
+              canUseAI={!!canUseAI}
+            />
+          </div>
         </div>
 
         {/* Main Content - Two Columns */}
@@ -409,12 +433,12 @@ export default function MatrizInsideSales() {
                       />
                     </div>
                   )}
-                  <div className="space-y-1.5">
-                    <Label>Período</Label>
-                    <Input 
-                      value={periodLabel} 
-                      onChange={(e) => setPeriodLabel(e.target.value)}
-                      placeholder="Ex: Jan/2025"
+                  <div className="col-span-2">
+                    <PeriodPickerPresets
+                      value={periodRange}
+                      onChange={setPeriodRange}
+                      notes={periodNotes}
+                      onNotesChange={setPeriodNotes}
                     />
                   </div>
                 </div>
