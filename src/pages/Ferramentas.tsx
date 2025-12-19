@@ -2,7 +2,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, Zap, BarChart3, Target } from "lucide-react";
+import { Calculator, Zap, BarChart3, Target, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -23,6 +23,14 @@ const tools: Tool[] = [
     icon: Calculator,
     status: 'active',
     path: '/ferramentas/projecao',
+  },
+  {
+    id: 'matriz-inside-sales',
+    name: 'Matriz de Performance — Inside Sales',
+    description: 'Diagnóstico por etapa do funil com metas e ações recomendadas.',
+    icon: Users,
+    status: 'active',
+    path: '/ferramentas/matriz-inside-sales',
   },
   {
     id: 'performance',

@@ -308,6 +308,133 @@ export type Database = {
           },
         ]
       }
+      inside_sales_diagnostics: {
+        Row: {
+          channel: string | null
+          client_id: string | null
+          client_name: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          inputs: Json
+          outputs: Json
+          period_label: string | null
+          stage_status: Json
+          targets: Json
+          updated_at: string
+        }
+        Insert: {
+          channel?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inputs?: Json
+          outputs?: Json
+          period_label?: string | null
+          stage_status?: Json
+          targets?: Json
+          updated_at?: string
+        }
+        Update: {
+          channel?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inputs?: Json
+          outputs?: Json
+          period_label?: string | null
+          stage_status?: Json
+          targets?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inside_sales_diagnostics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inside_sales_matrix_rules: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          metric_key: string
+          metric_label: string
+          situation: string
+          sort_order: number
+          stage: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          metric_key: string
+          metric_label: string
+          situation: string
+          sort_order?: number
+          stage: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          metric_key?: string
+          metric_label?: string
+          situation?: string
+          sort_order?: number
+          stage?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inside_sales_targets: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          targets: Json
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          targets?: Json
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          targets?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inside_sales_targets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_minutes: {
         Row: {
           action_items: string[] | null
