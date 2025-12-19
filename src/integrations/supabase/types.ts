@@ -507,6 +507,53 @@ export type Database = {
         }
         Relationships: []
       }
+      projections: {
+        Row: {
+          channel: string
+          client_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          inputs: Json
+          mode: string
+          outputs: Json
+          period_label: string | null
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inputs?: Json
+          mode: string
+          outputs?: Json
+          period_label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inputs?: Json
+          mode?: string
+          outputs?: Json
+          period_label?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           budget: number | null
