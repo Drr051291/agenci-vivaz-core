@@ -13,6 +13,7 @@ import { StageImpact } from "@/lib/insideSalesMatrix/impact";
 import { MatrixRule } from "@/lib/insideSalesMatrix/rules";
 import { ActionItemV2 } from "./ActionPlanV2";
 import { cn } from "@/lib/utils";
+import { InvestmentDensity, FormComplexity } from "@/lib/insideSalesMatrix/channelLogic";
 
 interface AIAnalysisV2 {
   headline: string;
@@ -34,11 +35,16 @@ interface AICopilotDrawerV2Props {
   onApplyPlan: (items: ActionItemV2[]) => void;
   cachedAnalysis?: AIAnalysisV2 | null;
   onAnalysisGenerated: (analysis: AIAnalysisV2) => void;
+  channel?: string;
+  formComplexity?: FormComplexity;
+  investmentDensity?: InvestmentDensity;
+  adjustedTargets?: Targets;
 }
 
 export function AICopilotDrawerV2({
   open, onOpenChange, inputs, outputs, targets, impacts, rules,
   onApplyPlan, cachedAnalysis, onAnalysisGenerated,
+  channel, formComplexity, investmentDensity, adjustedTargets,
 }: AICopilotDrawerV2Props) {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<AIAnalysisV2 | null>(cachedAnalysis || null);
@@ -48,7 +54,10 @@ export function AICopilotDrawerV2({
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('inside-sales-copilot-v2', {
-        body: { inputs, outputs, targets, impacts, rules: rules.slice(0, 15), mode },
+        body: { 
+          inputs, outputs, targets, impacts, rules: rules.slice(0, 15), mode,
+          channel, formComplexity, investmentDensity, adjustedTargets,
+        },
       });
 
       if (error) throw error;
