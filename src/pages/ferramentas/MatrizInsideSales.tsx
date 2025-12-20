@@ -55,6 +55,7 @@ import {
   getPeriodDays,
   getChannelAdjustedTargets,
   getChannelInsights,
+  calculateInvestmentDensity,
 } from "@/lib/insideSalesMatrix/channelLogic";
 
 export default function MatrizInsideSales() {
@@ -197,6 +198,12 @@ export default function MatrizInsideSales() {
 
   // Confidence score with period days for investment density
   const confidenceScore = useMemo(() => calculateConfidenceScore(inputs, { periodDays }), [inputs, periodDays]);
+  
+  // Investment density for AI context
+  const investmentDensity = useMemo(() => 
+    calculateInvestmentDensity(inputs.investimento, periodDays), 
+    [inputs.investimento, periodDays]
+  );
   
   // Eligible stages
   const eligibleStages = useMemo(() => getEligibleStages(inputs), [inputs]);
@@ -603,6 +610,10 @@ export default function MatrizInsideSales() {
           onApplyPlan={applyAIPlan}
           cachedAnalysis={cachedAnalysis}
           onAnalysisGenerated={setCachedAnalysis}
+          channel={channel}
+          formComplexity={formComplexity as FormComplexity || undefined}
+          investmentDensity={investmentDensity || undefined}
+          adjustedTargets={adjustedTargets}
         />
 
         {/* Mobile Bottom Bar */}
