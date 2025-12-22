@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +29,8 @@ import {
   Users,
   Target,
   Percent,
-  Lightbulb
+  Lightbulb,
+  Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -48,6 +50,24 @@ import {
 } from "@/lib/projections/calc";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+// Market benchmarks for starting from zero
+const MARKET_BENCHMARKS = {
+  ecommerce: {
+    taxaConversao: 1.2, // 1.2%
+    ticketMedio: 430,
+    cps: 0.35, // R$ 0,35 por sessão
+    aprovacao: 90,
+    description: "Média de mercado para e-commerce brasileiro"
+  },
+  whatsapp: {
+    taxaConversao: 4.0, // 3-5%, usando 4%
+    ticketMedio: 430,
+    cps: 2.50, // Custo por conversa
+    aprovacao: 90,
+    description: "Média de mercado para vendas via WhatsApp"
+  }
+};
 
 // Types
 interface Projection {
@@ -130,6 +150,7 @@ export default function ProjecaoFaturamento() {
   const [channel, setChannel] = useState<Channel>('ecommerce');
   const [mode, setMode] = useState<Mode>('target_to_budget');
   const [clientName, setClientName] = useState('');
+  const [useBenchmark, setUseBenchmark] = useState<boolean>(false);
   
   // Form inputs - raw data for calculations
   const [visitantes, setVisitantes] = useState<number>(10000);
@@ -141,11 +162,23 @@ export default function ProjecaoFaturamento() {
   const [metaReceitaFaturada, setMetaReceitaFaturada] = useState<number>(100000);
   const [investimentoMeta, setInvestimentoMeta] = useState<number>(10000);
   
-  // Manual overrides
+  // Manual overrides (only used when useBenchmark is true)
   const [aprovacao, setAprovacao] = useState<number>(90);
+  const [manualTaxaConversao, setManualTaxaConversao] = useState<number>(1.2);
+  const [manualTicketMedio, setManualTicketMedio] = useState<number>(430);
+  const [manualCps, setManualCps] = useState<number>(0.35);
 
-  // Derived values - automatically calculated
+  // Derived values - automatically calculated or from benchmark
   const derivedValues = useMemo(() => {
+    if (useBenchmark) {
+      // Use manual values (from benchmark) when starting from zero
+      return {
+        taxaConversao: manualTaxaConversao,
+        ticketMedio: manualTicketMedio,
+        cps: manualCps,
+      };
+    }
+
     const safeVisitantes = visitantes || 1;
     const safePedidos = pedidos || 1;
     const safeFaturamento = faturamento || 1;
@@ -165,7 +198,7 @@ export default function ProjecaoFaturamento() {
       ticketMedio: isFinite(ticketMedio) ? ticketMedio : 0,
       cps: isFinite(cps) ? cps : 0,
     };
-  }, [visitantes, pedidos, faturamento, investimento]);
+  }, [useBenchmark, visitantes, pedidos, faturamento, investimento, manualTaxaConversao, manualTicketMedio, manualCps]);
 
   // Fetch clients for select
   const { data: clients } = useQuery({
@@ -303,6 +336,8 @@ export default function ProjecaoFaturamento() {
   // Update defaults when channel changes
   useEffect(() => {
     const benchmark = BENCHMARKS[channel];
+    const marketBenchmark = MARKET_BENCHMARKS[channel];
+    
     if (channel === 'ecommerce') {
       setVisitantes(10000);
       setPedidos(120);
@@ -315,6 +350,11 @@ export default function ProjecaoFaturamento() {
       setInvestimento(2500);
     }
     setAprovacao(benchmark.aprovacao * 100);
+    
+    // Update manual values with channel benchmarks
+    setManualTaxaConversao(marketBenchmark.taxaConversao);
+    setManualTicketMedio(marketBenchmark.ticketMedio);
+    setManualCps(marketBenchmark.cps);
   }, [channel]);
 
   return (
@@ -379,82 +419,205 @@ export default function ProjecaoFaturamento() {
 
               <Separator />
 
-              {/* Historical Data Section */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-sm">Dados do Período Referência</h3>
-                  <TooltipHelper text="Informe os dados reais de um período passado. O sistema calculará automaticamente a taxa de conversão, ticket médio e CPS." />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="visitantes">{labels.volumeLabel}</Label>
-                      <TooltipHelper text={`Número de ${labels.volumeLabel.toLowerCase()} no período`} />
-                    </div>
-                    <NumberInput
-                      id="visitantes"
-                      value={visitantes}
-                      onChange={setVisitantes}
-                    />
+              {/* Benchmark Toggle */}
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Sparkles className="h-4 w-4 text-primary" />
                   </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="pedidos">Pedidos</Label>
-                      <TooltipHelper text="Número de pedidos realizados no período" />
-                    </div>
-                    <NumberInput
-                      id="pedidos"
-                      value={pedidos}
-                      onChange={setPedidos}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="faturamento">Faturamento</Label>
-                      <TooltipHelper text="Receita total faturada no período" />
-                    </div>
-                    <CurrencyInput
-                      id="faturamento"
-                      value={faturamento}
-                      onChange={setFaturamento}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="investimento">Investimento</Label>
-                      <TooltipHelper text="Valor investido em mídia no período" />
-                    </div>
-                    <CurrencyInput
-                      id="investimento"
-                      value={investimento}
-                      onChange={setInvestimento}
-                    />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="benchmark-toggle" className="text-sm font-medium cursor-pointer">
+                      Começando do zero
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Usar benchmarks de mercado ({MARKET_BENCHMARKS[channel].description})
+                    </p>
                   </div>
                 </div>
-
-                {/* Derived Values Display */}
-                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Métricas Calculadas</p>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">Taxa de Conversão</span>
-                      <p className="text-sm font-semibold">{formatNumber(derivedValues.taxaConversao, 2)}%</p>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">Ticket Médio</span>
-                      <p className="text-sm font-semibold">{formatCurrency(derivedValues.ticketMedio)}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">{channel === 'ecommerce' ? 'CPS' : 'CPCv'}</span>
-                      <p className="text-sm font-semibold">{formatCurrency(derivedValues.cps)}</p>
-                    </div>
-                  </div>
-                </div>
+                <Switch
+                  id="benchmark-toggle"
+                  checked={useBenchmark}
+                  onCheckedChange={setUseBenchmark}
+                />
               </div>
+
+              {/* Historical Data Section - Only shown when NOT using benchmark */}
+              <AnimatePresence mode="wait">
+              {!useBenchmark && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-sm">Dados do Período Referência</h3>
+                      <TooltipHelper text="Informe os dados reais de um período passado. O sistema calculará automaticamente a taxa de conversão, ticket médio e CPS." />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="visitantes">{labels.volumeLabel}</Label>
+                          <TooltipHelper text={`Número de ${labels.volumeLabel.toLowerCase()} no período`} />
+                        </div>
+                        <NumberInput
+                          id="visitantes"
+                          value={visitantes}
+                          onChange={setVisitantes}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="pedidos">Pedidos</Label>
+                          <TooltipHelper text="Número de pedidos realizados no período" />
+                        </div>
+                        <NumberInput
+                          id="pedidos"
+                          value={pedidos}
+                          onChange={setPedidos}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="faturamento">Faturamento</Label>
+                          <TooltipHelper text="Receita total faturada no período" />
+                        </div>
+                        <CurrencyInput
+                          id="faturamento"
+                          value={faturamento}
+                          onChange={setFaturamento}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="investimento">Investimento</Label>
+                          <TooltipHelper text="Valor investido em mídia no período" />
+                        </div>
+                        <CurrencyInput
+                          id="investimento"
+                          value={investimento}
+                          onChange={setInvestimento}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Derived Values Display */}
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Métricas Calculadas</p>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <span className="text-xs text-muted-foreground">Taxa de Conversão</span>
+                          <p className="text-sm font-semibold">{formatNumber(derivedValues.taxaConversao, 2)}%</p>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-xs text-muted-foreground">Ticket Médio</span>
+                          <p className="text-sm font-semibold">{formatCurrency(derivedValues.ticketMedio)}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-xs text-muted-foreground">{channel === 'ecommerce' ? 'CPS' : 'CPCv'}</span>
+                          <p className="text-sm font-semibold">{formatCurrency(derivedValues.cps)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              </AnimatePresence>
+
+              {/* Benchmark Values Input - Only shown when using benchmark */}
+              <AnimatePresence mode="wait">
+              {useBenchmark && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-sm">Benchmarks de Mercado</h3>
+                      <Badge variant="secondary" className="text-xs">
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        Valores editáveis
+                      </Badge>
+                    </div>
+
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 mb-4">
+                      <p className="text-xs text-muted-foreground">
+                        Estes são valores médios de mercado. Você pode ajustá-los conforme necessário para projeções mais precisas.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="manualTaxaConversao">Taxa de Conversão</Label>
+                          <TooltipHelper text={`Benchmark: ${MARKET_BENCHMARKS[channel].taxaConversao}% para ${channel === 'ecommerce' ? 'e-commerce' : 'WhatsApp'}`} />
+                        </div>
+                        <NumberInput
+                          id="manualTaxaConversao"
+                          value={manualTaxaConversao}
+                          onChange={setManualTaxaConversao}
+                          suffix="%"
+                          allowDecimals
+                          decimalPlaces={2}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="manualTicketMedio">Ticket Médio</Label>
+                          <TooltipHelper text={`Benchmark: ${formatCurrency(MARKET_BENCHMARKS[channel].ticketMedio)}`} />
+                        </div>
+                        <CurrencyInput
+                          id="manualTicketMedio"
+                          value={manualTicketMedio}
+                          onChange={setManualTicketMedio}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="manualCps">{channel === 'ecommerce' ? 'CPS (Custo por Sessão)' : 'CPCv (Custo por Conversa)'}</Label>
+                          <TooltipHelper text={`Benchmark: ${formatCurrency(MARKET_BENCHMARKS[channel].cps)}`} />
+                        </div>
+                        <CurrencyInput
+                          id="manualCps"
+                          value={manualCps}
+                          onChange={setManualCps}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Benchmark Values Summary */}
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Métricas Definidas</p>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <span className="text-xs text-muted-foreground">Taxa de Conversão</span>
+                          <p className="text-sm font-semibold">{formatNumber(derivedValues.taxaConversao, 2)}%</p>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-xs text-muted-foreground">Ticket Médio</span>
+                          <p className="text-sm font-semibold">{formatCurrency(derivedValues.ticketMedio)}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-xs text-muted-foreground">{channel === 'ecommerce' ? 'CPS' : 'CPCv'}</span>
+                          <p className="text-sm font-semibold">{formatCurrency(derivedValues.cps)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              </AnimatePresence>
 
               <Separator />
 
