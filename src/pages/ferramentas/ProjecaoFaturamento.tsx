@@ -3,17 +3,17 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { NumberInput } from "@/components/ui/number-input";
 import { 
   Calculator, 
   HelpCircle, 
@@ -61,6 +61,61 @@ interface Projection {
   created_at: string;
 }
 
+// Tooltip helper component
+function TooltipHelper({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs">
+        <p className="text-sm">{text}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// KPI Card component
+interface KPICardProps {
+  title: string;
+  value: string;
+  icon: React.ElementType;
+  color: 'green' | 'blue' | 'purple' | 'orange' | 'red';
+  secondary?: boolean;
+}
+
+function KPICard({ title, value, icon: Icon, color, secondary }: KPICardProps) {
+  const colorClasses = {
+    green: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    purple: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+    orange: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
+    red: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2 }}
+    >
+      <Card className={secondary ? 'opacity-80' : ''}>
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">{title}</p>
+              <p className="text-lg font-bold">{value}</p>
+            </div>
+            <div className={`p-2 rounded-lg ${colorClasses[color]}`}>
+              <Icon className="h-4 w-4" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
 export default function ProjecaoFaturamento() {
   usePageMeta({
     title: "Projeção de Faturamento | HUB Vivaz",
@@ -76,13 +131,41 @@ export default function ProjecaoFaturamento() {
   const [mode, setMode] = useState<Mode>('target_to_budget');
   const [clientName, setClientName] = useState('');
   
-  // Form inputs
-  const [ticketMedio, setTicketMedio] = useState<number>(430);
-  const [aprovacao, setAprovacao] = useState<number>(90); // Display as percentage
-  const [taxaConversao, setTaxaConversao] = useState<number>(1.2); // Display as percentage
-  const [custoUnitario, setCustoUnitario] = useState<number>(0.35);
+  // Form inputs - raw data for calculations
+  const [visitantes, setVisitantes] = useState<number>(10000);
+  const [pedidos, setPedidos] = useState<number>(120);
+  const [faturamento, setFaturamento] = useState<number>(51600);
+  const [investimento, setInvestimento] = useState<number>(3500);
+  
+  // Mode-specific
   const [metaReceitaFaturada, setMetaReceitaFaturada] = useState<number>(100000);
-  const [investimento, setInvestimento] = useState<number>(10000);
+  const [investimentoMeta, setInvestimentoMeta] = useState<number>(10000);
+  
+  // Manual overrides
+  const [aprovacao, setAprovacao] = useState<number>(90);
+
+  // Derived values - automatically calculated
+  const derivedValues = useMemo(() => {
+    const safeVisitantes = visitantes || 1;
+    const safePedidos = pedidos || 1;
+    const safeFaturamento = faturamento || 1;
+    const safeInvestimento = investimento || 1;
+
+    // Taxa de conversão = pedidos / visitantes
+    const taxaConversao = (pedidos / safeVisitantes) * 100;
+    
+    // Ticket médio = faturamento / pedidos
+    const ticketMedio = faturamento / safePedidos;
+    
+    // CPS = investimento / visitantes
+    const cps = investimento / safeVisitantes;
+
+    return {
+      taxaConversao: isFinite(taxaConversao) ? taxaConversao : 0,
+      ticketMedio: isFinite(ticketMedio) ? ticketMedio : 0,
+      cps: isFinite(cps) ? cps : 0,
+    };
+  }, [visitantes, pedidos, faturamento, investimento]);
 
   // Fetch clients for select
   const { data: clients } = useQuery({
@@ -125,11 +208,11 @@ export default function ProjecaoFaturamento() {
       if (!user.user) throw new Error('Não autenticado');
 
       const inputsData: ProjectionInputs = {
-        ticketMedio,
+        ticketMedio: derivedValues.ticketMedio,
         aprovacao: aprovacao / 100,
-        taxaConversao: taxaConversao / 100,
-        custoUnitario,
-        ...(mode === 'target_to_budget' ? { metaReceitaFaturada } : { investimento }),
+        taxaConversao: derivedValues.taxaConversao / 100,
+        custoUnitario: derivedValues.cps,
+        ...(mode === 'target_to_budget' ? { metaReceitaFaturada } : { investimento: investimentoMeta }),
       };
 
       const outputsData = calculateProjection(inputsData, mode);
@@ -180,16 +263,22 @@ export default function ProjecaoFaturamento() {
   const loadProjection = (projection: Projection) => {
     setChannel(projection.channel);
     setMode(projection.mode);
-    setTicketMedio(projection.inputs.ticketMedio);
     setAprovacao(projection.inputs.aprovacao * 100);
-    setTaxaConversao(projection.inputs.taxaConversao * 100);
-    setCustoUnitario(projection.inputs.custoUnitario);
+    
+    // Recalculate base values from saved data
+    const ticketMedio = projection.inputs.ticketMedio;
+    const taxaConversao = projection.inputs.taxaConversao;
+    const cps = projection.inputs.custoUnitario;
+    
+    // Set derived values backwards
+    // If we have metaReceitaFaturada, calculate visitantes from it
     if (projection.inputs.metaReceitaFaturada) {
       setMetaReceitaFaturada(projection.inputs.metaReceitaFaturada);
     }
     if (projection.inputs.investimento) {
-      setInvestimento(projection.inputs.investimento);
+      setInvestimentoMeta(projection.inputs.investimento);
     }
+    
     toast({
       title: 'Projeção carregada',
       description: 'Os valores foram restaurados.',
@@ -199,23 +288,33 @@ export default function ProjecaoFaturamento() {
   // Calculate outputs
   const outputs = useMemo(() => {
     const inputs: ProjectionInputs = {
-      ticketMedio,
+      ticketMedio: derivedValues.ticketMedio,
       aprovacao: aprovacao / 100,
-      taxaConversao: taxaConversao / 100,
-      custoUnitario,
-      ...(mode === 'target_to_budget' ? { metaReceitaFaturada } : { investimento }),
+      taxaConversao: derivedValues.taxaConversao / 100,
+      custoUnitario: derivedValues.cps,
+      ...(mode === 'target_to_budget' ? { metaReceitaFaturada } : { investimento: investimentoMeta }),
     };
     return calculateProjection(inputs, mode);
-  }, [ticketMedio, aprovacao, taxaConversao, custoUnitario, metaReceitaFaturada, investimento, mode]);
+  }, [derivedValues, aprovacao, metaReceitaFaturada, investimentoMeta, mode]);
 
-  const insights = useMemo(() => generateInsights(outputs, channel, ticketMedio), [outputs, channel, ticketMedio]);
+  const insights = useMemo(() => generateInsights(outputs, channel, derivedValues.ticketMedio), [outputs, channel, derivedValues.ticketMedio]);
   const labels = getChannelLabels(channel);
 
   // Update defaults when channel changes
   useEffect(() => {
     const benchmark = BENCHMARKS[channel];
-    setTaxaConversao(benchmark.taxaConversao * 100);
-    setCustoUnitario(benchmark.custoUnitario);
+    if (channel === 'ecommerce') {
+      setVisitantes(10000);
+      setPedidos(120);
+      setFaturamento(51600);
+      setInvestimento(3500);
+    } else {
+      setVisitantes(1000);
+      setPedidos(40);
+      setFaturamento(17200);
+      setInvestimento(2500);
+    }
+    setAprovacao(benchmark.aprovacao * 100);
   }, [channel]);
 
   return (
@@ -248,7 +347,7 @@ export default function ProjecaoFaturamento() {
                 <CardTitle className="text-lg">Parâmetros</CardTitle>
               </div>
               <CardDescription>
-                Ajuste os valores conforme o histórico do cliente.
+                Informe os dados do período para calcular taxa de conversão, ticket médio e CPS automaticamente.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -280,103 +379,129 @@ export default function ProjecaoFaturamento() {
 
               <Separator />
 
+              {/* Historical Data Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-sm">Dados do Período Referência</h3>
+                  <TooltipHelper text="Informe os dados reais de um período passado. O sistema calculará automaticamente a taxa de conversão, ticket médio e CPS." />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="visitantes">{labels.volumeLabel}</Label>
+                      <TooltipHelper text={`Número de ${labels.volumeLabel.toLowerCase()} no período`} />
+                    </div>
+                    <NumberInput
+                      id="visitantes"
+                      value={visitantes}
+                      onChange={setVisitantes}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="pedidos">Pedidos</Label>
+                      <TooltipHelper text="Número de pedidos realizados no período" />
+                    </div>
+                    <NumberInput
+                      id="pedidos"
+                      value={pedidos}
+                      onChange={setPedidos}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="faturamento">Faturamento</Label>
+                      <TooltipHelper text="Receita total faturada no período" />
+                    </div>
+                    <CurrencyInput
+                      id="faturamento"
+                      value={faturamento}
+                      onChange={setFaturamento}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="investimento">Investimento</Label>
+                      <TooltipHelper text="Valor investido em mídia no período" />
+                    </div>
+                    <CurrencyInput
+                      id="investimento"
+                      value={investimento}
+                      onChange={setInvestimento}
+                    />
+                  </div>
+                </div>
+
+                {/* Derived Values Display */}
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Métricas Calculadas</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <span className="text-xs text-muted-foreground">Taxa de Conversão</span>
+                      <p className="text-sm font-semibold">{formatNumber(derivedValues.taxaConversao, 2)}%</p>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-xs text-muted-foreground">Ticket Médio</span>
+                      <p className="text-sm font-semibold">{formatCurrency(derivedValues.ticketMedio)}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-xs text-muted-foreground">{channel === 'ecommerce' ? 'CPS' : 'CPCv'}</span>
+                      <p className="text-sm font-semibold">{formatCurrency(derivedValues.cps)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Approval Rate */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="aprovacao">% Aprovação de Pagamento</Label>
+                  <TooltipHelper text="Taxa de aprovação de pagamento (pedidos faturados / pedidos captados)" />
+                </div>
+                <NumberInput
+                  id="aprovacao"
+                  value={aprovacao}
+                  onChange={setAprovacao}
+                  suffix="%"
+                  allowDecimals
+                  decimalPlaces={1}
+                />
+              </div>
+
+              <Separator />
+
               {/* Mode-specific input */}
               {mode === 'target_to_budget' ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="meta">Meta de faturamento (R$)</Label>
+                    <Label htmlFor="meta">Meta de Faturamento</Label>
                     <TooltipHelper text="Receita faturada desejada no período" />
                   </div>
-                  <Input
+                  <CurrencyInput
                     id="meta"
-                    type="number"
-                    min={0}
                     value={metaReceitaFaturada}
-                    onChange={(e) => setMetaReceitaFaturada(Number(e.target.value))}
+                    onChange={setMetaReceitaFaturada}
                   />
                 </div>
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="investimento">Investimento em mídia (R$)</Label>
+                    <Label htmlFor="investimentoMeta">Investimento em Mídia</Label>
                     <TooltipHelper text="Verba total disponível para investimento em mídia" />
                   </div>
-                  <Input
-                    id="investimento"
-                    type="number"
-                    min={0}
-                    value={investimento}
-                    onChange={(e) => setInvestimento(Number(e.target.value))}
+                  <CurrencyInput
+                    id="investimentoMeta"
+                    value={investimentoMeta}
+                    onChange={setInvestimentoMeta}
                   />
                 </div>
               )}
-
-              <Separator />
-
-              {/* Common inputs */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="ticket">Ticket médio (R$)</Label>
-                    <TooltipHelper text="Valor médio por pedido" />
-                  </div>
-                  <Input
-                    id="ticket"
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={ticketMedio}
-                    onChange={(e) => setTicketMedio(Number(e.target.value))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="aprovacao">% Aprovação</Label>
-                    <TooltipHelper text="Taxa de aprovação de pagamento (pedidos faturados / pedidos captados)" />
-                  </div>
-                  <Input
-                    id="aprovacao"
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.1}
-                    value={aprovacao}
-                    onChange={(e) => setAprovacao(Number(e.target.value))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="conversao">{labels.taxaConversaoLabel.split(' (')[0]} (%)</Label>
-                    <TooltipHelper text={labels.taxaConversaoLabel} />
-                  </div>
-                  <Input
-                    id="conversao"
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.01}
-                    value={taxaConversao}
-                    onChange={(e) => setTaxaConversao(Number(e.target.value))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="custo">{labels.custoUnitarioLabel.split(' (')[0]} (R$)</Label>
-                    <TooltipHelper text={labels.custoUnitarioTooltip} />
-                  </div>
-                  <Input
-                    id="custo"
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={custoUnitario}
-                    onChange={(e) => setCustoUnitario(Number(e.target.value))}
-                  />
-                </div>
-              </div>
 
               {/* Actions */}
               <div className="flex gap-2 pt-4">
@@ -482,146 +607,99 @@ export default function ProjecaoFaturamento() {
                     Insights
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm">
-                    {insights.map((insight, i) => (
-                      <motion.li
-                        key={i}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                      >
-                        {insight}
-                      </motion.li>
-                    ))}
-                  </ul>
+                <CardContent className="space-y-2">
+                  {insights.map((insight, index) => (
+                    <p key={index} className="text-sm text-muted-foreground">
+                      {insight}
+                    </p>
+                  ))}
                 </CardContent>
               </Card>
             )}
           </div>
         </div>
 
-        {/* History */}
+        {/* Recent Projections */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Histórico de Projeções</CardTitle>
-            <CardDescription>Últimas 10 projeções salvas</CardDescription>
+            <CardTitle className="text-lg">Projeções Recentes</CardTitle>
+            <CardDescription>
+              Histórico das últimas projeções salvas.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loadingProjections ? (
-              <p className="text-sm text-muted-foreground">Carregando...</p>
-            ) : projections && projections.length > 0 ? (
-              <div className="space-y-2">
-                {projections.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {p.channel === 'ecommerce' ? 'E-commerce' : 'WhatsApp'}
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">
-                            {p.mode === 'target_to_budget' ? 'Meta → Orç.' : 'Orç. → Proj.'}
-                          </Badge>
-                        </div>
-                        <div className="text-sm mt-1">
-                          <span className="font-medium">{formatCurrency(p.outputs.receitaFaturada)}</span>
-                          <span className="text-muted-foreground"> · Inv: {formatCurrency(p.outputs.investimento)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(p.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => loadProjection(p)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          loadProjection(p);
-                          toast({ title: 'Projeção duplicada', description: 'Faça alterações e salve.' });
-                        }}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => deleteMutation.mutate(p.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center py-8 text-muted-foreground">
+                Carregando...
+              </div>
+            ) : !projections?.length ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhuma projeção salva ainda.
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Nenhuma projeção salva ainda.</p>
+              <div className="space-y-2">
+                <AnimatePresence>
+                  {projections.map((projection) => (
+                    <motion.div
+                      key={projection.id}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge variant={projection.channel === 'ecommerce' ? 'default' : 'secondary'}>
+                          {projection.channel === 'ecommerce' ? 'E-commerce' : 'WhatsApp'}
+                        </Badge>
+                        <div>
+                          <p className="text-sm font-medium">
+                            {projection.mode === 'target_to_budget' 
+                              ? `Meta: ${formatCurrency(projection.inputs.metaReceitaFaturada || 0)}`
+                              : `Investimento: ${formatCurrency(projection.inputs.investimento || 0)}`
+                            }
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(projection.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          onClick={() => loadProjection(projection)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          onClick={() => {
+                            loadProjection(projection);
+                            toast({
+                              title: 'Projeção duplicada',
+                              description: 'Edite e salve como nova.',
+                            });
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          onClick={() => deleteMutation.mutate(projection.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
     </DashboardLayout>
-  );
-}
-
-// Helper Components
-function TooltipHelper({ text }: { text: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-      </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-[200px]">
-        <p className="text-xs">{text}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-interface KPICardProps {
-  title: string;
-  value: string;
-  icon: React.ElementType;
-  color: 'green' | 'blue' | 'purple' | 'orange' | 'red';
-  secondary?: boolean;
-}
-
-function KPICard({ title, value, icon: Icon, color, secondary }: KPICardProps) {
-  const colorClasses = {
-    green: 'bg-green-500/10 text-green-600',
-    blue: 'bg-blue-500/10 text-blue-600',
-    purple: 'bg-purple-500/10 text-purple-600',
-    orange: 'bg-orange-500/10 text-orange-600',
-    red: 'bg-red-500/10 text-red-600',
-  };
-
-  return (
-    <Card className={secondary ? 'opacity-80' : ''}>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${colorClasses[color]}`}>
-            <Icon className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">{title}</p>
-            <p className="text-lg font-semibold">{value}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
