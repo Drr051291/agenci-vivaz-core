@@ -342,6 +342,107 @@ export type Database = {
           },
         ]
       }
+      ecommerce_diagnostics: {
+        Row: {
+          carrinhos: number | null
+          client_id: string | null
+          compras: number | null
+          cpc_facebook: number | null
+          cpc_google: number | null
+          created_at: string
+          ctr_facebook: number | null
+          ctr_google: number | null
+          diagnostico_json: Json | null
+          faturamento: number | null
+          id: string
+          invest_facebook: number | null
+          invest_google: number | null
+          name: string
+          period_label: string | null
+          roas: number | null
+          status_carrinho_compra: string | null
+          status_compra_pagamento: string | null
+          status_trafego: string | null
+          status_visitante_carrinho: string | null
+          taxa_carrinho_compra: number | null
+          taxa_compra_pagamento: number | null
+          taxa_visitante_carrinho: number | null
+          ticket_medio: number | null
+          updated_at: string
+          user_id: string
+          vendas_pagas: number | null
+          visitantes: number | null
+        }
+        Insert: {
+          carrinhos?: number | null
+          client_id?: string | null
+          compras?: number | null
+          cpc_facebook?: number | null
+          cpc_google?: number | null
+          created_at?: string
+          ctr_facebook?: number | null
+          ctr_google?: number | null
+          diagnostico_json?: Json | null
+          faturamento?: number | null
+          id?: string
+          invest_facebook?: number | null
+          invest_google?: number | null
+          name: string
+          period_label?: string | null
+          roas?: number | null
+          status_carrinho_compra?: string | null
+          status_compra_pagamento?: string | null
+          status_trafego?: string | null
+          status_visitante_carrinho?: string | null
+          taxa_carrinho_compra?: number | null
+          taxa_compra_pagamento?: number | null
+          taxa_visitante_carrinho?: number | null
+          ticket_medio?: number | null
+          updated_at?: string
+          user_id: string
+          vendas_pagas?: number | null
+          visitantes?: number | null
+        }
+        Update: {
+          carrinhos?: number | null
+          client_id?: string | null
+          compras?: number | null
+          cpc_facebook?: number | null
+          cpc_google?: number | null
+          created_at?: string
+          ctr_facebook?: number | null
+          ctr_google?: number | null
+          diagnostico_json?: Json | null
+          faturamento?: number | null
+          id?: string
+          invest_facebook?: number | null
+          invest_google?: number | null
+          name?: string
+          period_label?: string | null
+          roas?: number | null
+          status_carrinho_compra?: string | null
+          status_compra_pagamento?: string | null
+          status_trafego?: string | null
+          status_visitante_carrinho?: string | null
+          taxa_carrinho_compra?: number | null
+          taxa_compra_pagamento?: number | null
+          taxa_visitante_carrinho?: number | null
+          ticket_medio?: number | null
+          updated_at?: string
+          user_id?: string
+          vendas_pagas?: number | null
+          visitantes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ecommerce_diagnostics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_calendar_events: {
         Row: {
           calendar_id: string

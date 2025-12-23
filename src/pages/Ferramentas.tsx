@@ -2,7 +2,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, Zap, BarChart3, Target, Users, Tag, ShoppingBag, FileSpreadsheet } from "lucide-react";
+import { Calculator, Zap, BarChart3, Target, Users, Tag, ShoppingBag, FileSpreadsheet, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -31,6 +31,14 @@ const tools: Tool[] = [
     icon: FileSpreadsheet,
     status: 'active',
     path: '/ferramentas/dre-projetado',
+  },
+  {
+    id: 'matriz-ecommerce',
+    name: 'Matriz de Performance — E-commerce',
+    description: 'Diagnóstico de funil com taxas de conversão, gargalos e ações recomendadas.',
+    icon: ShoppingCart,
+    status: 'active',
+    path: '/ferramentas/matriz-ecommerce',
   },
   {
     id: 'matriz-inside-sales',
