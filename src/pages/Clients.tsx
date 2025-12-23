@@ -284,6 +284,7 @@ const Clients = () => {
       inside_sales: "bg-blue-500/10 text-blue-500 border-blue-500/20",
       ecommerce: "bg-green-500/10 text-green-500 border-green-500/20",
       marketplace: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+      social_commerce: "bg-pink-500/10 text-pink-500 border-pink-500/20",
       local_business: "bg-orange-500/10 text-orange-500 border-orange-500/20",
     };
     return colors[segment as keyof typeof colors] || colors.local_business;
@@ -294,9 +295,21 @@ const Clients = () => {
       inside_sales: "Inside Sales",
       ecommerce: "E-commerce",
       marketplace: "Marketplace",
+      social_commerce: "Social Commerce",
       local_business: "Negócio Local",
     };
     return labels[segment as keyof typeof labels] || segment;
+  };
+
+  const getSegmentDescription = (segment: string) => {
+    const descriptions: Record<string, string> = {
+      inside_sales: "Geração de Leads",
+      ecommerce: "Varejo Digital",
+      marketplace: "Varejo Digital",
+      social_commerce: "Varejo Digital",
+      local_business: "Varejo Digital",
+    };
+    return descriptions[segment] || "";
   };
 
   return (
@@ -406,10 +419,36 @@ const Clients = () => {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="inside_sales">Inside Sales</SelectItem>
-                              <SelectItem value="ecommerce">E-commerce</SelectItem>
-                              <SelectItem value="marketplace">Marketplace</SelectItem>
-                              <SelectItem value="local_business">Negócio Local</SelectItem>
+                              <SelectItem value="inside_sales">
+                                <span className="flex flex-col">
+                                  <span>Inside Sales</span>
+                                  <span className="text-xs text-muted-foreground">Geração de Leads</span>
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="ecommerce">
+                                <span className="flex flex-col">
+                                  <span>E-commerce</span>
+                                  <span className="text-xs text-muted-foreground">Varejo Digital</span>
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="marketplace">
+                                <span className="flex flex-col">
+                                  <span>Marketplace</span>
+                                  <span className="text-xs text-muted-foreground">Varejo Digital</span>
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="social_commerce">
+                                <span className="flex flex-col">
+                                  <span>Social Commerce</span>
+                                  <span className="text-xs text-muted-foreground">Varejo Digital</span>
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="local_business">
+                                <span className="flex flex-col">
+                                  <span>Negócio Local</span>
+                                  <span className="text-xs text-muted-foreground">Varejo Digital</span>
+                                </span>
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
