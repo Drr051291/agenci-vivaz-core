@@ -118,7 +118,6 @@ export interface ShippingPreset {
 }
 
 export const SHIPPING_PRESETS: ShippingPreset[] = [
-  { id: 'sem_frete', label: 'Sem frete grátis', cost: 0, description: 'Comprador paga o frete' },
   { id: 'leve_verde', label: 'Até 300g (rep. verde)', cost: 11.99, description: 'Pacote pequeno, reputação verde' },
   { id: 'leve_amarela', label: 'Até 300g (rep. amarela)', cost: 15.99, description: 'Pacote pequeno, reputação amarela' },
   { id: 'medio_verde', label: '300g a 1kg (rep. verde)', cost: 18.99, description: 'Pacote médio, reputação verde' },
@@ -128,3 +127,51 @@ export const SHIPPING_PRESETS: ShippingPreset[] = [
   { id: 'full', label: 'Mercado Envios Full', cost: 8.99, description: 'Estoque no fulfillment ML' },
   { id: 'personalizado', label: 'Personalizado', cost: -1, description: 'Definir manualmente' },
 ];
+
+/**
+ * Free shipping rules based on sale price (Updated Jun 2025):
+ * 
+ * - Abaixo de R$ 19: Frete grátis OPCIONAL, se oferecer, VENDEDOR paga
+ * - R$ 19 a R$ 78,99: Frete grátis AUTOMÁTICO, MERCADO LIVRE paga (custo 0 para vendedor)
+ * - R$ 79 ou mais: Frete grátis AUTOMÁTICO, VENDEDOR paga (com desconto por reputação)
+ */
+export type FreeShippingStatus = 
+  | 'OPTIONAL_SELLER_PAYS' // < R$ 19: opcional, vendedor paga se oferecer
+  | 'MANDATORY_ML_PAYS'     // R$ 19-78,99: obrigatório, ML paga
+  | 'MANDATORY_SELLER_PAYS' // >= R$ 79: obrigatório, vendedor paga
+
+export interface FreeShippingRule {
+  status: FreeShippingStatus;
+  label: string;
+  description: string;
+  sellerPays: boolean;
+  isOptional: boolean;
+}
+
+export function getFreeShippingRule(salePrice: number): FreeShippingRule {
+  if (salePrice < 19) {
+    return {
+      status: 'OPTIONAL_SELLER_PAYS',
+      label: 'Frete grátis opcional',
+      description: 'Você pode oferecer frete grátis, mas pagará o custo do envio.',
+      sellerPays: true,
+      isOptional: true,
+    };
+  } else if (salePrice < 79) {
+    return {
+      status: 'MANDATORY_ML_PAYS',
+      label: 'Frete grátis pelo Mercado Livre',
+      description: 'O ML paga o frete grátis automaticamente. Você não paga nada.',
+      sellerPays: false,
+      isOptional: false,
+    };
+  } else {
+    return {
+      status: 'MANDATORY_SELLER_PAYS',
+      label: 'Frete grátis obrigatório',
+      description: 'Você oferece frete grátis e paga o custo (com desconto por reputação).',
+      sellerPays: true,
+      isOptional: false,
+    };
+  }
+}

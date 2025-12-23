@@ -32,6 +32,8 @@ import {
   SHIPPING_PRESETS,
   getFixedFee,
   getCommission,
+  getFreeShippingRule,
+  type FreeShippingStatus,
 } from "@/lib/mlPricing/categories";
 
 type ListingType = 'CLASSICO' | 'PREMIUM';
@@ -63,7 +65,8 @@ export default function PrecificacaoMercadoLivre() {
   // Category and listing type
   const [categoryId, setCategoryId] = useState("moda");
   const [listingType, setListingType] = useState<ListingType>("CLASSICO");
-  const [hasFreeShipping, setHasFreeShipping] = useState(false);
+  // hasFreeShipping is now only relevant for products < R$ 19 (optional)
+  const [offerFreeShippingOptional, setOfferFreeShippingOptional] = useState(false);
   const [mode, setMode] = useState<CalculationMode>("PRICE_TO_RESULT");
   const [targetType, setTargetType] = useState<TargetType>("MARGIN");
   
@@ -108,12 +111,28 @@ export default function PrecificacaoMercadoLivre() {
     return preset.rate;
   }, [taxPresetId, customTaxPct]);
 
+  // Free shipping rule based on sale price (automatic from ML rules)
+  const freeShippingRule = useMemo(() => {
+    const price = mode === 'PRICE_TO_RESULT' ? salePrice : 100;
+    return getFreeShippingRule(price);
+  }, [mode, salePrice]);
+
+  // Determine if seller pays shipping and the actual cost
+  const sellerPaysShipping = useMemo(() => {
+    // ML_PAYS: Seller doesn't pay (R$19-78.99)
+    if (freeShippingRule.status === 'MANDATORY_ML_PAYS') return false;
+    // MANDATORY: Seller always pays (>= R$79)
+    if (freeShippingRule.status === 'MANDATORY_SELLER_PAYS') return true;
+    // OPTIONAL: Only pays if user chose to offer free shipping
+    return offerFreeShippingOptional;
+  }, [freeShippingRule.status, offerFreeShippingOptional]);
+
   const shippingCost = useMemo(() => {
-    if (!hasFreeShipping) return 0;
+    if (!sellerPaysShipping) return 0;
     const preset = SHIPPING_PRESETS.find(p => p.id === shippingPresetId);
     if (!preset || preset.cost === -1) return customShippingCost;
     return preset.cost;
-  }, [hasFreeShipping, shippingPresetId, customShippingCost]);
+  }, [sellerPaysShipping, shippingPresetId, customShippingCost]);
 
   // Ads cost based on ACOS
   const adsCostFromAcos = useMemo(() => {
@@ -239,7 +258,7 @@ export default function PrecificacaoMercadoLivre() {
         sku: sku || null,
         listing_type: listingType,
         product_condition: 'NOVO',
-        has_free_shipping: hasFreeShipping,
+        has_free_shipping: sellerPaysShipping,
         mode,
         target_type: mode === 'TARGET_TO_PRICE' ? targetType : null,
         target_value: mode === 'TARGET_TO_PRICE' ? targetValue : null,
@@ -295,7 +314,7 @@ export default function PrecificacaoMercadoLivre() {
           sku: sku || null,
           listing_type: listingType,
           product_condition: 'NOVO',
-          has_free_shipping: hasFreeShipping,
+          has_free_shipping: sellerPaysShipping,
           mode,
           target_type: mode === 'TARGET_TO_PRICE' ? targetType : null,
           target_value: mode === 'TARGET_TO_PRICE' ? targetValue : null,
@@ -344,7 +363,7 @@ export default function PrecificacaoMercadoLivre() {
     setClientId(data.client_id || "");
     setSku(data.sku || "");
     setListingType(data.listing_type as ListingType);
-    setHasFreeShipping(data.has_free_shipping);
+    setOfferFreeShippingOptional(data.has_free_shipping);
     setMode(data.mode as CalculationMode);
     setTargetType((data.target_type as TargetType) || "MARGIN");
     setTargetValue(data.target_value || 0);
@@ -421,7 +440,6 @@ export default function PrecificacaoMercadoLivre() {
     if (outputs.marginPct < 10 && outputs.marginPct >= 0) warnings.push("⚠️ Margem abaixo de 10% — considere ajustar o preço.");
     if (outputs.marginPct >= 10 && outputs.marginPct < 15) warnings.push("💡 Margem entre 10-15% — aceitável, mas pode melhorar.");
     if (acosPct > 15) warnings.push("⚠️ ACOS alto. Considere otimizar suas campanhas de Ads.");
-    if (displayPrice < 79 && hasFreeShipping) warnings.push("💡 Frete grátis em produtos < R$ 79 pode reduzir sua margem.");
     
     const summary = `
 📊 Resumo da Simulação: ${simulationName}
@@ -432,7 +450,7 @@ export default function PrecificacaoMercadoLivre() {
 💰 Preço de Venda: ${formatBRL(displayPrice)}
 📦 Custo do Produto: ${formatBRL(cogs)}
 📉 Taxa Mercado Livre: ${formatBRL(outputs.mlFee)} (${commissionPct}% + ${formatBRL(fixedFee)})
-${hasFreeShipping ? `🚚 Frete (vendedor): ${formatBRL(shippingCost)}` : ''}
+${sellerPaysShipping ? `🚚 Frete (vendedor): ${formatBRL(shippingCost)}` : freeShippingRule.status === 'MANDATORY_ML_PAYS' ? '🚚 Frete: pago pelo Mercado Livre' : ''}
 ${taxPct > 0 ? `🏛️ Impostos: ${formatBRL(outputs.taxAmount)} (${taxPct}%)` : ''}
 ${acosPct > 0 ? `📣 Ads (ACOS ${acosPct}%): ${formatBRL(adsCostFromAcos)}` : ''}
 
@@ -685,41 +703,75 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
 
                 <Separator />
 
-                {/* Frete */}
+                {/* Frete - Auto based on price */}
                 <div className="space-y-4">
                   <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                     <Truck className="h-4 w-4" />
-                    Frete
+                    Frete Grátis
                   </h4>
 
-                  <div className="space-y-2">
-                    <Label>Oferecer frete grátis?</Label>
-                    <div className="flex rounded-lg border p-1 bg-muted/30">
-                      <button
-                        className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${!hasFreeShipping ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
-                        onClick={() => setHasFreeShipping(false)}
-                      >
-                        Não
-                      </button>
-                      <button
-                        className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${hasFreeShipping ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
-                        onClick={() => setHasFreeShipping(true)}
-                      >
-                        Sim
-                      </button>
+                  {/* Show automatic rule based on price */}
+                  <div className={`p-3 rounded-lg border ${
+                    freeShippingRule.status === 'MANDATORY_ML_PAYS' 
+                      ? 'bg-green-500/10 border-green-500/30' 
+                      : freeShippingRule.status === 'MANDATORY_SELLER_PAYS'
+                        ? 'bg-amber-500/10 border-amber-500/30'
+                        : 'bg-muted/30 border-muted'
+                  }`}>
+                    <div className="flex items-start gap-2">
+                      {freeShippingRule.status === 'MANDATORY_ML_PAYS' && (
+                        <Badge variant="secondary" className="bg-green-500/20 text-green-700 dark:text-green-400">
+                          ML paga o frete
+                        </Badge>
+                      )}
+                      {freeShippingRule.status === 'MANDATORY_SELLER_PAYS' && (
+                        <Badge variant="secondary" className="bg-amber-500/20 text-amber-700 dark:text-amber-400">
+                          Você paga o frete
+                        </Badge>
+                      )}
+                      {freeShippingRule.status === 'OPTIONAL_SELLER_PAYS' && (
+                        <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                          Opcional
+                        </Badge>
+                      )}
                     </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {freeShippingRule.description}
+                    </p>
                   </div>
 
-                  {hasFreeShipping && (
+                  {/* Optional toggle only for < R$ 19 */}
+                  {freeShippingRule.status === 'OPTIONAL_SELLER_PAYS' && (
+                    <div className="space-y-2">
+                      <Label>Oferecer frete grátis?</Label>
+                      <div className="flex rounded-lg border p-1 bg-muted/30">
+                        <button
+                          className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${!offerFreeShippingOptional ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
+                          onClick={() => setOfferFreeShippingOptional(false)}
+                        >
+                          Não
+                        </button>
+                        <button
+                          className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${offerFreeShippingOptional ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
+                          onClick={() => setOfferFreeShippingOptional(true)}
+                        >
+                          Sim
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Shipping cost selector only when seller pays */}
+                  {sellerPaysShipping && (
                     <>
                       <div className="space-y-2">
-                        <Label>Custo de envio (vendedor)</Label>
+                        <Label>Custo de envio (por unidade)</Label>
                         <Select value={shippingPresetId} onValueChange={setShippingPresetId}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {SHIPPING_PRESETS.filter(p => p.id !== 'sem_frete').map((preset) => (
+                            {SHIPPING_PRESETS.map((preset) => (
                               <SelectItem key={preset.id} value={preset.id}>
                                 <div className="flex items-center justify-between w-full gap-4">
                                   <span>{preset.label}</span>
@@ -731,6 +783,9 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
                             ))}
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          {SHIPPING_PRESETS.find(p => p.id === shippingPresetId)?.description}
+                        </p>
                       </div>
 
                       {shippingPresetId === 'personalizado' && (
@@ -966,8 +1021,14 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
               </Card>
               <Card className="bg-muted/30">
                 <CardContent className="py-3">
-                  <span className="text-xs text-muted-foreground">Frete (vendedor)</span>
-                  <p className="font-semibold">{formatBRL(hasFreeShipping ? shippingCost : 0)}</p>
+                  <span className="text-xs text-muted-foreground">
+                    {freeShippingRule.status === 'MANDATORY_ML_PAYS' ? 'Frete (ML paga)' : 'Frete (vendedor)'}
+                  </span>
+                  <p className="font-semibold">
+                    {freeShippingRule.status === 'MANDATORY_ML_PAYS' 
+                      ? 'R$ 0,00' 
+                      : formatBRL(shippingCost)}
+                  </p>
                 </CardContent>
               </Card>
               <Card className="bg-muted/30">
@@ -1008,7 +1069,7 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
                     <span className="text-destructive">-{formatBRL(fixedFee)}</span>
                   </div>
                 )}
-                {hasFreeShipping && shippingCost > 0 && (
+                {shippingCost > 0 && (
                   <div className="flex justify-between py-1 text-sm">
                     <span className="text-muted-foreground">(-) Frete</span>
                     <span className="text-destructive">-{formatBRL(shippingCost)}</span>
