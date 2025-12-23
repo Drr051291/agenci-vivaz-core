@@ -432,12 +432,12 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
                   
                   <div className="space-y-2">
                     <Label>Cliente (opcional)</Label>
-                    <Select value={clientId} onValueChange={setClientId}>
+                    <Select value={clientId || "__none__"} onValueChange={(val) => setClientId(val === "__none__" ? "" : val)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Nenhum</SelectItem>
+                        <SelectItem value="__none__">Nenhum</SelectItem>
                         {clients?.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.company_name}
