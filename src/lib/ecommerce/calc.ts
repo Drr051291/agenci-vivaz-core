@@ -14,7 +14,10 @@ export interface EcommerceInputs {
   carrinhos: number;
   compras: number;
   vendasPagas: number;
-  ticketMedio: number;
+  
+  // Financeiro (receita e pedidos para calcular ticket médio)
+  receita: number;
+  numeroPedidos: number;
 }
 
 export interface EcommerceOutputs {
@@ -25,9 +28,11 @@ export interface EcommerceOutputs {
   taxaVisitanteCarrinho: number | null;
   taxaCarrinhoCompra: number | null;
   taxaCompraPagamento: number | null;
+  taxaConversaoGeral: number | null;
   
   // Financeiro
   faturamento: number;
+  ticketMedio: number | null;
   roas: number | null;
   
   // CPC médio
@@ -94,9 +99,19 @@ export function calculateOutputs(inputs: EcommerceInputs): EcommerceOutputs {
   const taxaCompraPagamento = inputs.compras > 0 
     ? (inputs.vendasPagas / inputs.compras) * 100 
     : null;
+
+  // Taxa de conversão geral (visitantes -> vendas pagas)
+  const taxaConversaoGeral = inputs.visitantes > 0 
+    ? (inputs.vendasPagas / inputs.visitantes) * 100 
+    : null;
   
-  // Faturamento
-  const faturamento = inputs.vendasPagas * inputs.ticketMedio;
+  // Faturamento (usa receita diretamente)
+  const faturamento = inputs.receita;
+  
+  // Ticket Médio calculado
+  const ticketMedio = inputs.numeroPedidos > 0 
+    ? inputs.receita / inputs.numeroPedidos 
+    : null;
   
   // ROAS
   const roas = investimentoTotal > 0 ? faturamento / investimentoTotal : null;
@@ -120,7 +135,9 @@ export function calculateOutputs(inputs: EcommerceInputs): EcommerceOutputs {
     taxaVisitanteCarrinho,
     taxaCarrinhoCompra,
     taxaCompraPagamento,
+    taxaConversaoGeral,
     faturamento,
+    ticketMedio,
     roas,
     cpcMedio,
     cliquesFacebook,
@@ -325,10 +342,13 @@ export function exportToCSV(
     ['Carrinhos', inputs.carrinhos.toString(), '', ''],
     ['Compras', inputs.compras.toString(), '', ''],
     ['Vendas Pagas', inputs.vendasPagas.toString(), '', ''],
-    ['Ticket Médio', formatCurrency(inputs.ticketMedio), '', ''],
+    ['Receita', formatCurrency(inputs.receita), '', ''],
+    ['Nº Pedidos', inputs.numeroPedidos.toString(), '', ''],
+    ['Ticket Médio', outputs.ticketMedio ? formatCurrency(outputs.ticketMedio) : '—', '', ''],
     ['Faturamento', formatCurrency(outputs.faturamento), '', ''],
     ['Investimento Total', formatCurrency(outputs.investimentoTotal), '', ''],
     ['ROAS', outputs.roas?.toFixed(2) ?? '—', '', ''],
+    ['Taxa Conversão Geral', formatPercent(outputs.taxaConversaoGeral), '', ''],
     ['', '', '', ''],
     ['Etapa', 'Taxa Atual', 'Meta', 'Status'],
     ...stageResults.map(s => [

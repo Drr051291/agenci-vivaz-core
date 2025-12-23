@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Copy, Download, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, ShoppingCart, CreditCard, Users, Eye } from "lucide-react";
+import { ArrowLeft, Save, Copy, Download, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, ShoppingCart, CreditCard, Users, Eye, DollarSign, Package, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -61,7 +61,8 @@ export default function MatrizEcommerce() {
     carrinhos: 0,
     compras: 0,
     vendasPagas: 0,
-    ticketMedio: 0,
+    receita: 0,
+    numeroPedidos: 0,
   });
 
   // Load clients
@@ -127,7 +128,7 @@ export default function MatrizEcommerce() {
       carrinhos: inputs.carrinhos,
       compras: inputs.compras,
       vendas_pagas: inputs.vendasPagas,
-      ticket_medio: inputs.ticketMedio,
+      ticket_medio: outputs.ticketMedio || 0,
       faturamento: outputs.faturamento,
       roas: outputs.roas,
       taxa_visitante_carrinho: outputs.taxaVisitanteCarrinho,
@@ -170,6 +171,9 @@ export default function MatrizEcommerce() {
     setClientId(diag.client_id);
     setName(diag.name);
     setPeriodLabel(diag.period_label || '');
+    // Calculate receita from vendas_pagas * ticket_medio if available
+    const receita = (diag.vendas_pagas || 0) * (diag.ticket_medio || 0);
+    const numeroPedidos = diag.vendas_pagas || 0;
     setInputs({
       ctrFacebook: diag.ctr_facebook || 0,
       cpcFacebook: diag.cpc_facebook || 0,
@@ -181,7 +185,8 @@ export default function MatrizEcommerce() {
       carrinhos: diag.carrinhos || 0,
       compras: diag.compras || 0,
       vendasPagas: diag.vendas_pagas || 0,
-      ticketMedio: diag.ticket_medio || 0,
+      receita: receita,
+      numeroPedidos: numeroPedidos,
     });
     toast({ title: "Diagnóstico carregado!" });
   };
@@ -322,9 +327,19 @@ export default function MatrizEcommerce() {
                     <Input type="number" value={inputs.vendasPagas || ''} onChange={e => updateInput('vendasPagas', e.target.value)} placeholder="0" />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Ticket Médio (R$)</Label>
-                  <Input type="number" step="0.01" value={inputs.ticketMedio || ''} onChange={e => updateInput('ticketMedio', e.target.value)} placeholder="0" />
+                <Separator />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Receita Total (R$)</Label>
+                    <Input type="number" step="0.01" value={inputs.receita || ''} onChange={e => updateInput('receita', e.target.value)} placeholder="0" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Nº de Pedidos</Label>
+                    <Input type="number" value={inputs.numeroPedidos || ''} onChange={e => updateInput('numeroPedidos', e.target.value)} placeholder="0" />
+                  </div>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Ticket Médio: <span className="font-bold text-foreground">{outputs.ticketMedio ? formatCurrency(outputs.ticketMedio) : '—'}</span></p>
                 </div>
               </CardContent>
             </Card>
@@ -358,141 +373,191 @@ export default function MatrizEcommerce() {
           {/* Middle Column - Funnel Visual + KPIs */}
           <div className="space-y-6">
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <Card>
-                <CardContent className="pt-4">
-                  <p className="text-sm text-muted-foreground">Faturamento</p>
-                  <p className="text-2xl font-bold">{formatCurrency(outputs.faturamento)}</p>
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <DollarSign className="h-4 w-4" />
+                    <p className="text-xs">Receita</p>
+                  </div>
+                  <p className="text-xl font-bold">{formatCurrency(outputs.faturamento)}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-4">
-                  <p className="text-sm text-muted-foreground">ROAS</p>
-                  <p className="text-2xl font-bold">{outputs.roas ? `${outputs.roas.toFixed(2)}x` : '—'}</p>
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <Package className="h-4 w-4" />
+                    <p className="text-xs">Pedidos</p>
+                  </div>
+                  <p className="text-xl font-bold">{formatNumber(inputs.numeroPedidos)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <ShoppingCart className="h-4 w-4" />
+                    <p className="text-xs">Ticket Médio</p>
+                  </div>
+                  <p className="text-xl font-bold">{outputs.ticketMedio ? formatCurrency(outputs.ticketMedio) : '—'}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <TrendingUp className="h-4 w-4" />
+                    <p className="text-xs">ROAS</p>
+                  </div>
+                  <p className="text-xl font-bold">{outputs.roas ? `${outputs.roas.toFixed(2)}x` : '—'}</p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Funnel Visualization */}
+            {/* Taxa de Conversão Geral */}
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/20 rounded-lg">
+                      <Percent className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Taxa de Conversão Geral</p>
+                      <p className="text-xs text-muted-foreground">Visitantes → Vendas Pagas</p>
+                    </div>
+                  </div>
+                  <p className="text-3xl font-bold text-primary">{formatPercent(outputs.taxaConversaoGeral)}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Funnel Visualization - Enhanced */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Funil de Conversão</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Funnel bars */}
+              <CardContent className="space-y-2">
                 <TooltipProvider>
-                  <div className="space-y-3">
-                    {/* Visitantes */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          Visitantes
-                        </span>
-                        <span className="font-medium">{formatNumber(inputs.visitantes)}</span>
-                      </div>
-                      <div className="h-8 bg-primary rounded-md flex items-center justify-center text-primary-foreground text-sm font-medium">
-                        100%
-                      </div>
+                  {/* Visitantes - Full width, primary color */}
+                  <div className="relative">
+                    <div className="h-12 bg-primary rounded-lg flex items-center justify-between px-4 text-primary-foreground shadow-sm">
+                      <span className="flex items-center gap-2 font-medium">
+                        <Users className="h-4 w-4" />
+                        Visitantes
+                      </span>
+                      <span className="text-lg font-bold">{formatNumber(inputs.visitantes)}</span>
                     </div>
+                  </div>
 
-                    {/* Conversion arrow */}
-                    <div className="flex items-center justify-center">
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Badge variant="outline" className={cn("gap-1", statusConfig[stageResults[0]?.status || 'sem_dados'].bgLight)}>
-                            ↓ {formatPercent(outputs.taxaVisitanteCarrinho)}
-                            <span className="text-xs text-muted-foreground">(meta: {BENCHMARKS.visitanteCarrinho}%)</span>
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>Taxa de conversão: Visitantes → Carrinho</TooltipContent>
-                      </Tooltip>
+                  {/* Conversion Rate 1 */}
+                  <div className="flex justify-center py-1">
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge 
+                          variant="outline" 
+                          className={cn("gap-1 text-xs", statusConfig[stageResults[0]?.status || 'sem_dados'].bgLight)}
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                          </svg>
+                          {formatPercent(outputs.taxaVisitanteCarrinho)}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>Meta: {BENCHMARKS.visitanteCarrinho}%</TooltipContent>
+                    </Tooltip>
+                  </div>
+
+                  {/* Carrinhos */}
+                  <div className="flex justify-center">
+                    <div 
+                      className={cn("h-12 rounded-lg flex items-center justify-between px-4 text-white shadow-sm transition-all", statusConfig[stageResults[0]?.status || 'sem_dados'].color)}
+                      style={{ width: `${Math.max(85, 100 - 15)}%` }}
+                    >
+                      <span className="flex items-center gap-2 font-medium">
+                        <ShoppingCart className="h-4 w-4" />
+                        Carrinhos
+                      </span>
+                      <span className="text-lg font-bold">{formatNumber(inputs.carrinhos)}</span>
                     </div>
+                  </div>
 
-                    {/* Carrinhos */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <ShoppingCart className="h-4 w-4" />
-                          Carrinhos
-                        </span>
-                        <span className="font-medium">{formatNumber(inputs.carrinhos)}</span>
-                      </div>
-                      <div 
-                        className={cn("h-8 rounded-md flex items-center justify-center text-white text-sm font-medium", statusConfig[stageResults[0]?.status || 'sem_dados'].color)}
-                        style={{ width: `${Math.max((outputs.taxaVisitanteCarrinho || 0) * 5, 20)}%` }}
-                      >
-                        {formatPercent(outputs.taxaVisitanteCarrinho)}
-                      </div>
+                  {/* Conversion Rate 2 */}
+                  <div className="flex justify-center py-1">
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge 
+                          variant="outline" 
+                          className={cn("gap-1 text-xs", statusConfig[stageResults[1]?.status || 'sem_dados'].bgLight)}
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                          </svg>
+                          {formatPercent(outputs.taxaCarrinhoCompra)}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>Meta: {BENCHMARKS.carrinhoCompra}%</TooltipContent>
+                    </Tooltip>
+                  </div>
+
+                  {/* Compras */}
+                  <div className="flex justify-center">
+                    <div 
+                      className={cn("h-12 rounded-lg flex items-center justify-between px-4 text-white shadow-sm transition-all", statusConfig[stageResults[1]?.status || 'sem_dados'].color)}
+                      style={{ width: `${Math.max(70, 100 - 30)}%` }}
+                    >
+                      <span className="flex items-center gap-2 font-medium">
+                        <CreditCard className="h-4 w-4" />
+                        Compras
+                      </span>
+                      <span className="text-lg font-bold">{formatNumber(inputs.compras)}</span>
                     </div>
+                  </div>
 
-                    {/* Conversion arrow */}
-                    <div className="flex items-center justify-center">
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Badge variant="outline" className={cn("gap-1", statusConfig[stageResults[1]?.status || 'sem_dados'].bgLight)}>
-                            ↓ {formatPercent(outputs.taxaCarrinhoCompra)}
-                            <span className="text-xs text-muted-foreground">(meta: {BENCHMARKS.carrinhoCompra}%)</span>
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>Taxa de conversão: Carrinho → Compra</TooltipContent>
-                      </Tooltip>
+                  {/* Conversion Rate 3 */}
+                  <div className="flex justify-center py-1">
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge 
+                          variant="outline" 
+                          className={cn("gap-1 text-xs", statusConfig[stageResults[2]?.status || 'sem_dados'].bgLight)}
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                          </svg>
+                          {formatPercent(outputs.taxaCompraPagamento)}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>Meta: {BENCHMARKS.compraPagamento}%</TooltipContent>
+                    </Tooltip>
+                  </div>
+
+                  {/* Vendas Pagas */}
+                  <div className="flex justify-center">
+                    <div 
+                      className={cn("h-12 rounded-lg flex items-center justify-between px-4 text-white shadow-sm transition-all", statusConfig[stageResults[2]?.status || 'sem_dados'].color)}
+                      style={{ width: `${Math.max(55, 100 - 45)}%` }}
+                    >
+                      <span className="flex items-center gap-2 font-medium">
+                        <CheckCircle className="h-4 w-4" />
+                        Vendas Pagas
+                      </span>
+                      <span className="text-lg font-bold">{formatNumber(inputs.vendasPagas)}</span>
                     </div>
+                  </div>
 
-                    {/* Compras */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <CreditCard className="h-4 w-4" />
-                          Compras iniciadas
-                        </span>
-                        <span className="font-medium">{formatNumber(inputs.compras)}</span>
-                      </div>
-                      <div 
-                        className={cn("h-8 rounded-md flex items-center justify-center text-white text-sm font-medium", statusConfig[stageResults[1]?.status || 'sem_dados'].color)}
-                        style={{ width: `${Math.max((outputs.taxaCarrinhoCompra || 0) * 3, 15)}%` }}
-                      >
-                        {formatPercent(outputs.taxaCarrinhoCompra)}
-                      </div>
-                    </div>
-
-                    {/* Conversion arrow */}
-                    <div className="flex items-center justify-center">
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Badge variant="outline" className={cn("gap-1", statusConfig[stageResults[2]?.status || 'sem_dados'].bgLight)}>
-                            ↓ {formatPercent(outputs.taxaCompraPagamento)}
-                            <span className="text-xs text-muted-foreground">(meta: {BENCHMARKS.compraPagamento}%)</span>
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>Taxa de conversão: Compra → Pagamento</TooltipContent>
-                      </Tooltip>
-                    </div>
-
-                    {/* Vendas Pagas */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4" />
-                          Vendas pagas
-                        </span>
-                        <span className="font-medium">{formatNumber(inputs.vendasPagas)}</span>
-                      </div>
-                      <div 
-                        className={cn("h-8 rounded-md flex items-center justify-center text-white text-sm font-medium", statusConfig[stageResults[2]?.status || 'sem_dados'].color)}
-                        style={{ width: `${Math.max((outputs.taxaCompraPagamento || 0) * 0.8, 10)}%` }}
-                      >
-                        {formatPercent(outputs.taxaCompraPagamento)}
-                      </div>
+                  {/* Final Result - Receita */}
+                  <div className="flex justify-center pt-2">
+                    <div className="h-14 w-[45%] rounded-lg flex flex-col items-center justify-center bg-gradient-to-r from-green-600 to-green-500 text-white shadow-md">
+                      <span className="text-xs opacity-80">Receita</span>
+                      <span className="text-lg font-bold">{formatCurrency(outputs.faturamento)}</span>
                     </div>
                   </div>
                 </TooltipProvider>
 
                 {/* Status Legend */}
-                <Separator />
+                <Separator className="my-4" />
                 <div className="flex flex-wrap gap-2 justify-center">
                   {Object.entries(statusConfig).map(([key, config]) => (
-                    <Badge key={key} variant="outline" className={cn("gap-1", config.bgLight)}>
+                    <Badge key={key} variant="outline" className={cn("gap-1 text-xs", config.bgLight)}>
                       <div className={cn("w-2 h-2 rounded-full", config.color)} />
                       {config.label}
                     </Badge>
