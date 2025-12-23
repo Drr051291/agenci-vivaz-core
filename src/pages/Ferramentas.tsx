@@ -2,7 +2,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, Zap, BarChart3, Target, Users, Tag, ShoppingBag } from "lucide-react";
+import { Calculator, Zap, BarChart3, Target, Users, Tag, ShoppingBag, FileSpreadsheet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -23,6 +23,14 @@ const tools: Tool[] = [
     icon: Calculator,
     status: 'active',
     path: '/ferramentas/projecao',
+  },
+  {
+    id: 'dre-projetado',
+    name: 'DRE Projetado',
+    description: 'Acompanhe margem, EBITDA e projete crescimento com base em receita, pedidos e custos.',
+    icon: FileSpreadsheet,
+    status: 'active',
+    path: '/ferramentas/dre-projetado',
   },
   {
     id: 'matriz-inside-sales',
