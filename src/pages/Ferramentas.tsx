@@ -2,7 +2,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, Zap, BarChart3, Target, Users, Tag } from "lucide-react";
+import { Calculator, Zap, BarChart3, Target, Users, Tag, ShoppingBag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -39,6 +39,14 @@ const tools: Tool[] = [
     icon: Tag,
     status: 'active',
     path: '/ferramentas/precificacao-mercado-livre',
+  },
+  {
+    id: 'precificacao-produto',
+    name: 'Calculadora de Precificação — Geral',
+    description: 'Calcule margem de contribuição para e-commerce, WhatsApp e venda direta.',
+    icon: ShoppingBag,
+    status: 'active',
+    path: '/ferramentas/precificacao-produto',
   },
   {
     id: 'performance',
