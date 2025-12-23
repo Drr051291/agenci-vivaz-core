@@ -25,6 +25,7 @@ import ProjecaoFaturamento from "./pages/ferramentas/ProjecaoFaturamento";
 import MatrizInsideSales from "./pages/ferramentas/MatrizInsideSales";
 import PrecificacaoMercadoLivre from "./pages/ferramentas/PrecificacaoMercadoLivre";
 import PrecificacaoProduto from "./pages/ferramentas/PrecificacaoProduto";
+import DREProjetado from "./pages/ferramentas/DREProjetado";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
           <Route path="/ferramentas/matriz-inside-sales" element={<MatrizInsideSales />} />
           <Route path="/ferramentas/precificacao-mercado-livre" element={<PrecificacaoMercadoLivre />} />
           <Route path="/ferramentas/precificacao-produto" element={<PrecificacaoProduto />} />
+          <Route path="/ferramentas/dre-projetado" element={<DREProjetado />} />
           <Route path="/atas/:token" element={<SharedMeeting />} />
           <Route path="/google-calendar/callback" element={<GoogleCalendarCallback />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

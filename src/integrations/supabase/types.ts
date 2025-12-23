@@ -235,6 +235,113 @@ export type Database = {
           },
         ]
       }
+      dre_simulations: {
+        Row: {
+          base_month: string
+          client_id: string | null
+          cmv_base: number
+          cmv_scaling: string
+          comissao_base: number
+          comissao_scaling: string
+          created_at: string
+          custos_fixos_base: number
+          d_roas: number
+          ebitda_minimo: number | null
+          frete_base: number
+          frete_scaling: string
+          g_fix: number
+          g_mkt: number
+          g_rev: number
+          g_ticket: number
+          horizon_months: number
+          id: string
+          imposto_pct: number
+          investimento_base: number
+          margem_minima: number | null
+          model: string
+          name: string
+          pedidos_base: number
+          projection_json: Json | null
+          receita_base: number
+          retorno_pct: number
+          roas_minimo: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_month: string
+          client_id?: string | null
+          cmv_base?: number
+          cmv_scaling?: string
+          comissao_base?: number
+          comissao_scaling?: string
+          created_at?: string
+          custos_fixos_base?: number
+          d_roas?: number
+          ebitda_minimo?: number | null
+          frete_base?: number
+          frete_scaling?: string
+          g_fix?: number
+          g_mkt?: number
+          g_rev?: number
+          g_ticket?: number
+          horizon_months?: number
+          id?: string
+          imposto_pct?: number
+          investimento_base?: number
+          margem_minima?: number | null
+          model: string
+          name: string
+          pedidos_base?: number
+          projection_json?: Json | null
+          receita_base?: number
+          retorno_pct?: number
+          roas_minimo?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_month?: string
+          client_id?: string | null
+          cmv_base?: number
+          cmv_scaling?: string
+          comissao_base?: number
+          comissao_scaling?: string
+          created_at?: string
+          custos_fixos_base?: number
+          d_roas?: number
+          ebitda_minimo?: number | null
+          frete_base?: number
+          frete_scaling?: string
+          g_fix?: number
+          g_mkt?: number
+          g_rev?: number
+          g_ticket?: number
+          horizon_months?: number
+          id?: string
+          imposto_pct?: number
+          investimento_base?: number
+          margem_minima?: number | null
+          model?: string
+          name?: string
+          pedidos_base?: number
+          projection_json?: Json | null
+          receita_base?: number
+          retorno_pct?: number
+          roas_minimo?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_simulations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_calendar_events: {
         Row: {
           calendar_id: string
