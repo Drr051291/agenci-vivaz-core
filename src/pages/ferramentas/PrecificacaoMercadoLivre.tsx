@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { NumberInput } from "@/components/ui/number-input";
-import { ArrowLeft, Save, Copy, Download, Sparkles, Info, AlertTriangle, TrendingUp, DollarSign, Percent, Package } from "lucide-react";
+import { ArrowLeft, Save, Copy, Download, Sparkles, Info, AlertTriangle, TrendingUp, DollarSign, Percent, Package, Tag, Truck, Receipt, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,9 +26,15 @@ import {
   formatBRL, 
   formatPercent 
 } from "@/lib/mlPricing/calc";
+import {
+  ML_CATEGORIES,
+  TAX_PRESETS,
+  SHIPPING_PRESETS,
+  getFixedFee,
+  getCommission,
+} from "@/lib/mlPricing/categories";
 
 type ListingType = 'CLASSICO' | 'PREMIUM';
-type ProductCondition = 'NOVO' | 'USADO';
 type CalculationMode = 'PRICE_TO_RESULT' | 'TARGET_TO_PRICE';
 type TargetType = 'MARGIN' | 'PROFIT';
 
@@ -53,26 +59,68 @@ export default function PrecificacaoMercadoLivre() {
   const [clientId, setClientId] = useState<string>("");
   const [simulationName, setSimulationName] = useState(`Simulação ${format(new Date(), "dd/MM/yyyy HH:mm")}`);
   const [sku, setSku] = useState("");
+  
+  // Category and listing type
+  const [categoryId, setCategoryId] = useState("moda");
   const [listingType, setListingType] = useState<ListingType>("CLASSICO");
-  const [productCondition, setProductCondition] = useState<ProductCondition>("NOVO");
   const [hasFreeShipping, setHasFreeShipping] = useState(false);
   const [mode, setMode] = useState<CalculationMode>("PRICE_TO_RESULT");
   const [targetType, setTargetType] = useState<TargetType>("MARGIN");
   
-  // Values
+  // Prices and values
   const [salePrice, setSalePrice] = useState(0);
-  const [targetValue, setTargetValue] = useState(0);
+  const [targetValue, setTargetValue] = useState(20); // Default 20% margin
   const [cogs, setCogs] = useState(0);
-  const [commissionPct, setCommissionPct] = useState(0);
-  const [fixedFee, setFixedFee] = useState(0);
-  const [taxPct, setTaxPct] = useState(0);
-  const [shippingCost, setShippingCost] = useState(0);
+  
+  // Tax preset
+  const [taxPresetId, setTaxPresetId] = useState("mei");
+  const [customTaxPct, setCustomTaxPct] = useState(0);
+  
+  // Shipping preset
+  const [shippingPresetId, setShippingPresetId] = useState("sem_frete");
+  const [customShippingCost, setCustomShippingCost] = useState(0);
+  
+  // ACOS (Advertising Cost of Sale)
+  const [acosPct, setAcosPct] = useState(0);
+  
+  // Advanced costs
   const [packagingCost, setPackagingCost] = useState(0);
   const [platformCost, setPlatformCost] = useState(0);
-  const [adsCost, setAdsCost] = useState(0);
   const [otherCost, setOtherCost] = useState(0);
 
   const [currentSimulationId, setCurrentSimulationId] = useState<string | null>(null);
+
+  // Computed values based on selections
+  const commissionPct = useMemo(() => {
+    return getCommission(categoryId, listingType);
+  }, [categoryId, listingType]);
+
+  const effectivePrice = mode === 'PRICE_TO_RESULT' ? salePrice : 0;
+
+  const fixedFee = useMemo(() => {
+    const price = mode === 'PRICE_TO_RESULT' ? salePrice : 100; // Use estimate for target mode
+    return getFixedFee(price, categoryId);
+  }, [mode, salePrice, categoryId]);
+
+  const taxPct = useMemo(() => {
+    const preset = TAX_PRESETS.find(p => p.id === taxPresetId);
+    if (!preset || preset.rate === -1) return customTaxPct;
+    return preset.rate;
+  }, [taxPresetId, customTaxPct]);
+
+  const shippingCost = useMemo(() => {
+    if (!hasFreeShipping) return 0;
+    const preset = SHIPPING_PRESETS.find(p => p.id === shippingPresetId);
+    if (!preset || preset.cost === -1) return customShippingCost;
+    return preset.cost;
+  }, [hasFreeShipping, shippingPresetId, customShippingCost]);
+
+  // Ads cost based on ACOS
+  const adsCostFromAcos = useMemo(() => {
+    if (acosPct <= 0) return 0;
+    const price = mode === 'PRICE_TO_RESULT' ? salePrice : 100;
+    return (price * acosPct) / 100;
+  }, [acosPct, mode, salePrice]);
 
   // Fetch clients
   const { data: clients } = useQuery({
@@ -88,7 +136,7 @@ export default function PrecificacaoMercadoLivre() {
   });
 
   // Fetch recent simulations
-  const { data: recentSimulations, isLoading: loadingSimulations } = useQuery({
+  const { data: recentSimulations } = useQuery({
     queryKey: ['ml-simulations'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -106,7 +154,7 @@ export default function PrecificacaoMercadoLivre() {
   });
 
   // Calculate extra costs sum
-  const extraCosts = packagingCost + platformCost + adsCost + otherCost;
+  const extraCosts = packagingCost + platformCost + adsCostFromAcos + otherCost;
 
   // Compute outputs
   const outputs = useMemo(() => {
@@ -131,17 +179,20 @@ export default function PrecificacaoMercadoLivre() {
         };
       }
       
+      // Now recalculate fixed fee with suggested price
+      const actualFixedFee = getFixedFee(result.suggestedPrice, categoryId);
+      
       // Now calculate all outputs using suggested price
       const computed = calculateFromPrice({
         salePrice: result.suggestedPrice,
         cogs,
         commissionPct,
-        fixedFee,
+        fixedFee: actualFixedFee,
         taxPct,
         shippingCost,
         packagingCost,
         platformCost,
-        adsCost,
+        adsCost: adsCostFromAcos,
         otherCost,
       });
       
@@ -161,7 +212,7 @@ export default function PrecificacaoMercadoLivre() {
         shippingCost,
         packagingCost,
         platformCost,
-        adsCost,
+        adsCost: adsCostFromAcos,
         otherCost,
       });
       
@@ -171,9 +222,9 @@ export default function PrecificacaoMercadoLivre() {
         isValid: true,
       };
     }
-  }, [mode, targetType, targetValue, salePrice, cogs, commissionPct, fixedFee, taxPct, shippingCost, packagingCost, platformCost, adsCost, otherCost, extraCosts]);
+  }, [mode, targetType, targetValue, salePrice, cogs, commissionPct, fixedFee, taxPct, shippingCost, packagingCost, platformCost, adsCostFromAcos, otherCost, extraCosts, categoryId]);
 
-  const effectivePrice = mode === 'TARGET_TO_PRICE' ? outputs.suggestedPrice : salePrice;
+  const displayPrice = mode === 'TARGET_TO_PRICE' ? outputs.suggestedPrice : salePrice;
 
   // Save mutation
   const saveMutation = useMutation({
@@ -187,7 +238,7 @@ export default function PrecificacaoMercadoLivre() {
         name: simulationName,
         sku: sku || null,
         listing_type: listingType,
-        product_condition: productCondition,
+        product_condition: 'NOVO',
         has_free_shipping: hasFreeShipping,
         mode,
         target_type: mode === 'TARGET_TO_PRICE' ? targetType : null,
@@ -200,7 +251,7 @@ export default function PrecificacaoMercadoLivre() {
         shipping_cost: shippingCost,
         packaging_cost: packagingCost,
         platform_cost: platformCost,
-        ads_cost: adsCost,
+        ads_cost: adsCostFromAcos,
         other_cost: otherCost,
       };
 
@@ -243,7 +294,7 @@ export default function PrecificacaoMercadoLivre() {
           name: `${simulationName} (cópia)`,
           sku: sku || null,
           listing_type: listingType,
-          product_condition: productCondition,
+          product_condition: 'NOVO',
           has_free_shipping: hasFreeShipping,
           mode,
           target_type: mode === 'TARGET_TO_PRICE' ? targetType : null,
@@ -256,7 +307,7 @@ export default function PrecificacaoMercadoLivre() {
           shipping_cost: shippingCost,
           packaging_cost: packagingCost,
           platform_cost: platformCost,
-          ads_cost: adsCost,
+          ads_cost: adsCostFromAcos,
           other_cost: otherCost,
         })
         .select('id')
@@ -293,21 +344,25 @@ export default function PrecificacaoMercadoLivre() {
     setClientId(data.client_id || "");
     setSku(data.sku || "");
     setListingType(data.listing_type as ListingType);
-    setProductCondition((data.product_condition as ProductCondition) || "NOVO");
     setHasFreeShipping(data.has_free_shipping);
     setMode(data.mode as CalculationMode);
     setTargetType((data.target_type as TargetType) || "MARGIN");
     setTargetValue(data.target_value || 0);
     setSalePrice(data.sale_price || 0);
     setCogs(data.cogs);
-    setCommissionPct(data.commission_pct);
-    setFixedFee(data.fixed_fee);
-    setTaxPct(data.tax_pct);
-    setShippingCost(data.shipping_cost);
     setPackagingCost(data.packaging_cost);
     setPlatformCost(data.platform_cost);
-    setAdsCost(data.ads_cost);
     setOtherCost(data.other_cost);
+    
+    // Set custom values for presets
+    if (data.tax_pct > 0) {
+      setTaxPresetId('personalizado');
+      setCustomTaxPct(data.tax_pct);
+    }
+    if (data.shipping_cost > 0) {
+      setShippingPresetId('personalizado');
+      setCustomShippingCost(data.shipping_cost);
+    }
     
     toast.success("Simulação carregada");
   };
@@ -315,26 +370,29 @@ export default function PrecificacaoMercadoLivre() {
   // CSV Export
   const exportCSV = () => {
     const headers = [
-      'Nome', 'SKU', 'Tipo Anúncio', 'Modo', 'Preço Venda', 'Custo Produto',
-      'Comissão %', 'Tarifa Fixa', 'Impostos %', 'Frete', 'Embalagem',
-      'Plataforma', 'Ads', 'Outros', 'Taxa ML', 'Impostos R$', 'Custos Extras',
+      'Nome', 'SKU', 'Categoria', 'Tipo Anúncio', 'Modo', 'Preço Venda', 'Custo Produto',
+      'Comissão %', 'Tarifa Fixa', 'Impostos %', 'ACOS %', 'Frete', 'Embalagem',
+      'Plataforma', 'Outros', 'Taxa ML', 'Impostos R$', 'Custos Extras',
       'Líquido Recebido', 'Lucro', 'Margem %', 'Ponto Equilíbrio'
     ];
+    
+    const categoryLabel = ML_CATEGORIES.find(c => c.id === categoryId)?.label || categoryId;
     
     const values = [
       simulationName,
       sku,
+      categoryLabel,
       listingType,
       mode,
-      effectivePrice,
+      displayPrice,
       cogs,
       commissionPct,
       fixedFee,
       taxPct,
+      acosPct,
       shippingCost,
       packagingCost,
       platformCost,
-      adsCost,
       otherCost,
       outputs.mlFee,
       outputs.taxAmount,
@@ -356,18 +414,28 @@ export default function PrecificacaoMercadoLivre() {
 
   // AI Summary
   const generateAISummary = () => {
+    const categoryLabel = ML_CATEGORIES.find(c => c.id === categoryId)?.label || categoryId;
     const warnings: string[] = [];
+    
     if (outputs.profit < 0) warnings.push("⚠️ Lucro negativo! Você está vendendo no prejuízo.");
     if (outputs.marginPct < 10 && outputs.marginPct >= 0) warnings.push("⚠️ Margem abaixo de 10% — considere ajustar o preço.");
-    if (commissionPct > 20) warnings.push("⚠️ Comissão alta. Verifique se está no tipo de anúncio correto.");
+    if (outputs.marginPct >= 10 && outputs.marginPct < 15) warnings.push("💡 Margem entre 10-15% — aceitável, mas pode melhorar.");
+    if (acosPct > 15) warnings.push("⚠️ ACOS alto. Considere otimizar suas campanhas de Ads.");
+    if (displayPrice < 79 && hasFreeShipping) warnings.push("💡 Frete grátis em produtos < R$ 79 pode reduzir sua margem.");
     
     const summary = `
 📊 Resumo da Simulação: ${simulationName}
 
-💰 Preço de Venda: ${formatBRL(effectivePrice)}
+📦 Categoria: ${categoryLabel}
+🏷️ Tipo: Anúncio ${listingType === 'CLASSICO' ? 'Clássico' : 'Premium'}
+
+💰 Preço de Venda: ${formatBRL(displayPrice)}
 📦 Custo do Produto: ${formatBRL(cogs)}
 📉 Taxa Mercado Livre: ${formatBRL(outputs.mlFee)} (${commissionPct}% + ${formatBRL(fixedFee)})
 ${hasFreeShipping ? `🚚 Frete (vendedor): ${formatBRL(shippingCost)}` : ''}
+${taxPct > 0 ? `🏛️ Impostos: ${formatBRL(outputs.taxAmount)} (${taxPct}%)` : ''}
+${acosPct > 0 ? `📣 Ads (ACOS ${acosPct}%): ${formatBRL(adsCostFromAcos)}` : ''}
+
 💵 Você Recebe (líquido): ${formatBRL(outputs.netReceipt)}
 ✅ Lucro Final: ${formatBRL(outputs.profit)}
 📈 Margem: ${formatPercent(outputs.marginPct)}
@@ -379,6 +447,9 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
     navigator.clipboard.writeText(summary);
     toast.success("Resumo copiado para a área de transferência.");
   };
+
+  // Get current category commission info
+  const currentCategory = ML_CATEGORIES.find(c => c.id === categoryId);
 
   return (
     <DashboardLayout>
@@ -392,7 +463,7 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
             <div>
               <h1 className="text-2xl font-bold text-foreground">Calculadora de Precificação — Mercado Livre</h1>
               <p className="text-muted-foreground text-sm mt-1">
-                Simule custos e descubra quanto você recebe por unidade e qual preço garante sua margem.
+                Selecione a categoria e veja automaticamente as taxas aplicadas.
               </p>
             </div>
           </div>
@@ -400,7 +471,7 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={generateAISummary}>
               <Sparkles className="h-4 w-4 mr-2" />
-              IA
+              Resumo
             </Button>
             <Button variant="outline" size="sm" onClick={exportCSV}>
               <Download className="h-4 w-4 mr-2" />
@@ -423,83 +494,77 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
           <div className="lg:col-span-5 space-y-4">
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Parâmetros</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Calculator className="h-5 w-5" />
+                  Parâmetros
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Contexto */}
+                {/* Categoria e Anúncio */}
                 <div className="space-y-4">
-                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Contexto</h4>
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Tag className="h-4 w-4" />
+                    Categoria e Anúncio
+                  </h4>
                   
                   <div className="space-y-2">
-                    <Label>Cliente (opcional)</Label>
-                    <Select value={clientId || "__none__"} onValueChange={(val) => setClientId(val === "__none__" ? "" : val)}>
+                    <Label>Categoria do produto</Label>
+                    <Select value={categoryId} onValueChange={setCategoryId}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
+                        <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Nenhum</SelectItem>
-                        {clients?.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.company_name}
+                      <SelectContent className="max-h-[300px]">
+                        {ML_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            <div className="flex items-center justify-between w-full gap-4">
+                              <span>{cat.label}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {cat.classico}% / {cat.premium}%
+                              </span>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {currentCategory && (
+                      <p className="text-xs text-muted-foreground">
+                        Comissão: Clássico {currentCategory.classico}% | Premium {currentCategory.premium}%
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Nome da simulação</Label>
-                    <Input value={simulationName} onChange={(e) => setSimulationName(e.target.value)} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>SKU / Produto (opcional)</Label>
-                    <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Ex: SKU-12345" />
+                    <Label>Tipo de anúncio</Label>
+                    <div className="flex rounded-lg border p-1 bg-muted/30">
+                      <button
+                        className={`flex-1 px-3 py-2 text-sm rounded-md transition-colors ${listingType === 'CLASSICO' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
+                        onClick={() => setListingType('CLASSICO')}
+                      >
+                        <div className="text-center">
+                          <div>Clássico</div>
+                          <div className="text-xs text-muted-foreground">{currentCategory?.classico}%</div>
+                        </div>
+                      </button>
+                      <button
+                        className={`flex-1 px-3 py-2 text-sm rounded-md transition-colors ${listingType === 'PREMIUM' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
+                        onClick={() => setListingType('PREMIUM')}
+                      >
+                        <div className="text-center">
+                          <div>Premium</div>
+                          <div className="text-xs text-muted-foreground">{currentCategory?.premium}%</div>
+                        </div>
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {listingType === 'PREMIUM' ? '✨ Parcelamento em até 12x sem juros' : 'Sem parcelamento para o comprador'}
+                    </p>
                   </div>
                 </div>
 
                 <Separator />
 
-                {/* Anúncio */}
+                {/* Modo de cálculo */}
                 <div className="space-y-4">
-                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Anúncio</h4>
-                  
-                  <div className="space-y-2">
-                    <Label>Tipo de anúncio</Label>
-                    <div className="flex rounded-lg border p-1 bg-muted/30">
-                      <button
-                        className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${listingType === 'CLASSICO' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
-                        onClick={() => setListingType('CLASSICO')}
-                      >
-                        Clássico
-                      </button>
-                      <button
-                        className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${listingType === 'PREMIUM' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
-                        onClick={() => setListingType('PREMIUM')}
-                      >
-                        Premium
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Frete grátis</Label>
-                    <div className="flex rounded-lg border p-1 bg-muted/30">
-                      <button
-                        className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${!hasFreeShipping ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
-                        onClick={() => setHasFreeShipping(false)}
-                      >
-                        Não
-                      </button>
-                      <button
-                        className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${hasFreeShipping ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
-                        onClick={() => setHasFreeShipping(true)}
-                      >
-                        Sim
-                      </button>
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
                     <Label>Modo de cálculo</Label>
                     <div className="flex rounded-lg border p-1 bg-muted/30">
@@ -521,21 +586,33 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
 
                 <Separator />
 
-                {/* Preço / Meta */}
+                {/* Preços */}
                 <div className="space-y-4">
-                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                    {mode === 'PRICE_TO_RESULT' ? 'Preço' : 'Meta'}
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Preços
                   </h4>
-                  
+
+                  <div className="space-y-2">
+                    <Label>Custo do produto (CMV)</Label>
+                    <CurrencyInput value={cogs} onChange={setCogs} />
+                    <p className="text-xs text-muted-foreground">Quanto você paga pelo produto</p>
+                  </div>
+
                   {mode === 'PRICE_TO_RESULT' ? (
                     <div className="space-y-2">
-                      <Label>Preço de venda</Label>
+                      <Label>Preço de venda desejado</Label>
                       <CurrencyInput value={salePrice} onChange={setSalePrice} />
+                      {salePrice > 0 && salePrice < 79 && (
+                        <p className="text-xs text-amber-600">
+                          ⚠️ Taxa fixa de {formatBRL(fixedFee)} será aplicada (produto abaixo de R$ 79)
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <>
                       <div className="space-y-2">
-                        <Label>Escolha a meta</Label>
+                        <Label>Tipo de meta</Label>
                         <div className="flex rounded-lg border p-1 bg-muted/30">
                           <button
                             className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${targetType === 'MARGIN' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
@@ -552,7 +629,7 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label>{targetType === 'MARGIN' ? 'Meta de margem (%)' : 'Meta de lucro (R$)'}</Label>
+                        <Label>{targetType === 'MARGIN' ? 'Meta de margem' : 'Meta de lucro'}</Label>
                         {targetType === 'MARGIN' ? (
                           <NumberInput value={targetValue} onChange={setTargetValue} suffix="%" />
                         ) : (
@@ -565,73 +642,141 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
 
                 <Separator />
 
-                {/* Custos e Taxas */}
+                {/* Impostos */}
                 <div className="space-y-4">
-                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Custos e Taxas</h4>
-                  
-                  <div className="space-y-2">
-                    <Label>Custo do produto (COGS)</Label>
-                    <CurrencyInput value={cogs} onChange={setCogs} />
-                  </div>
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Receipt className="h-4 w-4" />
+                    Impostos
+                  </h4>
 
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label>Comissão Mercado Livre (%)</Label>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="h-4 w-4 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs">A comissão varia por categoria e tipo de anúncio. Consulte seu painel do ML.</p>
-                        </TooltipContent>
-                      </Tooltip>
+                    <Label>Regime tributário</Label>
+                    <Select value={taxPresetId} onValueChange={setTaxPresetId}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TAX_PRESETS.map((preset) => (
+                          <SelectItem key={preset.id} value={preset.id}>
+                            <div className="flex items-center justify-between w-full gap-4">
+                              <span>{preset.label}</span>
+                              {preset.rate >= 0 && (
+                                <span className="text-xs text-muted-foreground">{preset.rate}%</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {taxPresetId !== 'personalizado' && (
+                      <p className="text-xs text-muted-foreground">
+                        {TAX_PRESETS.find(p => p.id === taxPresetId)?.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {taxPresetId === 'personalizado' && (
+                    <div className="space-y-2">
+                      <Label>Alíquota personalizada (%)</Label>
+                      <NumberInput value={customTaxPct} onChange={setCustomTaxPct} suffix="%" />
                     </div>
-                    <NumberInput value={commissionPct} onChange={setCommissionPct} suffix="%" />
-                  </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Frete */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Truck className="h-4 w-4" />
+                    Frete
+                  </h4>
 
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label>Tarifa fixa (R$)</Label>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="h-4 w-4 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs">Pode variar por faixa de preço e categoria. Verifique as regras atuais.</p>
-                        </TooltipContent>
-                      </Tooltip>
+                    <Label>Oferecer frete grátis?</Label>
+                    <div className="flex rounded-lg border p-1 bg-muted/30">
+                      <button
+                        className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${!hasFreeShipping ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
+                        onClick={() => setHasFreeShipping(false)}
+                      >
+                        Não
+                      </button>
+                      <button
+                        className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${hasFreeShipping ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}
+                        onClick={() => setHasFreeShipping(true)}
+                      >
+                        Sim
+                      </button>
                     </div>
-                    <CurrencyInput value={fixedFee} onChange={setFixedFee} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Impostos (%)</Label>
-                    <NumberInput value={taxPct} onChange={setTaxPct} suffix="%" />
                   </div>
 
                   {hasFreeShipping && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Label>Custo de envio (R$)</Label>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Info className="h-4 w-4 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs">Informe o custo estimado do envio que será descontado do seu pagamento.</p>
-                          </TooltipContent>
-                        </Tooltip>
+                    <>
+                      <div className="space-y-2">
+                        <Label>Custo de envio (vendedor)</Label>
+                        <Select value={shippingPresetId} onValueChange={setShippingPresetId}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SHIPPING_PRESETS.filter(p => p.id !== 'sem_frete').map((preset) => (
+                              <SelectItem key={preset.id} value={preset.id}>
+                                <div className="flex items-center justify-between w-full gap-4">
+                                  <span>{preset.label}</span>
+                                  {preset.cost >= 0 && (
+                                    <span className="text-xs text-muted-foreground">{formatBRL(preset.cost)}</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <CurrencyInput value={shippingCost} onChange={setShippingCost} />
-                    </div>
+
+                      {shippingPresetId === 'personalizado' && (
+                        <div className="space-y-2">
+                          <Label>Custo personalizado</Label>
+                          <CurrencyInput value={customShippingCost} onChange={setCustomShippingCost} />
+                        </div>
+                      )}
+                    </>
                   )}
+                </div>
+
+                <Separator />
+
+                {/* Ads (ACOS) */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    📣 Mercado Livre Ads
+                  </h4>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label>ACOS (Custo de Ads sobre Vendas)</Label>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs">ACOS = Gasto com Ads ÷ Receita. Se você gasta R$ 10 em Ads para vender R$ 100, seu ACOS é 10%.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <NumberInput value={acosPct} onChange={setAcosPct} suffix="%" />
+                    <p className="text-xs text-muted-foreground">
+                      {acosPct > 0 
+                        ? `Custo estimado: ${formatBRL(adsCostFromAcos)} por venda`
+                        : 'Deixe em 0% se não investe em Ads'}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Avançado */}
                 <Accordion type="single" collapsible>
                   <AccordionItem value="advanced" className="border-none">
                     <AccordionTrigger className="text-sm text-muted-foreground hover:no-underline py-2">
-                      Custos avançados (opcional)
+                      Custos adicionais (opcional)
                     </AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-2">
                       <div className="space-y-2">
@@ -643,10 +788,6 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
                         <CurrencyInput value={platformCost} onChange={setPlatformCost} />
                       </div>
                       <div className="space-y-2">
-                        <Label>Ads / Impulsionamento (R$)</Label>
-                        <CurrencyInput value={adsCost} onChange={setAdsCost} />
-                      </div>
-                      <div className="space-y-2">
                         <Label>Outros custos (R$)</Label>
                         <CurrencyInput value={otherCost} onChange={setOtherCost} />
                       </div>
@@ -654,9 +795,42 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
                   </AccordionItem>
                 </Accordion>
 
-                <p className="text-xs text-muted-foreground">
-                  As tarifas podem mudar. Use valores atualizados do seu anúncio/categoria.
-                </p>
+                {/* Contexto (collapsed) */}
+                <Accordion type="single" collapsible>
+                  <AccordionItem value="context" className="border-none">
+                    <AccordionTrigger className="text-sm text-muted-foreground hover:no-underline py-2">
+                      Identificação (opcional)
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-4 pt-2">
+                      <div className="space-y-2">
+                        <Label>Cliente</Label>
+                        <Select value={clientId || "__none__"} onValueChange={(val) => setClientId(val === "__none__" ? "" : val)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Nenhum</SelectItem>
+                            {clients?.map((client) => (
+                              <SelectItem key={client.id} value={client.id}>
+                                {client.company_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Nome da simulação</Label>
+                        <Input value={simulationName} onChange={(e) => setSimulationName(e.target.value)} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>SKU / Produto</Label>
+                        <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Ex: SKU-12345" />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </CardContent>
             </Card>
 
@@ -699,6 +873,30 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
               </motion.div>
             )}
 
+            {/* Commission Info Card */}
+            <Card className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/20">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                      <Tag className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{currentCategory?.label}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Comissão {listingType === 'CLASSICO' ? 'Clássico' : 'Premium'}: {commissionPct}%
+                      </p>
+                    </div>
+                  </div>
+                  {fixedFee > 0 && (
+                    <Badge variant="outline" className="bg-background">
+                      + {formatBRL(fixedFee)} taxa fixa
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Main KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -708,7 +906,7 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
                       <DollarSign className="h-4 w-4" />
                       <span className="text-xs font-medium">Preço de venda</span>
                     </div>
-                    <p className="text-xl font-bold">{formatBRL(effectivePrice)}</p>
+                    <p className="text-xl font-bold">{formatBRL(displayPrice)}</p>
                     {mode === 'TARGET_TO_PRICE' && outputs.isValid && (
                       <Badge variant="secondary" className="mt-1 text-xs">Sugerido</Badge>
                     )}
@@ -762,7 +960,7 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="bg-muted/30">
                 <CardContent className="py-3">
-                  <span className="text-xs text-muted-foreground">Taxa ML</span>
+                  <span className="text-xs text-muted-foreground">Taxa ML Total</span>
                   <p className="font-semibold">{formatBRL(outputs.mlFee)}</p>
                 </CardContent>
               </Card>
@@ -780,7 +978,7 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
               </Card>
               <Card className="bg-muted/30">
                 <CardContent className="py-3">
-                  <span className="text-xs text-muted-foreground">Custos extras</span>
+                  <span className="text-xs text-muted-foreground">Ads + Extras</span>
                   <p className="font-semibold">{formatBRL(outputs.extraCosts)}</p>
                 </CardContent>
               </Card>
@@ -797,17 +995,19 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
               <CardContent className="space-y-3">
                 <div className="flex justify-between py-2">
                   <span>Receita bruta</span>
-                  <span className="font-medium">{formatBRL(effectivePrice)}</span>
+                  <span className="font-medium">{formatBRL(displayPrice)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between py-1 text-sm">
                   <span className="text-muted-foreground">(-) Comissão ML ({commissionPct}%)</span>
-                  <span className="text-destructive">-{formatBRL(effectivePrice * (commissionPct / 100))}</span>
+                  <span className="text-destructive">-{formatBRL(displayPrice * (commissionPct / 100))}</span>
                 </div>
-                <div className="flex justify-between py-1 text-sm">
-                  <span className="text-muted-foreground">(-) Tarifa fixa</span>
-                  <span className="text-destructive">-{formatBRL(fixedFee)}</span>
-                </div>
+                {fixedFee > 0 && (
+                  <div className="flex justify-between py-1 text-sm">
+                    <span className="text-muted-foreground">(-) Tarifa fixa</span>
+                    <span className="text-destructive">-{formatBRL(fixedFee)}</span>
+                  </div>
+                )}
                 {hasFreeShipping && shippingCost > 0 && (
                   <div className="flex justify-between py-1 text-sm">
                     <span className="text-muted-foreground">(-) Frete</span>
@@ -816,7 +1016,7 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
                 )}
                 {outputs.taxAmount > 0 && (
                   <div className="flex justify-between py-1 text-sm">
-                    <span className="text-muted-foreground">(-) Impostos</span>
+                    <span className="text-muted-foreground">(-) Impostos ({taxPct}%)</span>
                     <span className="text-destructive">-{formatBRL(outputs.taxAmount)}</span>
                   </div>
                 )}
@@ -824,30 +1024,43 @@ ${warnings.length > 0 ? '\n' + warnings.join('\n') : '✅ Operação saudável!'
                   <span className="text-muted-foreground">(-) Custo do produto</span>
                   <span className="text-destructive">-{formatBRL(cogs)}</span>
                 </div>
-                {outputs.extraCosts > 0 && (
+                {adsCostFromAcos > 0 && (
                   <div className="flex justify-between py-1 text-sm">
-                    <span className="text-muted-foreground">(-) Custos extras</span>
-                    <span className="text-destructive">-{formatBRL(outputs.extraCosts)}</span>
+                    <span className="text-muted-foreground">(-) Ads (ACOS {acosPct}%)</span>
+                    <span className="text-destructive">-{formatBRL(adsCostFromAcos)}</span>
+                  </div>
+                )}
+                {(packagingCost + platformCost + otherCost) > 0 && (
+                  <div className="flex justify-between py-1 text-sm">
+                    <span className="text-muted-foreground">(-) Outros custos</span>
+                    <span className="text-destructive">-{formatBRL(packagingCost + platformCost + otherCost)}</span>
                   </div>
                 )}
                 <Separator />
                 <div className="flex justify-between py-2">
-                  <span className="font-semibold">= Resultado final (Lucro)</span>
+                  <span className="font-semibold">= Resultado (Lucro)</span>
                   <span className={`font-bold text-lg ${outputs.profit < 0 ? 'text-destructive' : 'text-green-600'}`}>
                     {formatBRL(outputs.profit)}
                   </span>
                 </div>
                 <Separator />
-                <div className="flex justify-between py-2 bg-muted/30 rounded-lg px-3 -mx-3">
-                  <span className="text-sm">Ponto de equilíbrio</span>
+                <div className="flex justify-between py-1 text-sm">
+                  <span className="text-muted-foreground">Ponto de equilíbrio</span>
                   <span className="font-medium">{formatBRL(outputs.breakEvenPrice)}</span>
                 </div>
-                {mode === 'TARGET_TO_PRICE' && outputs.isValid && (
-                  <div className="flex justify-between py-2 bg-primary/10 rounded-lg px-3 -mx-3">
-                    <span className="text-sm font-medium text-primary">Preço sugerido</span>
-                    <span className="font-bold text-primary">{formatBRL(outputs.suggestedPrice)}</span>
-                  </div>
-                )}
+              </CardContent>
+            </Card>
+
+            {/* Tips Card */}
+            <Card className="bg-muted/20">
+              <CardContent className="py-4">
+                <h4 className="font-medium text-sm mb-2">💡 Dicas</h4>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>• Produtos acima de R$ 79 não pagam taxa fixa adicional</li>
+                  <li>• MercadoLíderes têm desconto de até 70% no frete grátis</li>
+                  <li>• Anúncio Premium oferece parcelamento sem juros, aumentando conversão</li>
+                  <li>• Considere criar kits para diluir custos em produtos de baixo ticket</li>
+                </ul>
               </CardContent>
             </Card>
           </div>
