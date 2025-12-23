@@ -392,12 +392,12 @@ export default function DREProjetado() {
                     
                     <div className="space-y-2">
                       <Label>Cliente (opcional)</Label>
-                      <Select value={clientId ?? ""} onValueChange={(v) => setClientId(v || null)}>
+                      <Select value={clientId ?? "__none__"} onValueChange={(v) => setClientId(v === "__none__" ? null : v)}>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione um cliente" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Nenhum</SelectItem>
+                          <SelectItem value="__none__">Nenhum</SelectItem>
                           {clients?.map((c) => (
                             <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>
                           ))}
