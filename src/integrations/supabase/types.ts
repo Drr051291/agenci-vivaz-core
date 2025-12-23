@@ -1418,6 +1418,7 @@ export type Database = {
         | "ecommerce"
         | "marketplace"
         | "local_business"
+        | "social_commerce"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status:
         | "pending"
@@ -1558,6 +1559,7 @@ export const Constants = {
         "ecommerce",
         "marketplace",
         "local_business",
+        "social_commerce",
       ],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: [
