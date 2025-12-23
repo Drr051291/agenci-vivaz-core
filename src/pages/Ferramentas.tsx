@@ -2,7 +2,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, Zap, BarChart3, Target, Users } from "lucide-react";
+import { Calculator, Zap, BarChart3, Target, Users, Tag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -31,6 +31,14 @@ const tools: Tool[] = [
     icon: Users,
     status: 'active',
     path: '/ferramentas/matriz-inside-sales',
+  },
+  {
+    id: 'precificacao-ml',
+    name: 'Calculadora de Precificação — Mercado Livre',
+    description: 'Simule taxas, frete e margem para definir o preço ideal por anúncio.',
+    icon: Tag,
+    status: 'active',
+    path: '/ferramentas/precificacao-mercado-livre',
   },
   {
     id: 'performance',

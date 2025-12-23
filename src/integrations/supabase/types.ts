@@ -563,6 +563,92 @@ export type Database = {
           },
         ]
       }
+      ml_pricing_simulations: {
+        Row: {
+          ads_cost: number
+          client_id: string | null
+          cogs: number
+          commission_pct: number
+          created_at: string
+          fixed_fee: number
+          has_free_shipping: boolean
+          id: string
+          listing_type: string
+          mode: string
+          name: string
+          other_cost: number
+          packaging_cost: number
+          platform_cost: number
+          product_condition: string | null
+          sale_price: number | null
+          shipping_cost: number
+          sku: string | null
+          target_type: string | null
+          target_value: number | null
+          tax_pct: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ads_cost?: number
+          client_id?: string | null
+          cogs?: number
+          commission_pct?: number
+          created_at?: string
+          fixed_fee?: number
+          has_free_shipping?: boolean
+          id?: string
+          listing_type: string
+          mode: string
+          name: string
+          other_cost?: number
+          packaging_cost?: number
+          platform_cost?: number
+          product_condition?: string | null
+          sale_price?: number | null
+          shipping_cost?: number
+          sku?: string | null
+          target_type?: string | null
+          target_value?: number | null
+          tax_pct?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ads_cost?: number
+          client_id?: string | null
+          cogs?: number
+          commission_pct?: number
+          created_at?: string
+          fixed_fee?: number
+          has_free_shipping?: boolean
+          id?: string
+          listing_type?: string
+          mode?: string
+          name?: string
+          other_cost?: number
+          packaging_cost?: number
+          platform_cost?: number
+          product_condition?: string | null
+          sale_price?: number | null
+          shipping_cost?: number
+          sku?: string | null
+          target_type?: string | null
+          target_value?: number | null
+          tax_pct?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ml_pricing_simulations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_invoices: {
         Row: {
           client_id: string
