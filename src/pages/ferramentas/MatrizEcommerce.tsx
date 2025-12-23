@@ -29,7 +29,7 @@ import {
   formatPercent,
   formatNumber,
   exportToCSV,
-  BENCHMARKS,
+  getBenchmarkByTicket,
 } from "@/lib/ecommerce/calc";
 
 const statusConfig = {
@@ -95,6 +95,7 @@ export default function MatrizEcommerce() {
 
   // Calculations
   const outputs = useMemo(() => calculateOutputs(inputs), [inputs]);
+  const dynamicBenchmarks = useMemo(() => getBenchmarkByTicket(outputs.ticketMedio), [outputs.ticketMedio]);
   const stageResults = useMemo(() => calculateStageResults(outputs), [outputs]);
   const stageDiagnostics = useMemo(() => getStageDiagnostics(stageResults), [stageResults]);
   const insights = useMemo(() => generateInsights(stageResults, outputs), [stageResults, outputs]);
@@ -462,7 +463,7 @@ export default function MatrizEcommerce() {
                           {formatPercent(outputs.taxaVisitanteCarrinho)}
                         </Badge>
                       </TooltipTrigger>
-                      <TooltipContent>Meta: {BENCHMARKS.visitanteCarrinho}%</TooltipContent>
+                      <TooltipContent>Meta: {stageResults[0]?.meta ?? dynamicBenchmarks.visitanteCarrinho}%</TooltipContent>
                     </Tooltip>
                   </div>
 
@@ -494,7 +495,7 @@ export default function MatrizEcommerce() {
                           {formatPercent(outputs.taxaCarrinhoCompra)}
                         </Badge>
                       </TooltipTrigger>
-                      <TooltipContent>Meta: {BENCHMARKS.carrinhoCompra}%</TooltipContent>
+                      <TooltipContent>Meta: {stageResults[1]?.meta ?? dynamicBenchmarks.carrinhoCompra}%</TooltipContent>
                     </Tooltip>
                   </div>
 
@@ -526,7 +527,7 @@ export default function MatrizEcommerce() {
                           {formatPercent(outputs.taxaCompraPagamento)}
                         </Badge>
                       </TooltipTrigger>
-                      <TooltipContent>Meta: {BENCHMARKS.compraPagamento}%</TooltipContent>
+                      <TooltipContent>Meta: {stageResults[2]?.meta ?? dynamicBenchmarks.compraPagamento}%</TooltipContent>
                     </Tooltip>
                   </div>
 

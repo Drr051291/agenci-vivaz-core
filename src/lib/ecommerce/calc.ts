@@ -68,14 +68,67 @@ export interface StageDiagnostic {
   items: DiagnosticItem[];
 }
 
-// Benchmarks de referência (baseados na planilha)
+// Benchmarks de referência baseados em dados brasileiros (Prax Analytics 2024 + E-commerce Radar)
+// Ajustados conforme ticket médio - quanto maior o ticket, menor a taxa de add-to-cart esperada
 export const BENCHMARKS = {
   cpc: 1.0, // R$ 1.00
   ctr: 1.0, // 1%
-  visitanteCarrinho: 10, // 10%
-  carrinhoCompra: 10, // 10%
-  compraPagamento: 80, // 80% (ou seja, perda de 20%)
+  
+  // Visitante → Carrinho: 6% a 10% 
+  // Tickets altos (>R$400): 6% | Tickets médios (R$120-400): 8% | Tickets baixos (<R$120): 10%
+  visitanteCarrinho: {
+    min: 6,
+    max: 10,
+    default: 8,
+  },
+  
+  // Carrinho → Compra Iniciada: 10% a 15%
+  // Baseado em dados brasileiros de múltiplos setores
+  carrinhoCompra: {
+    min: 10,
+    max: 15,
+    default: 12,
+  },
+  
+  // Compra → Pagamento: mínimo 85%
+  // Taxa de abandono de boletos/pix no Brasil é alta, mas com checkout otimizado deve ser ≥85%
+  compraPagamento: {
+    min: 85,
+    max: 95,
+    default: 85,
+  },
 };
+
+// Retorna benchmark dinâmico baseado no ticket médio
+export function getBenchmarkByTicket(ticketMedio: number | null): {
+  visitanteCarrinho: number;
+  carrinhoCompra: number;
+  compraPagamento: number;
+} {
+  // Ticket alto (>R$400): menor taxa de add-to-cart é esperada
+  // Ticket médio (R$120-400): taxa média
+  // Ticket baixo (<R$120): maior taxa de add-to-cart
+  
+  let visitanteCarrinho = BENCHMARKS.visitanteCarrinho.default;
+  
+  if (ticketMedio !== null && ticketMedio > 0) {
+    if (ticketMedio >= 400) {
+      visitanteCarrinho = BENCHMARKS.visitanteCarrinho.min; // 6%
+    } else if (ticketMedio <= 120) {
+      visitanteCarrinho = BENCHMARKS.visitanteCarrinho.max; // 10%
+    } else {
+      // Interpolação linear entre 120 e 400
+      const ratio = (ticketMedio - 120) / (400 - 120);
+      visitanteCarrinho = BENCHMARKS.visitanteCarrinho.max - (ratio * (BENCHMARKS.visitanteCarrinho.max - BENCHMARKS.visitanteCarrinho.min));
+    }
+  }
+  
+  return {
+    visitanteCarrinho: Math.round(visitanteCarrinho * 10) / 10,
+    carrinhoCompra: BENCHMARKS.carrinhoCompra.default,
+    compraPagamento: BENCHMARKS.compraPagamento.default,
+  };
+}
 
 // Faixas de status (% do benchmark)
 const STATUS_THRESHOLDS = {
@@ -164,35 +217,38 @@ export function getStatus(atual: number | null, meta: number, inverse = false): 
 }
 
 export function calculateStageResults(outputs: EcommerceOutputs): StageResult[] {
+  // Usa benchmarks dinâmicos baseados no ticket médio
+  const benchmarks = getBenchmarkByTicket(outputs.ticketMedio);
+  
   return [
     {
       stage: 'visitante_carrinho',
       label: 'Visitantes → Carrinho',
       atual: outputs.taxaVisitanteCarrinho,
-      meta: BENCHMARKS.visitanteCarrinho,
-      status: getStatus(outputs.taxaVisitanteCarrinho, BENCHMARKS.visitanteCarrinho),
+      meta: benchmarks.visitanteCarrinho,
+      status: getStatus(outputs.taxaVisitanteCarrinho, benchmarks.visitanteCarrinho),
       gap: outputs.taxaVisitanteCarrinho !== null 
-        ? outputs.taxaVisitanteCarrinho - BENCHMARKS.visitanteCarrinho 
+        ? outputs.taxaVisitanteCarrinho - benchmarks.visitanteCarrinho 
         : null,
     },
     {
       stage: 'carrinho_compra',
       label: 'Carrinho → Compra',
       atual: outputs.taxaCarrinhoCompra,
-      meta: BENCHMARKS.carrinhoCompra,
-      status: getStatus(outputs.taxaCarrinhoCompra, BENCHMARKS.carrinhoCompra),
+      meta: benchmarks.carrinhoCompra,
+      status: getStatus(outputs.taxaCarrinhoCompra, benchmarks.carrinhoCompra),
       gap: outputs.taxaCarrinhoCompra !== null 
-        ? outputs.taxaCarrinhoCompra - BENCHMARKS.carrinhoCompra 
+        ? outputs.taxaCarrinhoCompra - benchmarks.carrinhoCompra 
         : null,
     },
     {
       stage: 'compra_pagamento',
       label: 'Compra → Pagamento',
       atual: outputs.taxaCompraPagamento,
-      meta: BENCHMARKS.compraPagamento,
-      status: getStatus(outputs.taxaCompraPagamento, BENCHMARKS.compraPagamento),
+      meta: benchmarks.compraPagamento,
+      status: getStatus(outputs.taxaCompraPagamento, benchmarks.compraPagamento),
       gap: outputs.taxaCompraPagamento !== null 
-        ? outputs.taxaCompraPagamento - BENCHMARKS.compraPagamento 
+        ? outputs.taxaCompraPagamento - benchmarks.compraPagamento 
         : null,
     },
   ];
