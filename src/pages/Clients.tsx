@@ -521,7 +521,7 @@ const Clients = () => {
                               >
                                 <Checkbox
                                   checked={isSelected}
-                                  onCheckedChange={() => toggleChannel(channel.id)}
+                                  onClick={(e) => e.stopPropagation()}
                                 />
                                 <Icon className={`h-4 w-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
                                 <div className="flex-1">
