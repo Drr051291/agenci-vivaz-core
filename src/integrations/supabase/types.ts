@@ -646,6 +646,66 @@ export type Database = {
           },
         ]
       }
+      meeting_approval_items: {
+        Row: {
+          approved_by_client: boolean | null
+          created_at: string
+          details: string | null
+          id: string
+          is_approved: boolean | null
+          item_type: string
+          label: string
+          meeting_id: string
+          owner_type: string | null
+          sort_order: number | null
+          task_id: string | null
+          value: number | null
+        }
+        Insert: {
+          approved_by_client?: boolean | null
+          created_at?: string
+          details?: string | null
+          id?: string
+          is_approved?: boolean | null
+          item_type: string
+          label: string
+          meeting_id: string
+          owner_type?: string | null
+          sort_order?: number | null
+          task_id?: string | null
+          value?: number | null
+        }
+        Update: {
+          approved_by_client?: boolean | null
+          created_at?: string
+          details?: string | null
+          id?: string
+          is_approved?: boolean | null
+          item_type?: string
+          label?: string
+          meeting_id?: string
+          owner_type?: string | null
+          sort_order?: number | null
+          task_id?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_approval_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_approval_items_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_approvals: {
         Row: {
           approved_at: string | null
@@ -717,6 +777,8 @@ export type Database = {
           notes: string | null
           revenue: number | null
           roas: number | null
+          what_to_adjust: string | null
+          what_worked: string | null
         }
         Insert: {
           channel: string
@@ -733,6 +795,8 @@ export type Database = {
           notes?: string | null
           revenue?: number | null
           roas?: number | null
+          what_to_adjust?: string | null
+          what_worked?: string | null
         }
         Update: {
           channel?: string
@@ -749,6 +813,8 @@ export type Database = {
           notes?: string | null
           revenue?: number | null
           roas?: number | null
+          what_to_adjust?: string | null
+          what_worked?: string | null
         }
         Relationships: [
           {
@@ -756,6 +822,73 @@ export type Database = {
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_experiments: {
+        Row: {
+          created_at: string
+          deadline: string | null
+          effort: string | null
+          how_to_measure: string | null
+          id: string
+          idea: string
+          impact: string | null
+          meeting_id: string
+          objective: string | null
+          responsible_id: string | null
+          sort_order: number | null
+          task_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          deadline?: string | null
+          effort?: string | null
+          how_to_measure?: string | null
+          id?: string
+          idea: string
+          impact?: string | null
+          meeting_id: string
+          objective?: string | null
+          responsible_id?: string | null
+          sort_order?: number | null
+          task_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          deadline?: string | null
+          effort?: string | null
+          how_to_measure?: string | null
+          id?: string
+          idea?: string
+          impact?: string | null
+          meeting_id?: string
+          objective?: string | null
+          responsible_id?: string | null
+          sort_order?: number | null
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_experiments_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_experiments_responsible_id_fkey"
+            columns: ["responsible_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_experiments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -816,6 +949,7 @@ export type Database = {
           meeting_id: string
           metric_key: string
           metric_label: string
+          quick_note: string | null
           sort_order: number | null
           target_value: number | null
           unit: string | null
@@ -828,6 +962,7 @@ export type Database = {
           meeting_id: string
           metric_key: string
           metric_label: string
+          quick_note?: string | null
           sort_order?: number | null
           target_value?: number | null
           unit?: string | null
@@ -840,6 +975,7 @@ export type Database = {
           meeting_id?: string
           metric_key?: string
           metric_label?: string
+          quick_note?: string | null
           sort_order?: number | null
           target_value?: number | null
           unit?: string | null
@@ -865,18 +1001,22 @@ export type Database = {
           created_at: string
           created_by: string | null
           duration_min: number | null
+          focus_channels: string[] | null
           google_event_id: string | null
           id: string
           linked_dashboards: string[] | null
           linked_tasks: string[] | null
           meeting_date: string
           meeting_link: string | null
+          next_period_priority: string | null
           participants: string[] | null
           project_id: string | null
+          responsible_id: string | null
           share_token: string | null
           status: string | null
           tags: string[] | null
           template_id: string | null
+          template_version: string | null
           title: string
           updated_at: string
         }
@@ -889,18 +1029,22 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           duration_min?: number | null
+          focus_channels?: string[] | null
           google_event_id?: string | null
           id?: string
           linked_dashboards?: string[] | null
           linked_tasks?: string[] | null
           meeting_date: string
           meeting_link?: string | null
+          next_period_priority?: string | null
           participants?: string[] | null
           project_id?: string | null
+          responsible_id?: string | null
           share_token?: string | null
           status?: string | null
           tags?: string[] | null
           template_id?: string | null
+          template_version?: string | null
           title: string
           updated_at?: string
         }
@@ -913,18 +1057,22 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           duration_min?: number | null
+          focus_channels?: string[] | null
           google_event_id?: string | null
           id?: string
           linked_dashboards?: string[] | null
           linked_tasks?: string[] | null
           meeting_date?: string
           meeting_link?: string | null
+          next_period_priority?: string | null
           participants?: string[] | null
           project_id?: string | null
+          responsible_id?: string | null
           share_token?: string | null
           status?: string | null
           tags?: string[] | null
           template_id?: string | null
+          template_version?: string | null
           title?: string
           updated_at?: string
         }
@@ -948,6 +1096,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_minutes_responsible_id_fkey"
+            columns: ["responsible_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1004,6 +1159,7 @@ export type Database = {
           id: string
           is_collapsed: boolean | null
           meeting_id: string
+          metadata: Json | null
           section_key: string
           sort_order: number | null
           title: string
@@ -1015,6 +1171,7 @@ export type Database = {
           id?: string
           is_collapsed?: boolean | null
           meeting_id: string
+          metadata?: Json | null
           section_key: string
           sort_order?: number | null
           title: string
@@ -1026,6 +1183,7 @@ export type Database = {
           id?: string
           is_collapsed?: boolean | null
           meeting_id?: string
+          metadata?: Json | null
           section_key?: string
           sort_order?: number | null
           title?: string
