@@ -140,7 +140,7 @@ export type Database = {
           monthly_fee: number | null
           notes: string | null
           sales_channels: string[] | null
-          segment: Database["public"]["Enums"]["client_segment"]
+          segment: string
           status: string
           updated_at: string
           user_id: string | null
@@ -159,7 +159,7 @@ export type Database = {
           monthly_fee?: number | null
           notes?: string | null
           sales_channels?: string[] | null
-          segment?: Database["public"]["Enums"]["client_segment"]
+          segment?: string
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -178,7 +178,7 @@ export type Database = {
           monthly_fee?: number | null
           notes?: string | null
           sales_channels?: string[] | null
-          segment?: Database["public"]["Enums"]["client_segment"]
+          segment?: string
           status?: string
           updated_at?: string
           user_id?: string | null

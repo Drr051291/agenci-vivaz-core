@@ -168,7 +168,7 @@ const Clients = () => {
       website: formData.website || null,
       notes: formData.notes || null,
       status: formData.status,
-      segment: formData.segment as "inside_sales" | "ecommerce" | "marketplace" | "local_business" | "social_commerce",
+      segment: formData.segment,
       contract_start: formData.contract_start || null,
       monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : null,
       contact_name: formData.contact_name || null,
