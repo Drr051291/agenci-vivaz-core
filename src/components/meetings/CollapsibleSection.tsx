@@ -7,22 +7,26 @@ interface CollapsibleSectionProps {
   title: string;
   icon?: React.ReactNode;
   isCollapsed?: boolean;
+  defaultOpen?: boolean;
   onToggle?: (collapsed: boolean) => void;
   children: React.ReactNode;
   className?: string;
   headerActions?: React.ReactNode;
+  badge?: string;
 }
 
 export function CollapsibleSection({
   title,
   icon,
   isCollapsed = false,
+  defaultOpen = true,
   onToggle,
   children,
   className,
-  headerActions
+  headerActions,
+  badge,
 }: CollapsibleSectionProps) {
-  const [collapsed, setCollapsed] = useState(isCollapsed);
+  const [collapsed, setCollapsed] = useState(defaultOpen ? false : isCollapsed);
 
   const handleToggle = () => {
     const newState = !collapsed;
@@ -54,6 +58,11 @@ export function CollapsibleSection({
         </Button>
         {icon && <div className="text-primary">{icon}</div>}
         <h3 className="font-medium flex-1">{title}</h3>
+        {badge && (
+          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+            {badge}
+          </span>
+        )}
         {headerActions && (
           <div onClick={(e) => e.stopPropagation()}>
             {headerActions}
