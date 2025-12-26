@@ -646,52 +646,285 @@ export type Database = {
           },
         ]
       }
+      meeting_approvals: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          id: string
+          meeting_id: string
+          notes: string | null
+          requested_at: string
+          requested_by: string | null
+          status: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          id?: string
+          meeting_id: string
+          notes?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          id?: string
+          meeting_id?: string
+          notes?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_approvals_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_approvals_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_approvals_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_channels: {
+        Row: {
+          channel: string
+          clicks: number | null
+          conversions: number | null
+          cpa: number | null
+          cpl: number | null
+          created_at: string
+          id: string
+          impressions: number | null
+          investment: number | null
+          leads: number | null
+          meeting_id: string
+          notes: string | null
+          revenue: number | null
+          roas: number | null
+        }
+        Insert: {
+          channel: string
+          clicks?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          cpl?: number | null
+          created_at?: string
+          id?: string
+          impressions?: number | null
+          investment?: number | null
+          leads?: number | null
+          meeting_id: string
+          notes?: string | null
+          revenue?: number | null
+          roas?: number | null
+        }
+        Update: {
+          channel?: string
+          clicks?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          cpl?: number | null
+          created_at?: string
+          id?: string
+          impressions?: number | null
+          investment?: number | null
+          leads?: number | null
+          meeting_id?: string
+          notes?: string | null
+          revenue?: number | null
+          roas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_channels_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          meeting_id: string
+          mime_type: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          meeting_id: string
+          mime_type?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          meeting_id?: string
+          mime_type?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_files_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_metrics: {
+        Row: {
+          actual_value: number | null
+          created_at: string
+          id: string
+          meeting_id: string
+          metric_key: string
+          metric_label: string
+          sort_order: number | null
+          target_value: number | null
+          unit: string | null
+          variation_pct: number | null
+        }
+        Insert: {
+          actual_value?: number | null
+          created_at?: string
+          id?: string
+          meeting_id: string
+          metric_key: string
+          metric_label: string
+          sort_order?: number | null
+          target_value?: number | null
+          unit?: string | null
+          variation_pct?: number | null
+        }
+        Update: {
+          actual_value?: number | null
+          created_at?: string
+          id?: string
+          meeting_id?: string
+          metric_key?: string
+          metric_label?: string
+          sort_order?: number | null
+          target_value?: number | null
+          unit?: string | null
+          variation_pct?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_metrics_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_minutes: {
         Row: {
           action_items: string[] | null
+          analysis_period_end: string | null
+          analysis_period_start: string | null
           client_id: string
           content: string
           created_at: string
           created_by: string | null
+          duration_min: number | null
+          google_event_id: string | null
           id: string
           linked_dashboards: string[] | null
           linked_tasks: string[] | null
           meeting_date: string
+          meeting_link: string | null
           participants: string[] | null
           project_id: string | null
           share_token: string | null
+          status: string | null
+          tags: string[] | null
+          template_id: string | null
           title: string
           updated_at: string
         }
         Insert: {
           action_items?: string[] | null
+          analysis_period_end?: string | null
+          analysis_period_start?: string | null
           client_id: string
           content: string
           created_at?: string
           created_by?: string | null
+          duration_min?: number | null
+          google_event_id?: string | null
           id?: string
           linked_dashboards?: string[] | null
           linked_tasks?: string[] | null
           meeting_date: string
+          meeting_link?: string | null
           participants?: string[] | null
           project_id?: string | null
           share_token?: string | null
+          status?: string | null
+          tags?: string[] | null
+          template_id?: string | null
           title: string
           updated_at?: string
         }
         Update: {
           action_items?: string[] | null
+          analysis_period_end?: string | null
+          analysis_period_start?: string | null
           client_id?: string
           content?: string
           created_at?: string
           created_by?: string | null
+          duration_min?: number | null
+          google_event_id?: string | null
           id?: string
           linked_dashboards?: string[] | null
           linked_tasks?: string[] | null
           meeting_date?: string
+          meeting_link?: string | null
           participants?: string[] | null
           project_id?: string | null
           share_token?: string | null
+          status?: string | null
+          tags?: string[] | null
+          template_id?: string | null
           title?: string
           updated_at?: string
         }
@@ -717,7 +950,135 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "meeting_minutes_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_templates"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      meeting_participants: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_client: boolean | null
+          meeting_id: string
+          name: string
+          role: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_client?: boolean | null
+          meeting_id: string
+          name: string
+          role?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_client?: boolean | null
+          meeting_id?: string
+          name?: string
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_participants_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_sections: {
+        Row: {
+          content_json: Json | null
+          created_at: string
+          id: string
+          is_collapsed: boolean | null
+          meeting_id: string
+          section_key: string
+          sort_order: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content_json?: Json | null
+          created_at?: string
+          id?: string
+          is_collapsed?: boolean | null
+          meeting_id: string
+          section_key: string
+          sort_order?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content_json?: Json | null
+          created_at?: string
+          id?: string
+          is_collapsed?: boolean | null
+          meeting_id?: string
+          section_key?: string
+          sort_order?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_sections_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          estimated_time_min: number | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          schema_json: Json | null
+          template_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          estimated_time_min?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          schema_json?: Json | null
+          template_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          estimated_time_min?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          schema_json?: Json | null
+          template_type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       messages: {
         Row: {
@@ -1207,6 +1568,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          owner_type: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
           status: string
@@ -1223,6 +1585,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          owner_type?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
           status?: string
@@ -1239,6 +1602,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          owner_type?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
           status?: string
@@ -1416,12 +1780,15 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "collaborator" | "client"
+      approval_status: "pending" | "approved" | "rejected"
       client_segment:
         | "inside_sales"
         | "ecommerce"
         | "marketplace"
         | "local_business"
         | "social_commerce"
+      meeting_status: "rascunho" | "em_revisao" | "aprovado"
+      task_owner_type: "vivaz" | "cliente"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status:
         | "pending"
@@ -1557,6 +1924,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "collaborator", "client"],
+      approval_status: ["pending", "approved", "rejected"],
       client_segment: [
         "inside_sales",
         "ecommerce",
@@ -1564,6 +1932,8 @@ export const Constants = {
         "local_business",
         "social_commerce",
       ],
+      meeting_status: ["rascunho", "em_revisao", "aprovado"],
+      task_owner_type: ["vivaz", "cliente"],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: [
         "pending",
