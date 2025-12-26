@@ -64,7 +64,7 @@ const SALES_CHANNELS = [
   { id: "social_commerce", label: "Social Commerce", description: "Instagram, WhatsApp", icon: Megaphone },
   { id: "local_business", label: "Negócio Local", description: "Loja Física", icon: MapPin },
   { id: "inside_sales", label: "Inside Sales", description: "Geração de Leads", icon: Users },
-] as const;
+];
 
 const COMPANY_SEGMENTS = [
   { id: "moda_feminina", label: "Moda Feminina" },
@@ -90,7 +90,7 @@ const COMPANY_SEGMENTS = [
   { id: "automotivo", label: "Automotivo" },
   { id: "industria", label: "Indústria" },
   { id: "outro", label: "Outro" },
-] as const;
+];
 
 const Clients = () => {
   const navigate = useNavigate();
