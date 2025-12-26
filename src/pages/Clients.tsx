@@ -24,8 +24,9 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Building2, Globe, Pencil, User, Phone, Mail } from "lucide-react";
+import { Plus, Building2, Globe, Pencil, User, Phone, Mail, ShoppingCart, Store, Megaphone, MapPin, Users, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { motion } from "framer-motion";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated";
@@ -44,7 +45,16 @@ interface Client {
   contact_name: string | null;
   contact_phone: string | null;
   contact_email: string | null;
+  sales_channels: string[] | null;
 }
+
+const SALES_CHANNELS = [
+  { id: "ecommerce", label: "E-commerce", description: "Loja Virtual Própria", icon: ShoppingCart },
+  { id: "marketplace", label: "Marketplace", description: "ML, Amazon, Shopee", icon: Store },
+  { id: "social_commerce", label: "Social Commerce", description: "Instagram, WhatsApp", icon: Megaphone },
+  { id: "local_business", label: "Negócio Local", description: "Loja Física", icon: MapPin },
+  { id: "inside_sales", label: "Inside Sales", description: "Geração de Leads", icon: Users },
+] as const;
 
 const Clients = () => {
   const navigate = useNavigate();
@@ -65,6 +75,7 @@ const Clients = () => {
     contact_name: "",
     contact_phone: "",
     contact_email: "",
+    sales_channels: [] as string[],
   });
   const { toast } = useToast();
 
@@ -119,12 +130,13 @@ const Clients = () => {
       website: formData.website || null,
       notes: formData.notes || null,
       status: formData.status,
-      segment: formData.segment as "inside_sales" | "ecommerce" | "marketplace" | "local_business",
+      segment: formData.segment as "inside_sales" | "ecommerce" | "marketplace" | "local_business" | "social_commerce",
       contract_start: formData.contract_start || null,
       monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : null,
       contact_name: formData.contact_name || null,
       contact_phone: formData.contact_phone || null,
       contact_email: formData.contact_email || null,
+      sales_channels: formData.sales_channels.length > 0 ? formData.sales_channels : null,
     };
 
     if (editingClient) {
@@ -238,6 +250,7 @@ const Clients = () => {
       contact_name: client.contact_name || "",
       contact_phone: client.contact_phone || "",
       contact_email: client.contact_email || "",
+      sales_channels: client.sales_channels || [],
     });
     setDialogOpen(true);
   };
@@ -258,7 +271,26 @@ const Clients = () => {
       contact_name: "",
       contact_phone: "",
       contact_email: "",
+      sales_channels: [],
     });
+  };
+
+  const toggleChannel = (channelId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      sales_channels: prev.sales_channels.includes(channelId)
+        ? prev.sales_channels.filter(c => c !== channelId)
+        : [...prev.sales_channels, channelId]
+    }));
+  };
+
+  const getChannelLabel = (channelId: string) => {
+    return SALES_CHANNELS.find(c => c.id === channelId)?.label || channelId;
+  };
+
+  const getChannelIcon = (channelId: string) => {
+    const channel = SALES_CHANNELS.find(c => c.id === channelId);
+    return channel?.icon || ShoppingCart;
   };
 
   const getStatusColor = (status: string) => {
@@ -452,6 +484,64 @@ const Clients = () => {
                             </SelectContent>
                           </Select>
                         </div>
+                      </div>
+                      
+                      {/* Canais de Venda */}
+                      <div className="space-y-3">
+                        <Label>Canais de Venda / Serviços Contratados</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Selecione todos os canais onde o cliente vende ou serviços contratados
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {SALES_CHANNELS.map((channel) => {
+                            const Icon = channel.icon;
+                            const isSelected = formData.sales_channels.includes(channel.id);
+                            return (
+                              <div
+                                key={channel.id}
+                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                  isSelected 
+                                    ? "border-primary bg-primary/5" 
+                                    : "border-border hover:border-primary/50"
+                                }`}
+                                onClick={() => toggleChannel(channel.id)}
+                              >
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={() => toggleChannel(channel.id)}
+                                />
+                                <Icon className={`h-4 w-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">{channel.label}</p>
+                                  <p className="text-xs text-muted-foreground">{channel.description}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {formData.sales_channels.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-2">
+                            {formData.sales_channels.map(channelId => (
+                              <Badge 
+                                key={channelId} 
+                                variant="secondary"
+                                className="flex items-center gap-1 pr-1"
+                              >
+                                {getChannelLabel(channelId)}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleChannel(channelId);
+                                  }}
+                                  className="ml-1 hover:bg-muted rounded-full p-0.5"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -671,6 +761,28 @@ const Clients = () => {
                         >
                           {client.website}
                         </a>
+                      </div>
+                    )}
+                    {client.sales_channels && client.sales_channels.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {client.sales_channels.slice(0, 3).map(channelId => {
+                          const Icon = getChannelIcon(channelId);
+                          return (
+                            <Badge 
+                              key={channelId} 
+                              variant="outline"
+                              className="text-xs flex items-center gap-1"
+                            >
+                              <Icon className="h-3 w-3" />
+                              {getChannelLabel(channelId)}
+                            </Badge>
+                          );
+                        })}
+                        {client.sales_channels.length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{client.sales_channels.length - 3}
+                          </Badge>
+                        )}
                       </div>
                     )}
                     {client.notes && (
