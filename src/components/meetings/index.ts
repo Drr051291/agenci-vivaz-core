@@ -6,3 +6,6 @@ export { InsightsSection } from "./InsightsSection";
 export { ChecklistSection } from "./ChecklistSection";
 export { CollapsibleSection } from "./CollapsibleSection";
 export { MeetingSidebar } from "./MeetingSidebar";
+
+// v2 Components
+export * from "./v2";
