@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { motion } from "framer-motion";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated";
@@ -510,25 +510,33 @@ const Clients = () => {
                             const Icon = channel.icon;
                             const isSelected = formData.sales_channels.includes(channel.id);
                             return (
-                              <div
+                              <button
+                                type="button"
                                 key={channel.id}
-                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all text-left ${
                                   isSelected 
                                     ? "border-primary bg-primary/5" 
                                     : "border-border hover:border-primary/50"
                                 }`}
                                 onClick={() => toggleChannel(channel.id)}
                               >
-                                <Checkbox
-                                  checked={isSelected}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
+                                <div className={`h-4 w-4 rounded border flex items-center justify-center ${
+                                  isSelected 
+                                    ? "bg-primary border-primary" 
+                                    : "border-muted-foreground"
+                                }`}>
+                                  {isSelected && (
+                                    <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </div>
                                 <Icon className={`h-4 w-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
                                 <div className="flex-1">
                                   <p className="text-sm font-medium">{channel.label}</p>
                                   <p className="text-xs text-muted-foreground">{channel.description}</p>
                                 </div>
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
