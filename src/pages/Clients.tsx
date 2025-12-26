@@ -24,7 +24,17 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Building2, Globe, Pencil, User, Phone, Mail, ShoppingCart, Store, Megaphone, MapPin, Users, X } from "lucide-react";
+import { Plus, Building2, Globe, Pencil, User, Phone, Mail, ShoppingCart, Store, Megaphone, MapPin, Users, X, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -56,6 +66,32 @@ const SALES_CHANNELS = [
   { id: "inside_sales", label: "Inside Sales", description: "Geração de Leads", icon: Users },
 ] as const;
 
+const COMPANY_SEGMENTS = [
+  { id: "moda_feminina", label: "Moda Feminina" },
+  { id: "moda_masculina", label: "Moda Masculina" },
+  { id: "moda_infantil", label: "Moda Infantil" },
+  { id: "semijoias", label: "Semijoias e Acessórios" },
+  { id: "casa_decoracao", label: "Casa e Decoração" },
+  { id: "quadros_arte", label: "Quadros e Arte" },
+  { id: "cosmeticos", label: "Cosméticos e Beleza" },
+  { id: "saude_fitness", label: "Saúde e Fitness" },
+  { id: "alimentos", label: "Alimentos e Bebidas" },
+  { id: "pet", label: "Pet Shop" },
+  { id: "eletronicos", label: "Eletrônicos" },
+  { id: "moveis", label: "Móveis" },
+  { id: "brinquedos", label: "Brinquedos" },
+  { id: "papelaria", label: "Papelaria e Escritório" },
+  { id: "saas", label: "SaaS / Software" },
+  { id: "agencia_consultoria", label: "Agência / Consultoria" },
+  { id: "servicos_b2b", label: "Serviços B2B" },
+  { id: "servicos_b2c", label: "Serviços B2C" },
+  { id: "educacao", label: "Educação" },
+  { id: "imobiliario", label: "Imobiliário" },
+  { id: "automotivo", label: "Automotivo" },
+  { id: "industria", label: "Indústria" },
+  { id: "outro", label: "Outro" },
+] as const;
+
 const Clients = () => {
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
@@ -68,8 +104,8 @@ const Clients = () => {
     address: "",
     website: "",
     notes: "",
-    status: "prospecting",
-    segment: "local_business",
+    status: "active",
+    segment: "outro",
     contract_start: "",
     monthly_fee: "",
     contact_name: "",
@@ -77,6 +113,8 @@ const Clients = () => {
     contact_email: "",
     sales_channels: [] as string[],
   });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const { toast } = useToast();
 
   usePageMeta({
@@ -264,8 +302,8 @@ const Clients = () => {
       address: "",
       website: "",
       notes: "",
-      status: "prospecting",
-      segment: "local_business",
+      status: "active",
+      segment: "outro",
       contract_start: "",
       monthly_fee: "",
       contact_name: "",
@@ -273,6 +311,37 @@ const Clients = () => {
       contact_email: "",
       sales_channels: [],
     });
+  };
+
+  const handleDeleteClient = async () => {
+    if (!clientToDelete) return;
+
+    const { error } = await supabase
+      .from("clients")
+      .delete()
+      .eq("id", clientToDelete.id);
+
+    if (error) {
+      toast({
+        title: "Erro ao excluir cliente",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Cliente excluído!",
+        description: "O cliente foi removido com sucesso.",
+      });
+      fetchClients();
+    }
+    setDeleteDialogOpen(false);
+    setClientToDelete(null);
+  };
+
+  const confirmDeleteClient = (client: Client, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setClientToDelete(client);
+    setDeleteDialogOpen(true);
   };
 
   const toggleChannel = (channelId: string) => {
@@ -297,51 +366,21 @@ const Clients = () => {
     const colors = {
       active: "bg-primary/20 text-primary",
       inactive: "bg-muted text-muted-foreground",
-      prospecting: "bg-secondary/20 text-secondary",
     };
-    return colors[status as keyof typeof colors] || colors.prospecting;
+    return colors[status as keyof typeof colors] || colors.active;
   };
 
   const getStatusLabel = (status: string) => {
     const labels = {
       active: "Ativo",
       inactive: "Inativo",
-      prospecting: "Prospecção",
     };
     return labels[status as keyof typeof labels] || status;
   };
 
-  const getSegmentColor = (segment: string) => {
-    const colors = {
-      inside_sales: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-      ecommerce: "bg-green-500/10 text-green-500 border-green-500/20",
-      marketplace: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-      social_commerce: "bg-pink-500/10 text-pink-500 border-pink-500/20",
-      local_business: "bg-orange-500/10 text-orange-500 border-orange-500/20",
-    };
-    return colors[segment as keyof typeof colors] || colors.local_business;
-  };
-
   const getSegmentLabel = (segment: string) => {
-    const labels = {
-      inside_sales: "Inside Sales",
-      ecommerce: "E-commerce",
-      marketplace: "Marketplace",
-      social_commerce: "Social Commerce",
-      local_business: "Negócio Local",
-    };
-    return labels[segment as keyof typeof labels] || segment;
-  };
-
-  const getSegmentDescription = (segment: string) => {
-    const descriptions: Record<string, string> = {
-      inside_sales: "Geração de Leads",
-      ecommerce: "Varejo Digital",
-      marketplace: "Varejo Digital",
-      social_commerce: "Varejo Digital",
-      local_business: "Varejo Digital",
-    };
-    return descriptions[segment] || "";
+    const found = COMPANY_SEGMENTS.find(s => s.id === segment);
+    return found?.label || segment;
   };
 
   return (
@@ -433,14 +472,13 @@ const Clients = () => {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="prospecting">Prospecção</SelectItem>
                               <SelectItem value="active">Ativo</SelectItem>
                               <SelectItem value="inactive">Inativo</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="segment">Segmento *</Label>
+                          <Label htmlFor="segment">Segmento da Empresa *</Label>
                           <Select
                             value={formData.segment}
                             onValueChange={(value) =>
@@ -448,39 +486,14 @@ const Clients = () => {
                             }
                           >
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue placeholder="Selecione o segmento" />
                             </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="inside_sales">
-                                <span className="flex flex-col">
-                                  <span>Inside Sales</span>
-                                  <span className="text-xs text-muted-foreground">Geração de Leads</span>
-                                </span>
-                              </SelectItem>
-                              <SelectItem value="ecommerce">
-                                <span className="flex flex-col">
-                                  <span>E-commerce</span>
-                                  <span className="text-xs text-muted-foreground">Varejo Digital</span>
-                                </span>
-                              </SelectItem>
-                              <SelectItem value="marketplace">
-                                <span className="flex flex-col">
-                                  <span>Marketplace</span>
-                                  <span className="text-xs text-muted-foreground">Varejo Digital</span>
-                                </span>
-                              </SelectItem>
-                              <SelectItem value="social_commerce">
-                                <span className="flex flex-col">
-                                  <span>Social Commerce</span>
-                                  <span className="text-xs text-muted-foreground">Varejo Digital</span>
-                                </span>
-                              </SelectItem>
-                              <SelectItem value="local_business">
-                                <span className="flex flex-col">
-                                  <span>Negócio Local</span>
-                                  <span className="text-xs text-muted-foreground">Varejo Digital</span>
-                                </span>
-                              </SelectItem>
+                            <SelectContent className="max-h-[300px]">
+                              {COMPANY_SEGMENTS.map((segment) => (
+                                <SelectItem key={segment.id} value={segment.id}>
+                                  {segment.label}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -671,7 +684,7 @@ const Clients = () => {
                           <CardTitle className="text-lg group-hover:text-primary transition-colors">
                             {client.company_name}
                           </CardTitle>
-                          <Badge className={getSegmentColor(client.segment)}>
+                          <Badge variant="secondary">
                             {getSegmentLabel(client.segment)}
                           </Badge>
                         </div>
@@ -693,6 +706,16 @@ const Clients = () => {
                             className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                        </motion.div>
+                        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => confirmDeleteClient(client, e)}
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </motion.div>
                         <span
@@ -797,6 +820,28 @@ const Clients = () => {
           </StaggerContainer>
         )}
       </div>
+
+      {/* Dialog de confirmação de exclusão */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o cliente "{clientToDelete?.company_name}"? 
+              Esta ação não pode ser desfeita e todos os dados relacionados serão removidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteClient}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };
