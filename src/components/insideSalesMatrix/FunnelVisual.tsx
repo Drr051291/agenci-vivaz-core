@@ -92,31 +92,24 @@ export function FunnelVisual({ inputs, outputs, impacts }: FunnelVisualProps) {
                     <div className="flex items-center justify-center py-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className={cn(
-                            "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs border",
+                      <div className={cn(
+                            "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] border",
                             config?.text,
                             config?.border,
                             "bg-background/50",
                             conversion.isBiggestDrop && "ring-2 ring-red-500/50 ring-offset-1"
                           )}>
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                            </svg>
                             <span className="font-semibold">{formatPercent(conversion.rate)}</span>
-                            <span className="text-muted-foreground/70">/ {formatPercent(conversion.target)}</span>
+                            <span className="text-muted-foreground/60 text-[10px]">/{formatPercent(conversion.target)}</span>
                             {conversion.isBiggestDrop && (
-                              <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4 ml-1">
-                                Maior queda
+                              <Badge variant="destructive" className="text-[9px] px-1 py-0 h-3.5 ml-0.5">
+                                Gargalo
                               </Badge>
                             )}
                           </div>
                         </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs">
-                            {levels[index - 1].label} → {level.label}: {formatPercent(conversion.rate)}
-                            <br />
-                            Meta: {formatPercent(conversion.target)}
-                          </p>
+                        <TooltipContent className="text-xs">
+                          {formatPercent(conversion.rate)} atual • {formatPercent(conversion.target)} meta
                         </TooltipContent>
                       </Tooltip>
                     </div>

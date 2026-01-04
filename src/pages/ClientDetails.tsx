@@ -12,7 +12,7 @@ import { ClientTasks } from "@/components/client-details/ClientTasks";
 import { ClientMeetings } from "@/components/client-details/ClientMeetings";
 import { ClientDashboardsNew } from "@/components/client-details/ClientDashboardsNew";
 import { ClientFinancial } from "@/components/client-details/ClientFinancial";
-import { VivazDashboard } from "@/components/client-details/VivazDashboard";
+import { ClientPerformance } from "@/components/client-details/ClientPerformance";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface Client {
@@ -137,7 +137,7 @@ export default function ClientDetails() {
             <TabsTrigger value="tasks">Atividades</TabsTrigger>
             <TabsTrigger value="meetings">Reuniões</TabsTrigger>
             <TabsTrigger value="dashboards">Dashboards</TabsTrigger>
-            <TabsTrigger value="vivaz">Dashboard Vivaz</TabsTrigger>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
           </TabsList>
 
@@ -157,8 +157,8 @@ export default function ClientDetails() {
             <ClientDashboardsNew clientId={client.id} clientName={client.company_name} />
           </TabsContent>
 
-          <TabsContent value="vivaz" className="mt-4">
-            <VivazDashboard clientId={client.id} clientName={client.company_name} />
+          <TabsContent value="performance" className="mt-4">
+            <ClientPerformance clientId={client.id} />
           </TabsContent>
 
           <TabsContent value="financial" className="mt-4">

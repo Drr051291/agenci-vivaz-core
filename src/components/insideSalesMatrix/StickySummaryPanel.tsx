@@ -40,9 +40,9 @@ export function StickySummaryPanel({
 
   return (
     <Card className="sticky top-24 h-fit">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Resumo & Ações</CardTitle>
+          <CardTitle className="text-sm">Resumo</CardTitle>
           <ConfidenceChip confidence={confidence} size="sm" />
         </div>
       </CardHeader>
