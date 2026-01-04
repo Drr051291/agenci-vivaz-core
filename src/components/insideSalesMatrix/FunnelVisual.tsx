@@ -4,23 +4,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InsideSalesInputs, InsideSalesOutputs, formatPercent } from "@/lib/insideSalesMatrix/calc";
 import { StageImpact } from "@/lib/insideSalesMatrix/impact";
+import { BenchmarkProfile, getBenchmarkForStage } from "@/lib/insideSalesMatrix/benchmarkProfile";
 import { cn } from "@/lib/utils";
+import { Info } from "lucide-react";
 
 interface FunnelVisualProps {
   inputs: InsideSalesInputs;
   outputs: InsideSalesOutputs;
   impacts: StageImpact[];
+  benchmarkProfile?: BenchmarkProfile | null;
+  showBenchmarks?: boolean;
 }
 
 const statusConfig = {
-  ok: { label: 'OK', color: 'bg-green-500', text: 'text-green-600', border: 'border-green-500/30' },
-  atencao: { label: 'Atenção', color: 'bg-yellow-500', text: 'text-yellow-600', border: 'border-yellow-500/30' },
-  critico: { label: 'Crítico', color: 'bg-red-500', text: 'text-red-600', border: 'border-red-500/30' },
-  sem_dados: { label: 'Sem dados', color: 'bg-muted', text: 'text-muted-foreground', border: 'border-muted' },
-  baixa_amostra: { label: 'Baixa amostra', color: 'bg-purple-500', text: 'text-purple-600', border: 'border-purple-500/30' },
+  ok: { label: 'OK', color: 'bg-green-500', text: 'text-green-600', border: 'border-green-500/30', bg: 'bg-green-500/10' },
+  atencao: { label: 'Atenção', color: 'bg-yellow-500', text: 'text-yellow-600', border: 'border-yellow-500/30', bg: 'bg-yellow-500/10' },
+  critico: { label: 'Crítico', color: 'bg-red-500', text: 'text-red-600', border: 'border-red-500/30', bg: 'bg-red-500/10' },
+  sem_dados: { label: '—', color: 'bg-muted', text: 'text-muted-foreground', border: 'border-muted', bg: 'bg-muted/30' },
+  baixa_amostra: { label: 'N/A', color: 'bg-purple-500', text: 'text-purple-600', border: 'border-purple-500/30', bg: 'bg-purple-500/10' },
 };
 
-export function FunnelVisual({ inputs, outputs, impacts }: FunnelVisualProps) {
+export function FunnelVisual({ inputs, outputs, impacts, benchmarkProfile, showBenchmarks }: FunnelVisualProps) {
   const { cliques, leads = 0, mql = 0, sql = 0, reunioes = 0, contratos = 0 } = inputs;
   
   // Find biggest drop-off
@@ -62,24 +66,36 @@ export function FunnelVisual({ inputs, outputs, impacts }: FunnelVisualProps) {
     const stageId = currentLevel.key || prevLevel.key;
     const impact = impacts.find(i => i.stageId === stageId);
     
-    if (!impact || impact.current.rate === undefined) return null;
+    if (!impact) return null;
+    
+    const isEligible = impact.status !== 'baixa_amostra' && impact.status !== 'sem_dados';
+    const benchmark = stageId ? getBenchmarkForStage(stageId, benchmarkProfile) : undefined;
     
     return {
       rate: impact.current.rate,
       target: impact.target.rate,
+      benchmark: benchmark,
       status: impact.status,
       isBiggestDrop: impacts.indexOf(impact) === biggestDropIdx && impact.status === 'critico',
+      isEligible,
     };
   };
 
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold">Funil do Período</CardTitle>
+        <CardTitle className="text-base font-semibold flex items-center justify-between">
+          Funil do Período
+          {showBenchmarks && (
+            <Badge variant="outline" className="text-[10px] font-normal">
+              Bench FPS
+            </Badge>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <TooltipProvider>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {levels.map((level, index) => {
               const widthPercent = Math.max((level.value / maxValue) * 100, 15);
               const conversion = getConversionInfo(index);
@@ -87,31 +103,57 @@ export function FunnelVisual({ inputs, outputs, impacts }: FunnelVisualProps) {
               
               return (
                 <div key={level.label}>
-                  {/* Conversion arrow between levels */}
+                  {/* 3-Value Strip: Atual | Meta | Bench + Status */}
                   {conversion && (
-                    <div className="flex items-center justify-center py-1">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
+                    <div className="flex items-center justify-center py-1.5 gap-1">
                       <div className={cn(
-                            "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] border",
-                            config?.text,
-                            config?.border,
-                            "bg-background/50",
-                            conversion.isBiggestDrop && "ring-2 ring-red-500/50 ring-offset-1"
-                          )}>
+                        "flex items-center gap-1 px-2 py-0.5 rounded text-[10px] border",
+                        config?.border,
+                        config?.bg,
+                      )}>
+                        {conversion.isEligible && conversion.rate !== undefined ? (
+                          <>
                             <span className="font-semibold">{formatPercent(conversion.rate)}</span>
-                            <span className="text-muted-foreground/60 text-[10px]">/{formatPercent(conversion.target)}</span>
-                            {conversion.isBiggestDrop && (
-                              <Badge variant="destructive" className="text-[9px] px-1 py-0 h-3.5 ml-0.5">
-                                Gargalo
-                              </Badge>
+                            <span className="text-muted-foreground/60">|</span>
+                            <span className="text-muted-foreground">{formatPercent(conversion.target)}</span>
+                            {showBenchmarks && conversion.benchmark !== undefined && (
+                              <>
+                                <span className="text-muted-foreground/60">|</span>
+                                <span className="text-blue-600">{formatPercent(conversion.benchmark)}</span>
+                              </>
                             )}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent className="text-xs">
-                          {formatPercent(conversion.rate)} atual • {formatPercent(conversion.target)} meta
-                        </TooltipContent>
-                      </Tooltip>
+                          </>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-muted-foreground flex items-center gap-1">
+                                <Info className="h-3 w-3" />
+                                {conversion.status === 'baixa_amostra' ? 'Amostra' : '—'}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="text-xs">
+                              {conversion.status === 'baixa_amostra' 
+                                ? 'Amostra insuficiente para análise' 
+                                : 'Preencha os dados'}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                      {/* Status pill */}
+                      {conversion.isEligible && (
+                        <Badge 
+                          variant="outline" 
+                          className={cn("text-[9px] h-4 px-1", config?.text, config?.border)}
+                        >
+                          {config?.label}
+                        </Badge>
+                      )}
+                      {/* Biggest drop marker */}
+                      {conversion.isBiggestDrop && (
+                        <Badge variant="destructive" className="text-[9px] h-4 px-1">
+                          Gargalo
+                        </Badge>
+                      )}
                     </div>
                   )}
                   
@@ -125,7 +167,7 @@ export function FunnelVisual({ inputs, outputs, impacts }: FunnelVisualProps) {
                   >
                     <div 
                       className={cn(
-                        "h-10 rounded-lg flex items-center justify-center relative overflow-hidden",
+                        "h-9 rounded-lg flex items-center justify-center relative overflow-hidden",
                         index === 0 ? "bg-primary" : 
                         index === levels.length - 1 ? "bg-green-600" : 
                         "bg-primary/80"
@@ -142,7 +184,7 @@ export function FunnelVisual({ inputs, outputs, impacts }: FunnelVisualProps) {
                   </motion.div>
                   
                   {/* Label */}
-                  <p className="text-center text-xs font-medium text-muted-foreground mt-0.5">
+                  <p className="text-center text-[11px] font-medium text-muted-foreground mt-0.5">
                     {level.label}
                   </p>
                 </div>
@@ -151,14 +193,19 @@ export function FunnelVisual({ inputs, outputs, impacts }: FunnelVisualProps) {
           </div>
         </TooltipProvider>
         
-        {/* Status legend */}
-        <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t text-xs justify-center">
-          {Object.entries(statusConfig).filter(([k]) => k !== 'sem_dados').map(([key, cfg]) => (
-            <div key={key} className="flex items-center gap-1">
-              <span className={cn("w-2 h-2 rounded-full", cfg.color)} />
-              <span className="text-muted-foreground">{cfg.label}</span>
-            </div>
-          ))}
+        {/* Minimal legend */}
+        <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t text-[10px] justify-center">
+          <span className="text-muted-foreground">Atual | Meta{showBenchmarks ? ' | Bench' : ''}</span>
+          <span className="text-muted-foreground/50">•</span>
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />OK
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />Atenção
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />Crítico
+          </span>
         </div>
       </CardContent>
     </Card>
