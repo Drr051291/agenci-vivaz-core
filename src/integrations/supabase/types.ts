@@ -126,6 +126,67 @@ export type Database = {
           },
         ]
       }
+      client_performance_entries: {
+        Row: {
+          channel: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          diagnostic_id: string | null
+          entry_type: string
+          id: string
+          period_end: string | null
+          period_start: string | null
+          summary: Json
+        }
+        Insert: {
+          channel?: string | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          diagnostic_id?: string | null
+          entry_type?: string
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          summary?: Json
+        }
+        Update: {
+          channel?: string | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          diagnostic_id?: string | null
+          entry_type?: string
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          summary?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_performance_entries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_performance_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_performance_entries_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "inside_sales_diagnostics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -642,6 +703,58 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_action_links: {
+        Row: {
+          action_item: Json
+          created_at: string
+          id: string
+          is_task_created: boolean | null
+          meeting_id: string
+          performance_entry_id: string | null
+          task_id: string | null
+        }
+        Insert: {
+          action_item: Json
+          created_at?: string
+          id?: string
+          is_task_created?: boolean | null
+          meeting_id: string
+          performance_entry_id?: string | null
+          task_id?: string | null
+        }
+        Update: {
+          action_item?: Json
+          created_at?: string
+          id?: string
+          is_task_created?: boolean | null
+          meeting_id?: string
+          performance_entry_id?: string | null
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_action_links_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_minutes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_action_links_performance_entry_id_fkey"
+            columns: ["performance_entry_id"]
+            isOneToOne: false
+            referencedRelation: "client_performance_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_action_links_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -1729,6 +1842,8 @@ export type Database = {
           owner_type: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
+          source: string | null
+          source_id: string | null
           status: string
           title: string
           updated_at: string
@@ -1746,6 +1861,8 @@ export type Database = {
           owner_type?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          source?: string | null
+          source_id?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -1763,6 +1880,8 @@ export type Database = {
           owner_type?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          source?: string | null
+          source_id?: string | null
           status?: string
           title?: string
           updated_at?: string

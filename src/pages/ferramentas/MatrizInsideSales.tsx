@@ -261,8 +261,50 @@ export default function MatrizInsideSales() {
     toast.success('Ação adicionada ao plano!');
   }
 
-  function applyAIPlan(items: ActionItemV2[]) {
+  async function applyAIPlan(items: ActionItemV2[], options?: { linkToMeeting: boolean; meetingId?: string; createTasks: boolean }) {
     setActionItems(prev => [...prev, ...items]);
+    
+    // Handle optional meeting linking
+    if (options?.linkToMeeting && options.meetingId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const linkPromises = items.map(item => 
+          (supabase.from('meeting_action_links') as any).insert({
+            meeting_id: options.meetingId,
+            action_item: {
+              title: item.title,
+              type: item.type,
+              stage: item.stage,
+              priority: item.priority,
+              metric_to_watch: item.metricFocus,
+              next_step: item.nextStep,
+            },
+          })
+        );
+        await Promise.all(linkPromises);
+      }
+    }
+
+    // Handle optional task creation
+    if (options?.createTasks && clientId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const taskPromises = items.map(item =>
+          supabase.from('tasks').insert({
+            client_id: clientId,
+            title: item.title,
+            category: item.type === 'midia' ? 'gestao_de_trafego' : 'comercial',
+            priority: item.priority === 'Alta' ? 'high' : item.priority === 'Média' ? 'medium' : 'low',
+            status: 'todo',
+            description: item.nextStep || '',
+            source: 'performance_analysis',
+            created_by: user.id,
+          })
+        );
+        await Promise.all(taskPromises);
+        toast.success(`${items.length} tarefa(s) criada(s)!`);
+      }
+    }
   }
 
   async function handleSave() {
@@ -279,7 +321,8 @@ export default function MatrizInsideSales() {
         return acc;
       }, {} as Record<string, any>);
 
-      const { error } = await supabase.from('inside_sales_diagnostics').insert({
+      // Insert diagnostic
+      const { data: diagData, error: diagError } = await supabase.from('inside_sales_diagnostics').insert({
         client_id: clientId || null,
         client_name: clientName || null,
         period_label: periodLabel || null,
@@ -289,9 +332,39 @@ export default function MatrizInsideSales() {
         targets: targets as unknown as Json,
         stage_status: stageStatusData as unknown as Json,
         created_by: user.id,
-      });
+      }).select().single();
 
-      if (error) throw error;
+      if (diagError) throw diagError;
+
+      // Also create client performance entry if client is selected
+      if (clientId && diagData) {
+        // Build summary snapshot
+        const summary = {
+          bottleneck: gargalo1?.stageName || null,
+          gaps: impacts
+            .filter(i => i.gapPp !== undefined && i.gapPp < 0 && eligibleStages.includes(i.stageId))
+            .slice(0, 3)
+            .map(i => ({ stage: i.stageName, gap: i.gapPp! })),
+          confidence_score: confidenceScore.score,
+          key_rates: {
+            'Lead→MQL': outputs.leadToMql,
+            'MQL→SQL': outputs.mqlToSql,
+            'SQL→Reunião': outputs.sqlToMeeting,
+            'Reunião→Contrato': outputs.meetingToWin,
+          },
+        };
+
+        await (supabase.from('client_performance_entries') as any).insert({
+          client_id: clientId,
+          entry_type: 'inside_sales_matrix',
+          period_start: periodRange?.startDate || null,
+          period_end: periodRange?.endDate || null,
+          channel: channel || null,
+          summary: summary,
+          diagnostic_id: diagData.id,
+          created_by: user.id,
+        });
+      }
 
       toast.success('Diagnóstico salvo com sucesso!');
       loadHistory();
@@ -614,6 +687,7 @@ export default function MatrizInsideSales() {
           formComplexity={formComplexity as FormComplexity || undefined}
           investmentDensity={investmentDensity || undefined}
           adjustedTargets={adjustedTargets}
+          clientId={clientId || undefined}
         />
 
         {/* Mobile Bottom Bar */}

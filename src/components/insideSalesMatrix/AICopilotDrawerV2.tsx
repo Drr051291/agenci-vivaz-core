@@ -12,6 +12,7 @@ import { Targets } from "@/lib/insideSalesMatrix/status";
 import { StageImpact } from "@/lib/insideSalesMatrix/impact";
 import { MatrixRule } from "@/lib/insideSalesMatrix/rules";
 import { ActionItemV2 } from "./ActionPlanV2";
+import { ApplyPlanDialog } from "./ApplyPlanDialog";
 import { cn } from "@/lib/utils";
 import { InvestmentDensity, FormComplexity } from "@/lib/insideSalesMatrix/channelLogic";
 
@@ -32,23 +33,25 @@ interface AICopilotDrawerV2Props {
   targets: Targets;
   impacts: StageImpact[];
   rules: MatrixRule[];
-  onApplyPlan: (items: ActionItemV2[]) => void;
+  onApplyPlan: (items: ActionItemV2[], options?: { linkToMeeting: boolean; meetingId?: string; createTasks: boolean }) => void;
   cachedAnalysis?: AIAnalysisV2 | null;
   onAnalysisGenerated: (analysis: AIAnalysisV2) => void;
   channel?: string;
   formComplexity?: FormComplexity;
   investmentDensity?: InvestmentDensity;
   adjustedTargets?: Targets;
+  clientId?: string;
 }
 
 export function AICopilotDrawerV2({
   open, onOpenChange, inputs, outputs, targets, impacts, rules,
   onApplyPlan, cachedAnalysis, onAnalysisGenerated,
-  channel, formComplexity, investmentDensity, adjustedTargets,
+  channel, formComplexity, investmentDensity, adjustedTargets, clientId,
 }: AICopilotDrawerV2Props) {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<AIAnalysisV2 | null>(cachedAnalysis || null);
   const [mode, setMode] = useState<'compacto' | 'detalhado'>('compacto');
+  const [showApplyDialog, setShowApplyDialog] = useState(false);
 
   const generateAnalysis = async () => {
     setLoading(true);
@@ -77,9 +80,9 @@ export function AICopilotDrawerV2({
     }
   };
 
-  const applyPlan = () => {
-    if (!analysis?.actions) return;
-    const items: ActionItemV2[] = analysis.actions.map(a => ({
+  const getActionItems = (): ActionItemV2[] => {
+    if (!analysis?.actions) return [];
+    return analysis.actions.map(a => ({
       id: crypto.randomUUID(),
       title: a.title,
       stage: a.stage,
@@ -89,13 +92,30 @@ export function AICopilotDrawerV2({
       metricFocus: a.metric_to_watch,
       nextStep: a.next_step,
     }));
-    onApplyPlan(items);
+  };
+
+  const handleApplyClick = () => {
+    if (clientId) {
+      setShowApplyDialog(true);
+    } else {
+      // No client, apply directly without options
+      const items = getActionItems();
+      onApplyPlan(items);
+      toast.success('Plano aplicado!');
+      onOpenChange(false);
+    }
+  };
+
+  const handleApplyConfirm = (options: { linkToMeeting: boolean; meetingId?: string; createTasks: boolean }) => {
+    const items = getActionItems();
+    onApplyPlan(items, options);
     toast.success('Plano aplicado!');
     onOpenChange(false);
   };
 
   const midiaActions = analysis?.actions.filter(a => a.type === 'Mídia') || [];
   const processoActions = analysis?.actions.filter(a => a.type === 'Processo') || [];
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -179,7 +199,7 @@ export function AICopilotDrawerV2({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase">Plano de ação</p>
-                  <Button size="sm" onClick={applyPlan}>Aplicar plano</Button>
+                  <Button size="sm" onClick={handleApplyClick}>Aplicar plano</Button>
                 </div>
 
                 {midiaActions.length > 0 && (
@@ -218,6 +238,15 @@ export function AICopilotDrawerV2({
           )}
         </div>
       </SheetContent>
+      
+      {/* Apply plan dialog with options */}
+      <ApplyPlanDialog
+        open={showApplyDialog}
+        onOpenChange={setShowApplyDialog}
+        actions={getActionItems()}
+        clientId={clientId}
+        onConfirm={handleApplyConfirm}
+      />
     </Sheet>
   );
 }
