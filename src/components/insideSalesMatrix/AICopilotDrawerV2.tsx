@@ -11,17 +11,31 @@ import { InsideSalesInputs, InsideSalesOutputs } from "@/lib/insideSalesMatrix/c
 import { Targets } from "@/lib/insideSalesMatrix/status";
 import { StageImpact } from "@/lib/insideSalesMatrix/impact";
 import { MatrixRule } from "@/lib/insideSalesMatrix/rules";
+import { BenchmarkProfile } from "@/lib/insideSalesMatrix/benchmarkProfile";
+import { FPSChannel, FPSSegment } from "@/lib/insideSalesMatrix/benchmarksFPS";
 import { ActionItemV2 } from "./ActionPlanV2";
 import { ApplyPlanDialog } from "./ApplyPlanDialog";
 import { cn } from "@/lib/utils";
 import { InvestmentDensity, FormComplexity } from "@/lib/insideSalesMatrix/channelLogic";
 
+interface AIActionItem {
+  type?: 'Mídia' | 'Processo';
+  stage: string;
+  title: string;
+  next_step: string;
+  metric_to_watch: string;
+  priority: 'Alta' | 'Média' | 'Baixa';
+}
+
 interface AIAnalysisV2 {
   headline: string;
   confidence: 'Baixa' | 'Média' | 'Alta';
-  snapshot: { stage: string; current: string; target: string; gap_pp: number; status: string }[];
-  top_bottlenecks: { stage: string; why: string; impact: string; gap_pp: number }[];
-  actions: { type: 'Mídia' | 'Processo'; stage: string; title: string; next_step: string; metric_to_watch: string; priority: 'Alta' | 'Média' | 'Baixa' }[];
+  context?: { segment?: string; channel?: string; benchmark_mode?: boolean };
+  snapshot: { stage: string; current: string; target: string; benchmark?: string; gap_pp: number; vs_bench_pp?: number; eligible?: boolean; status: string }[];
+  bottlenecks?: { stage: string; reason: string; impact_level?: string }[];
+  top_bottlenecks?: { stage: string; why: string; impact: string; gap_pp: number }[];
+  actions: AIActionItem[] | { midia?: AIActionItem[]; processo?: AIActionItem[] };
+  rules_used?: string[];
   questions: string[];
 }
 
@@ -41,12 +55,18 @@ interface AICopilotDrawerV2Props {
   investmentDensity?: InvestmentDensity;
   adjustedTargets?: Targets;
   clientId?: string;
+  // New benchmark props
+  fpsChannel?: FPSChannel | '';
+  fpsSegment?: FPSSegment | '';
+  benchmarkMode?: boolean;
+  benchmarkProfile?: BenchmarkProfile | null;
 }
 
 export function AICopilotDrawerV2({
   open, onOpenChange, inputs, outputs, targets, impacts, rules,
   onApplyPlan, cachedAnalysis, onAnalysisGenerated,
   channel, formComplexity, investmentDensity, adjustedTargets, clientId,
+  fpsChannel, fpsSegment, benchmarkMode, benchmarkProfile,
 }: AICopilotDrawerV2Props) {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<AIAnalysisV2 | null>(cachedAnalysis || null);
@@ -60,6 +80,7 @@ export function AICopilotDrawerV2({
         body: { 
           inputs, outputs, targets, impacts, rules: rules.slice(0, 15), mode,
           channel, formComplexity, investmentDensity, adjustedTargets,
+          fpsChannel, fpsSegment, benchmarkMode, benchmarkProfile,
         },
       });
 
@@ -80,9 +101,38 @@ export function AICopilotDrawerV2({
     }
   };
 
+  // Handle both old and new action formats
   const getActionItems = (): ActionItemV2[] => {
     if (!analysis?.actions) return [];
-    return analysis.actions.map(a => ({
+    
+    // New format: { midia: [], processo: [] }
+    if ('midia' in analysis.actions || 'processo' in analysis.actions) {
+      const actionsObj = analysis.actions as { midia?: AIActionItem[]; processo?: AIActionItem[] };
+      const midiaActions = (actionsObj.midia || []).map(a => ({
+        id: crypto.randomUUID(),
+        title: a.title,
+        stage: a.stage,
+        type: 'midia' as const,
+        priority: a.priority,
+        status: 'A Fazer' as const,
+        metricFocus: a.metric_to_watch,
+        nextStep: a.next_step,
+      }));
+      const processoActions = (actionsObj.processo || []).map(a => ({
+        id: crypto.randomUUID(),
+        title: a.title,
+        stage: a.stage,
+        type: 'processo' as const,
+        priority: a.priority,
+        status: 'A Fazer' as const,
+        metricFocus: a.metric_to_watch,
+        nextStep: a.next_step,
+      }));
+      return [...midiaActions, ...processoActions];
+    }
+    
+    // Old format: array
+    return (analysis.actions as AIActionItem[]).map(a => ({
       id: crypto.randomUUID(),
       title: a.title,
       stage: a.stage,
@@ -98,7 +148,6 @@ export function AICopilotDrawerV2({
     if (clientId) {
       setShowApplyDialog(true);
     } else {
-      // No client, apply directly without options
       const items = getActionItems();
       onApplyPlan(items);
       toast.success('Plano aplicado!');
@@ -113,9 +162,25 @@ export function AICopilotDrawerV2({
     onOpenChange(false);
   };
 
-  const midiaActions = analysis?.actions.filter(a => a.type === 'Mídia') || [];
-  const processoActions = analysis?.actions.filter(a => a.type === 'Processo') || [];
+  // Parse actions for display
+  const midiaActions = analysis?.actions 
+    ? ('midia' in analysis.actions 
+        ? (analysis.actions as { midia?: AIActionItem[] }).midia || []
+        : (analysis.actions as AIActionItem[]).filter(a => a.type === 'Mídia'))
+    : [];
+    
+  const processoActions = analysis?.actions
+    ? ('processo' in analysis.actions
+        ? (analysis.actions as { processo?: AIActionItem[] }).processo || []
+        : (analysis.actions as AIActionItem[]).filter(a => a.type === 'Processo'))
+    : [];
 
+  // Get bottlenecks (handle both formats)
+  const bottlenecks = analysis?.bottlenecks || analysis?.top_bottlenecks?.map(b => ({
+    stage: b.stage,
+    reason: b.why,
+    impact_level: b.impact,
+  })) || [];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -124,11 +189,11 @@ export function AICopilotDrawerV2({
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             Copiloto IA
+            {benchmarkMode && <Badge variant="outline" className="text-[10px]">FPS</Badge>}
           </SheetTitle>
         </SheetHeader>
 
         <div className="mt-4 space-y-4">
-          {/* Mode toggle */}
           <Tabs value={mode} onValueChange={(v) => setMode(v as any)} className="w-full">
             <TabsList className="w-full h-8">
               <TabsTrigger value="compacto" className="flex-1 text-xs">Compacto</TabsTrigger>
@@ -155,13 +220,18 @@ export function AICopilotDrawerV2({
             <div className="space-y-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-semibold">{analysis.headline}</p>
-                  <Badge variant="outline" className="text-[10px] mt-1">{analysis.confidence}</Badge>
+                  <p className="font-semibold text-sm">{analysis.headline}</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    <Badge variant="outline" className="text-[10px]">{analysis.confidence}</Badge>
+                    {analysis.context?.benchmark_mode && analysis.context.segment && (
+                      <Badge variant="secondary" className="text-[10px]">{analysis.context.segment}</Badge>
+                    )}
+                  </div>
                 </div>
                 <Button variant="ghost" size="sm" onClick={generateAnalysis}><RefreshCw className="h-4 w-4" /></Button>
               </div>
 
-              {/* Snapshot table */}
+              {/* Snapshot table with benchmark column */}
               <div className="border rounded-lg overflow-hidden">
                 <Table className="text-xs">
                   <TableHeader>
@@ -169,6 +239,7 @@ export function AICopilotDrawerV2({
                       <TableHead className="h-7 py-1">Etapa</TableHead>
                       <TableHead className="h-7 py-1 text-right">Atual</TableHead>
                       <TableHead className="h-7 py-1 text-right">Meta</TableHead>
+                      {benchmarkMode && <TableHead className="h-7 py-1 text-right text-blue-600">Bench</TableHead>}
                       <TableHead className="h-7 py-1 text-right">Gap</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -178,6 +249,7 @@ export function AICopilotDrawerV2({
                         <TableCell className="py-1.5">{s.stage}</TableCell>
                         <TableCell className="py-1.5 text-right">{s.current}</TableCell>
                         <TableCell className="py-1.5 text-right">{s.target}</TableCell>
+                        {benchmarkMode && <TableCell className="py-1.5 text-right text-blue-600">{s.benchmark || '—'}</TableCell>}
                         <TableCell className={cn("py-1.5 text-right font-medium", s.gap_pp < 0 ? "text-red-500" : "text-green-500")}>
                           {s.gap_pp > 0 ? '+' : ''}{s.gap_pp.toFixed(1)}pp
                         </TableCell>
@@ -187,19 +259,21 @@ export function AICopilotDrawerV2({
                 </Table>
               </div>
 
-              {/* Top bottlenecks */}
-              <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Gargalos (Top 2)</p>
-                {analysis.top_bottlenecks.slice(0, 2).map((b, i) => (
-                  <p key={i} className="text-xs mb-1">• <strong>{b.stage}</strong>: {b.why}</p>
-                ))}
-              </div>
+              {/* Bottlenecks */}
+              {bottlenecks.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Gargalos</p>
+                  {bottlenecks.slice(0, 2).map((b, i) => (
+                    <p key={i} className="text-xs mb-1">• <strong>{b.stage}</strong>: {b.reason}</p>
+                  ))}
+                </div>
+              )}
 
-              {/* Actions grouped by type */}
+              {/* Actions grouped */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">Plano de ação</p>
-                  <Button size="sm" onClick={handleApplyClick}>Aplicar plano</Button>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">Plano</p>
+                  <Button size="sm" onClick={handleApplyClick}>Aplicar</Button>
                 </div>
 
                 {midiaActions.length > 0 && (
@@ -207,8 +281,8 @@ export function AICopilotDrawerV2({
                     <div className="flex items-center gap-1.5"><Megaphone className="h-3 w-3 text-blue-600" /><span className="text-xs font-semibold text-blue-600">Mídia</span></div>
                     {midiaActions.slice(0, mode === 'compacto' ? 2 : 5).map((a, i) => (
                       <div key={i} className="text-xs bg-background/50 rounded p-1.5">
-                        <div className="flex items-center gap-1"><Badge variant="outline" className="text-[9px] h-4 px-1">{a.priority}</Badge><span className="font-medium">{a.title}</span></div>
-                        <p className="text-muted-foreground mt-0.5">→ {a.next_step}</p>
+                        <div className="flex items-center gap-1"><Badge variant="outline" className="text-[9px] h-4 px-1">{a.priority}</Badge><span className="font-medium truncate">{a.title}</span></div>
+                        <p className="text-muted-foreground mt-0.5 truncate">→ {a.next_step}</p>
                       </div>
                     ))}
                   </div>
@@ -219,8 +293,8 @@ export function AICopilotDrawerV2({
                     <div className="flex items-center gap-1.5"><Users className="h-3 w-3 text-purple-600" /><span className="text-xs font-semibold text-purple-600">Processo</span></div>
                     {processoActions.slice(0, mode === 'compacto' ? 3 : 6).map((a, i) => (
                       <div key={i} className="text-xs bg-background/50 rounded p-1.5">
-                        <div className="flex items-center gap-1"><Badge variant="outline" className="text-[9px] h-4 px-1">{a.priority}</Badge><span className="font-medium">{a.title}</span></div>
-                        <p className="text-muted-foreground mt-0.5">→ {a.next_step}</p>
+                        <div className="flex items-center gap-1"><Badge variant="outline" className="text-[9px] h-4 px-1">{a.priority}</Badge><span className="font-medium truncate">{a.title}</span></div>
+                        <p className="text-muted-foreground mt-0.5 truncate">→ {a.next_step}</p>
                       </div>
                     ))}
                   </div>
@@ -230,7 +304,7 @@ export function AICopilotDrawerV2({
               {/* Questions */}
               {analysis.questions.length > 0 && (
                 <div className="border-t pt-3">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Perguntas para destravar</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Perguntas</p>
                   {analysis.questions.slice(0, 3).map((q, i) => <p key={i} className="text-xs text-muted-foreground">• {q}</p>)}
                 </div>
               )}
@@ -239,7 +313,6 @@ export function AICopilotDrawerV2({
         </div>
       </SheetContent>
       
-      {/* Apply plan dialog with options */}
       <ApplyPlanDialog
         open={showApplyDialog}
         onOpenChange={setShowApplyDialog}

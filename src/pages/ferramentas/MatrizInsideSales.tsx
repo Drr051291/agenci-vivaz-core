@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Save, Copy, Download, Sparkles } from "lucide-react";
+import { ArrowLeft, Save, Copy, Download, Sparkles, BarChart3 } from "lucide-react";
 
 import {
   InsideSalesInputs,
@@ -58,6 +60,19 @@ import {
   calculateInvestmentDensity,
 } from "@/lib/insideSalesMatrix/channelLogic";
 
+import {
+  FPSChannel,
+  FPSSegment,
+  FPS_CHANNELS_LIST,
+  FPS_SEGMENTS_LIST,
+} from "@/lib/insideSalesMatrix/benchmarksFPS";
+
+import {
+  getBenchmarkProfile,
+  applyBenchmarkAsTargets,
+  BenchmarkProfile,
+} from "@/lib/insideSalesMatrix/benchmarkProfile";
+
 export default function MatrizInsideSales() {
   usePageMeta({
     title: "Matriz de Performance — Inside Sales | HUB Vivaz",
@@ -72,6 +87,11 @@ export default function MatrizInsideSales() {
   const [periodRange, setPeriodRange] = useState<PeriodRange | null>(null);
   const [channel, setChannel] = useState('');
   const [formComplexity, setFormComplexity] = useState<FormComplexity | ''>('');
+
+  // FPS Benchmark mode
+  const [benchmarkMode, setBenchmarkMode] = useState(false);
+  const [fpsChannel, setFpsChannel] = useState<FPSChannel | ''>('');
+  const [fpsSegment, setFpsSegment] = useState<FPSSegment | ''>('');
 
   // Clients from DB
   const [clients, setClients] = useState<{ id: string; company_name: string }[]>([]);
@@ -180,6 +200,20 @@ export default function MatrizInsideSales() {
       formComplexity as FormComplexity || undefined
     );
   }, [targets, channel, formComplexity]);
+
+  // FPS Benchmark profile
+  const benchmarkProfile = useMemo(() => {
+    if (!benchmarkMode) return null;
+    return getBenchmarkProfile(fpsChannel || undefined, fpsSegment || undefined);
+  }, [benchmarkMode, fpsChannel, fpsSegment]);
+
+  // Apply benchmark as targets
+  function applyBenchmarkToTargets() {
+    if (benchmarkProfile) {
+      setTargets(applyBenchmarkAsTargets(targets, benchmarkProfile));
+      toast.success('Metas atualizadas com benchmarks FPS!');
+    }
+  }
 
   // Channel insights
   const channelInsights = useMemo(() => {
@@ -480,7 +514,13 @@ export default function MatrizInsideSales() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Funnel (8 cols on desktop) */}
           <div className="lg:col-span-8">
-            <FunnelVisual inputs={inputs} outputs={outputs} impacts={impacts} />
+            <FunnelVisual 
+              inputs={inputs} 
+              outputs={outputs} 
+              impacts={impacts}
+              benchmarkProfile={benchmarkProfile}
+              showBenchmarks={benchmarkMode}
+            />
           </div>
           
           {/* Sticky Summary Panel (4 cols on desktop, hidden on mobile - use bottom bar) */}
@@ -590,26 +630,80 @@ export default function MatrizInsideSales() {
                   )}
                 </div>
                 
-                {/* Channel insights */}
+                {/* Channel insights - condensed */}
                 {channelInsights && (
-                  <div className="mt-3 p-3 bg-muted/50 rounded-lg text-sm">
-                    <div className="flex items-center justify-between mb-2">
+                  <div className="p-2 bg-muted/50 rounded-lg text-xs">
+                    <div className="flex items-center gap-2">
                       <span className="font-medium">{CHANNELS_LIST.find(c => c.value === channel)?.label}</span>
-                      <Badge variant="outline" className="text-xs">{channelInsights.qualityNote}</Badge>
+                      <span className="text-muted-foreground">CVR: {channelInsights.expectedConversion}</span>
+                      <span className="text-muted-foreground">CPL: {channelInsights.expectedCpl}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                      <span>CVR esperado: {channelInsights.expectedConversion}</span>
-                      <span>CPL: {channelInsights.expectedCpl}</span>
+                  </div>
+                )}
+
+                {/* Benchmark Mode Toggle */}
+                <div className="flex items-center justify-between p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-blue-600" />
+                    <div>
+                      <p className="text-sm font-medium">Benchmarks SaaS (FPS)</p>
+                      <p className="text-xs text-muted-foreground">First Page Sage 2025</p>
                     </div>
-                    {channelInsights.recommendations.length > 0 && (
-                      <ul className="mt-2 text-xs text-muted-foreground space-y-1">
-                        {channelInsights.recommendations.slice(0, 2).map((rec, i) => (
-                          <li key={i} className="flex items-start gap-1">
-                            <span className="text-primary">•</span>
-                            <span>{rec}</span>
-                          </li>
-                        ))}
-                      </ul>
+                  </div>
+                  <Switch checked={benchmarkMode} onCheckedChange={setBenchmarkMode} />
+                </div>
+
+                {/* FPS Segment & Channel - only when benchmark mode is ON */}
+                {benchmarkMode && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Segmento SaaS</Label>
+                      <Select value={fpsSegment} onValueChange={(v) => setFpsSegment(v as FPSSegment)}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FPS_SEGMENTS_LIST.map(s => (
+                            <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Canal FPS</Label>
+                      <Select value={fpsChannel} onValueChange={(v) => setFpsChannel(v as FPSChannel)}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FPS_CHANNELS_LIST.map(c => (
+                            <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {benchmarkProfile && (
+                      <div className="col-span-2">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="w-full text-xs h-7">
+                              Usar Bench como Meta
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Substituir metas?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Isso substituirá suas metas atuais pelos benchmarks FPS selecionados.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={applyBenchmarkToTargets}>Confirmar</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     )}
                   </div>
                 )}
@@ -661,6 +755,8 @@ export default function MatrizInsideSales() {
               impacts={impacts}
               stageDiagnostics={mappedStageDiagnostics}
               onAddToActionPlan={addToActionPlan}
+              benchmarkProfile={benchmarkProfile}
+              showBenchmarks={benchmarkMode}
             />
 
             {/* Action Plan */}
@@ -688,6 +784,10 @@ export default function MatrizInsideSales() {
           investmentDensity={investmentDensity || undefined}
           adjustedTargets={adjustedTargets}
           clientId={clientId || undefined}
+          fpsChannel={fpsChannel || undefined}
+          fpsSegment={fpsSegment || undefined}
+          benchmarkMode={benchmarkMode}
+          benchmarkProfile={benchmarkProfile}
         />
 
         {/* Mobile Bottom Bar */}

@@ -9,38 +9,44 @@ const corsHeaders = {
 const CHANNEL_INFO = {
   landing: {
     label: 'Landing Page',
-    description: 'Menor conversão clique→lead (~4-6%), porém leads mais qualificados devido à fricção do processo',
+    description: 'Menor conversão clique→lead (~4-6%), porém leads mais qualificados',
     cvrExpected: '4-6%',
-    cplNote: 'CPL ~30% maior que média',
-    qualityNote: 'Alta qualidade - usuário demonstra interesse ativo'
+    qualityNote: 'Alta qualidade'
   },
   lead_nativo: {
-    label: 'Lead Nativo (Formulário na plataforma)',
-    description: 'Alta conversão (~10-20%), qualidade depende da complexidade do formulário',
+    label: 'Lead Nativo',
+    description: 'Alta conversão (~10-20%), qualidade depende do formulário',
     cvrExpected: '10-20%',
-    cplNote: 'CPL ~30% menor que landing',
-    qualityNote: 'Qualidade variável - poucas perguntas = mais leads, menor qualificação'
+    qualityNote: 'Qualidade variável'
   },
   whatsapp: {
-    label: 'WhatsApp (Click-to-Chat)',
-    description: 'Maior conversão inicial (~25-50%), mas requer qualificação ativa via atendimento',
+    label: 'WhatsApp',
+    description: 'Maior conversão (~25-50%), requer qualificação ativa',
     cvrExpected: '25-50%',
-    cplNote: 'CPL ~50% menor',
-    qualityNote: 'Baixa qualificação inicial - necessita automação/SDR para filtrar'
+    qualityNote: 'Baixa qualificação inicial'
   },
-  outro: {
-    label: 'Outro',
-    description: 'Canal não especificado',
-    cvrExpected: 'Variável',
-    cplNote: 'Benchmark padrão',
-    qualityNote: 'Qualidade indefinida'
-  }
+  outro: { label: 'Outro', description: 'Canal não especificado', cvrExpected: 'Variável', qualityNote: 'Indefinida' }
 };
 
-const FORM_COMPLEXITY_INFO = {
-  poucas: 'Formulário simples (nome, email, telefone) - Volume alto, qualificação baixa (~15% Lead→MQL)',
-  muitas: 'Formulário extenso (+5 campos) - Volume menor, qualificação média (~25% Lead→MQL)',
-  certas: 'Formulário qualificador (budget, decisor, timeline) - Volume baixo, alta qualificação (~35% Lead→MQL)'
+// FPS Segment benchmarks
+const FPS_SEGMENTS: Record<string, { leadToMql: number; mqlToSql: number; sqlToOpp: number; oppToClose: number }> = {
+  adtech: { leadToMql: 39, mqlToSql: 35, sqlToOpp: 40, oppToClose: 37 },
+  automotive_saas: { leadToMql: 37, mqlToSql: 39, sqlToOpp: 44, oppToClose: 36 },
+  crms: { leadToMql: 36, mqlToSql: 42, sqlToOpp: 48, oppToClose: 38 },
+  chemical_pharmaceutical: { leadToMql: 47, mqlToSql: 46, sqlToOpp: 41, oppToClose: 39 },
+  cybersecurity: { leadToMql: 44, mqlToSql: 38, sqlToOpp: 40, oppToClose: 39 },
+  design: { leadToMql: 40, mqlToSql: 34, sqlToOpp: 45, oppToClose: 38 },
+  edtech: { leadToMql: 46, mqlToSql: 35, sqlToOpp: 39, oppToClose: 40 },
+  entertainment: { leadToMql: 41, mqlToSql: 39, sqlToOpp: 47, oppToClose: 43 },
+  fintech: { leadToMql: 38, mqlToSql: 42, sqlToOpp: 48, oppToClose: 39 },
+  hospitality: { leadToMql: 45, mqlToSql: 38, sqlToOpp: 38, oppToClose: 38 },
+  industrial_iot: { leadToMql: 47, mqlToSql: 39, sqlToOpp: 42, oppToClose: 39 },
+  insurance: { leadToMql: 40, mqlToSql: 28, sqlToOpp: 41, oppToClose: 37 },
+  legaltech: { leadToMql: 41, mqlToSql: 40, sqlToOpp: 47, oppToClose: 42 },
+  medtech: { leadToMql: 48, mqlToSql: 43, sqlToOpp: 41, oppToClose: 35 },
+  project_management: { leadToMql: 46, mqlToSql: 37, sqlToOpp: 42, oppToClose: 35 },
+  retail_ecommerce: { leadToMql: 41, mqlToSql: 36, sqlToOpp: 45, oppToClose: 39 },
+  telecom: { leadToMql: 46, mqlToSql: 35, sqlToOpp: 41, oppToClose: 36 },
 };
 
 serve(async (req) => {
@@ -49,9 +55,13 @@ serve(async (req) => {
   }
 
   try {
-    const { inputs, outputs, targets, impacts, rules, mode = 'compacto', channel, formComplexity, investmentDensity, adjustedTargets } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const { 
+      inputs, outputs, targets, impacts, rules, mode = 'compacto', 
+      channel, formComplexity, investmentDensity, adjustedTargets,
+      fpsSegment, fpsChannel, benchmarkMode, benchmarkProfile
+    } = await req.json();
     
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "API key não configurada" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -59,60 +69,59 @@ serve(async (req) => {
     }
 
     const maxActions = mode === 'compacto' ? 5 : 12;
-    
-    // Build channel context
     const channelData = CHANNEL_INFO[channel as keyof typeof CHANNEL_INFO] || CHANNEL_INFO.outro;
-    const formContext = channel === 'lead_nativo' && formComplexity 
-      ? `\nComplexidade do formulário: ${FORM_COMPLEXITY_INFO[formComplexity as keyof typeof FORM_COMPLEXITY_INFO]}`
-      : '';
     
-    // Investment density context
-    const densityContext = investmentDensity 
-      ? `\nDensidade do investimento: R$ ${investmentDensity.dailyInvestment?.toFixed(0) || 0}/dia (${investmentDensity.level || 'indefinido'})${investmentDensity.warning ? ` - ${investmentDensity.warning}` : ''}`
-      : '';
+    // Build FPS benchmark context
+    let benchmarkContext = '';
+    if (benchmarkMode && (fpsSegment || fpsChannel)) {
+      const segmentBench = fpsSegment ? FPS_SEGMENTS[fpsSegment] : null;
+      if (segmentBench) {
+        benchmarkContext = `
+BENCHMARKS FPS (${fpsSegment}):
+- Lead→MQL: ${segmentBench.leadToMql}%
+- MQL→SQL: ${segmentBench.mqlToSql}%
+- SQL→Reunião: ${segmentBench.sqlToOpp}%
+- Reunião→Contrato: ${segmentBench.oppToClose}%
+Compare as taxas atuais com estes benchmarks e indique se estão acima ou abaixo do mercado.`;
+      }
+    }
 
-    const systemPrompt = `Você é um consultor Inside Sales especialista em mídia paga e funil de vendas B2B. Retorne APENAS JSON válido (sem texto extra).
+    const systemPrompt = `Você é um consultor Inside Sales especialista em funil B2B. Retorne APENAS JSON válido.
 
-CONTEXTO DO CANAL DE CONVERSÃO:
-Canal: ${channelData.label}
-Característica: ${channelData.description}
-CVR clique→lead esperado: ${channelData.cvrExpected}
-CPL: ${channelData.cplNote}
-Qualidade: ${channelData.qualityNote}${formContext}${densityContext}
+CONTEXTO DO CANAL: ${channelData.label} - ${channelData.description}
+${benchmarkContext}
 
-REGRAS DE ANÁLISE:
-- Considere as características do canal ao avaliar as taxas de conversão
-- Para Landing Page: foque em otimização de página e CTAs
-- Para Lead Nativo: recomende ajustes nas perguntas do formulário se Lead→MQL estiver baixo
-- Para WhatsApp: sugira automações e scripts de qualificação
-- Ações devem ser classificadas: "Mídia" (CTR/CPC/CPL/CVR) ou "Processo" (conversões MQL→SQL→Reunião→Contrato)
-- No modo compacto: max 2 Mídia + 3 Processo
-- Seja conciso: títulos max 50 chars, next_step max 80 chars
-- Priorize gargalos com maior gap considerando o benchmark do canal
+REGRAS:
+- Ações: "Mídia" (CTR/CPC/CPL) ou "Processo" (conversões funil)
+- Modo compacto: max 2 Mídia + 3 Processo
+- Títulos: max 50 chars, next_step: max 80 chars
+- Se etapa tem "baixa_amostra", não conclua sobre ela
+- Inclua benchmark vs atual quando disponível
 
-FORMATO:
+FORMATO JSON:
 {
   "headline": "string (max 60 chars)",
   "confidence": "Baixa|Média|Alta",
-  "snapshot": [{"stage":"Lead→MQL","current":"29%","target":"25%","gap_pp":4.0,"status":"OK"}],
-  "top_bottlenecks": [{"stage":"string","why":"string (curto)","impact":"Alto|Médio|Baixo","gap_pp":-5.0}],
-  "actions": [{"type":"Mídia|Processo","stage":"string","title":"string","next_step":"string","metric_to_watch":"string","priority":"Alta|Média|Baixa"}],
-  "questions": ["string","string","string"]
+  "context": {"segment":"${fpsSegment||''}","channel":"${fpsChannel||''}","benchmark_mode":${!!benchmarkMode}},
+  "snapshot": [{"stage":"Lead→MQL","current":"29% (X/Y)","target":"25%","benchmark":"41%","gap_pp":4.0,"vs_bench_pp":-12,"eligible":true,"status":"OK"}],
+  "bottlenecks": [{"stage":"string","reason":"string","impact_level":"Alto|Médio|Baixo"}],
+  "actions": {"midia":[{"priority":"Alta","stage":"string","title":"string","next_step":"string","metric_to_watch":"string"}],"processo":[...]},
+  "rules_used": ["rule_id"],
+  "questions": ["string"]
 }`;
 
-    // Include adjusted targets if available
-    const targetsInfo = adjustedTargets 
-      ? `\nMetas ajustadas para o canal: CVR clique→lead: ${adjustedTargets.cvrClickLead?.value || 'N/A'}%, CPL: R$ ${adjustedTargets.cpl?.value?.toFixed(2) || 'N/A'}`
-      : '';
+    const userPrompt = `Funil: Leads ${inputs.leads||0}, MQL ${inputs.mql||0}, SQL ${inputs.sql||0}, Reuniões ${inputs.reunioes||0}, Contratos ${inputs.contratos||0}.
 
-    const userPrompt = `Funil: Leads ${inputs.leads||0}, MQL ${inputs.mql||0}, SQL ${inputs.sql||0}, Reuniões ${inputs.reunioes||0}, Contratos ${inputs.contratos||0}. Investimento: R$${inputs.investimento||0}.${targetsInfo}
+Taxas:
+${impacts.map((i: any) => {
+  const bench = benchmarkProfile?.[i.stageId === 'lead_to_mql' ? 'leadToMql' : i.stageId === 'mql_to_sql' ? 'mqlToSql' : i.stageId === 'sql_to_meeting' ? 'sqlToMeeting' : 'meetingToWin'];
+  const benchStr = bench !== undefined ? ` [Bench: ${bench.toFixed(0)}%]` : '';
+  return `${i.stageName}: ${i.current.rate?.toFixed(1)||0}% (meta ${i.target.rate}%)${benchStr} - ${i.status}`;
+}).join('\n')}
 
-Taxas vs metas (ajustadas para o canal ${channelData.label}):
-${impacts.map((i: any) => `${i.stageName}: ${i.current.rate?.toFixed(1)||0}% (meta ${i.target.rate}%) - ${i.status}`).join('\n')}
+Regras: ${rules.slice(0,6).map((r:any)=>`${r.stage}: ${r.action}`).join('; ')}
 
-Regras: ${rules.slice(0,8).map((r:any)=>`${r.stage}: ${r.action}`).join('; ')}
-
-Gere o JSON. Max ${maxActions} ações total.`;
+Gere JSON. Max ${maxActions} ações.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -136,7 +145,7 @@ Gere o JSON. Max ${maxActions} ações total.`;
     if (!jsonMatch) throw new Error("Invalid response");
     
     const analysis = JSON.parse(jsonMatch[0]);
-    console.log("AI analysis generated successfully");
+    console.log("AI analysis with FPS benchmarks generated");
     
     return new Response(JSON.stringify(analysis), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: unknown) {
