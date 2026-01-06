@@ -162,18 +162,45 @@ export function AICopilotDrawerV2({
     onOpenChange(false);
   };
 
-  // Parse actions for display
-  const midiaActions = analysis?.actions 
-    ? ('midia' in analysis.actions 
-        ? (analysis.actions as { midia?: AIActionItem[] }).midia || []
-        : (analysis.actions as AIActionItem[]).filter(a => a.type === 'Mídia'))
-    : [];
+  // Parse actions for display - with safety checks for various response formats
+  const getMidiaActions = (): AIActionItem[] => {
+    if (!analysis?.actions) return [];
+    const actions = analysis.actions;
     
-  const processoActions = analysis?.actions
-    ? ('processo' in analysis.actions
-        ? (analysis.actions as { processo?: AIActionItem[] }).processo || []
-        : (analysis.actions as AIActionItem[]).filter(a => a.type === 'Processo'))
-    : [];
+    // New format: { midia: [], processo: [] }
+    if (typeof actions === 'object' && !Array.isArray(actions)) {
+      const obj = actions as { midia?: AIActionItem[]; processo?: AIActionItem[] };
+      return Array.isArray(obj.midia) ? obj.midia : [];
+    }
+    
+    // Old format: array
+    if (Array.isArray(actions)) {
+      return actions.filter(a => a.type === 'Mídia');
+    }
+    
+    return [];
+  };
+  
+  const getProcessoActions = (): AIActionItem[] => {
+    if (!analysis?.actions) return [];
+    const actions = analysis.actions;
+    
+    // New format: { midia: [], processo: [] }
+    if (typeof actions === 'object' && !Array.isArray(actions)) {
+      const obj = actions as { midia?: AIActionItem[]; processo?: AIActionItem[] };
+      return Array.isArray(obj.processo) ? obj.processo : [];
+    }
+    
+    // Old format: array
+    if (Array.isArray(actions)) {
+      return actions.filter(a => a.type === 'Processo');
+    }
+    
+    return [];
+  };
+
+  const midiaActions = getMidiaActions();
+  const processoActions = getProcessoActions();
 
   // Get bottlenecks (handle both formats)
   const bottlenecks = analysis?.bottlenecks || analysis?.top_bottlenecks?.map(b => ({
