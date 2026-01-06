@@ -29,8 +29,6 @@ export function StageDiagnosisV2({
   impacts, 
   stageDiagnostics, 
   onAddToActionPlan,
-  benchmarkProfile,
-  showBenchmarks,
 }: StageDiagnosisV2Props) {
   
   const sendToPlan = (impact: StageImpact, diagnostics: DiagnosticItem[]) => {
@@ -48,12 +46,7 @@ export function StageDiagnosisV2({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">Diagnóstico por Etapa</CardTitle>
-          {showBenchmarks && (
-            <Badge variant="outline" className="text-[10px]">Bench FPS</Badge>
-          )}
-        </div>
+        <CardTitle className="text-base font-semibold">Diagnóstico por Etapa</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <TooltipProvider>
@@ -66,7 +59,6 @@ export function StageDiagnosisV2({
               const isEligible = impact.status !== 'baixa_amostra' && impact.status !== 'sem_dados';
               const isNegative = impact.status === 'atencao' || impact.status === 'critico';
               const showSendButton = isNegative && isEligible && diagnostics.length > 0;
-              const benchmark = getBenchmarkForStage(impact.stageId, benchmarkProfile);
               const hasNegativeGap = impact.gapPp !== undefined && impact.gapPp < 0;
 
               return (
@@ -90,12 +82,6 @@ export function StageDiagnosisV2({
                           </span>
                           <span className="opacity-40">/</span>
                           <span>{impact.target.rate.toFixed(1)}%</span>
-                          {showBenchmarks && benchmark !== undefined && (
-                            <>
-                              <span className="opacity-40">/</span>
-                              <span className="text-blue-600">{benchmark.toFixed(0)}%</span>
-                            </>
-                          )}
                           {impact.gapPp !== undefined && (
                             <span className={cn(
                               "font-semibold ml-1 px-1 rounded",
