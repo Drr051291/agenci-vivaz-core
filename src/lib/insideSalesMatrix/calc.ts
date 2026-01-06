@@ -1,4 +1,5 @@
 // Inside Sales Matrix - Calculation utilities
+// Funil: Leads → MQL → SQL → Contrato
 
 export interface InsideSalesInputs {
   // Mídia paga
@@ -6,13 +7,12 @@ export interface InsideSalesInputs {
   impressoes?: number;
   cliques?: number;
   
-  // Funil
+  // Funil (simplificado: sem etapa reuniões)
   leads?: number;
   invalidLeadRate?: number; // %
   fitFillRate?: number; // %
   mql?: number;
   sql?: number;
-  reunioes?: number;
   contratos?: number;
   receita?: number;
   
@@ -24,7 +24,6 @@ export interface InsideSalesInputs {
   mqlAgingDays?: number;
   responseRate?: number; // %
   attemptsPerSql?: number;
-  meetingWithDecisionMakerRate?: number; // %
   timeToScheduleDays?: number;
   disqualifyReasons?: string;
   lossReasons?: string;
@@ -40,11 +39,10 @@ export interface InsideSalesOutputs {
   cvrClickLead?: number;
   cpl?: number;
   
-  // Stage conversions
+  // Stage conversions (funil simplificado)
   leadToMql?: number;
   mqlToSql?: number;
-  sqlToMeeting?: number;
-  meetingToWin?: number;
+  sqlToWin?: number; // Direto SQL → Contrato
   
   // Additional
   cac?: number;
@@ -60,7 +58,7 @@ export function safeDiv(a: number | undefined, b: number | undefined): number | 
 
 export function calculateOutputs(inputs: InsideSalesInputs): InsideSalesOutputs {
   const {
-    investimento, impressoes, cliques, leads, mql, sql, reunioes, contratos, receita
+    investimento, impressoes, cliques, leads, mql, sql, contratos, receita
   } = inputs;
 
   const ctr = safeDiv(cliques, impressoes) !== undefined ? safeDiv(cliques, impressoes)! * 100 : undefined;
@@ -71,8 +69,7 @@ export function calculateOutputs(inputs: InsideSalesInputs): InsideSalesOutputs 
   
   const leadToMql = safeDiv(mql, leads) !== undefined ? safeDiv(mql, leads)! * 100 : undefined;
   const mqlToSql = safeDiv(sql, mql) !== undefined ? safeDiv(sql, mql)! * 100 : undefined;
-  const sqlToMeeting = safeDiv(reunioes, sql) !== undefined ? safeDiv(reunioes, sql)! * 100 : undefined;
-  const meetingToWin = safeDiv(contratos, reunioes) !== undefined ? safeDiv(contratos, reunioes)! * 100 : undefined;
+  const sqlToWin = safeDiv(contratos, sql) !== undefined ? safeDiv(contratos, sql)! * 100 : undefined;
   
   const cac = safeDiv(investimento, contratos);
   const receitaPorContrato = safeDiv(receita, contratos);
@@ -85,8 +82,7 @@ export function calculateOutputs(inputs: InsideSalesInputs): InsideSalesOutputs 
     cpl,
     leadToMql,
     mqlToSql,
-    sqlToMeeting,
-    meetingToWin,
+    sqlToWin,
     cac,
     receitaPorContrato,
   };
@@ -150,9 +146,9 @@ export function formatMetricByKey(key: string, value: number | undefined): strin
   const currencyMetrics = ['investimento', 'cpc', 'cpm', 'cpl', 'cac', 'receitaPorContrato', 'receita'];
   const percentMetrics = [
     'ctr', 'cvrClickLead', 'invalidLeadRate', 'fitFillRate',
-    'leadToMql', 'mqlToSql', 'sqlToMeeting', 'meetingToWin',
+    'leadToMql', 'mqlToSql', 'sqlToWin',
     'contactRate24h', 'connectRate', 'salRate', 'responseRate',
-    'meetingWithDecisionMakerRate', 'discountRate'
+    'discountRate'
   ];
   const minuteMetrics = ['ttft'];
   const dayMetrics = ['mqlAgingDays', 'timeToScheduleDays', 'salesCycleDays'];

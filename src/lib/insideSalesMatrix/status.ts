@@ -15,6 +15,7 @@ export interface Targets {
   [key: string]: TargetConfig;
 }
 
+// Funil simplificado: Leads → MQL → SQL → Contrato
 export const DEFAULT_TARGETS: Targets = {
   ctr: { value: 1.0, direction: 'min', label: 'CTR (%)' },
   cpc: { value: 6.0, direction: 'max', label: 'CPC (R$)' },
@@ -22,15 +23,13 @@ export const DEFAULT_TARGETS: Targets = {
   cvrClickLead: { value: 6.0, direction: 'min', label: 'CVR clique → lead (%)' },
   cpl: { value: 120.0, direction: 'max', label: 'CPL (R$)' },
   invalidLeadRate: { value: 10.0, direction: 'max', label: '% leads inválidos' },
-  leadToMql: { value: 25.0, direction: 'min', label: 'Lead → MQL (%)' },
+  leadToMql: { value: 30.0, direction: 'min', label: 'Lead → MQL (%)' },
   ttft: { value: 15.0, direction: 'max', label: 'TTFT (min)' },
   contactRate24h: { value: 80.0, direction: 'min', label: 'Contact rate 24h (%)' },
   connectRate: { value: 25.0, direction: 'min', label: 'Connect rate (%)' },
   salRate: { value: 60.0, direction: 'min', label: 'SAL rate (%)' },
-  mqlToSql: { value: 25.0, direction: 'min', label: 'MQL → SQL (%)' },
-  sqlToMeeting: { value: 35.0, direction: 'min', label: 'SQL → Reunião (%)' },
-  meetingWithDecisionMakerRate: { value: 70.0, direction: 'min', label: '% reuniões com decisor' },
-  meetingToWin: { value: 15.0, direction: 'min', label: 'Reunião → Contrato (%)' },
+  mqlToSql: { value: 40.0, direction: 'min', label: 'MQL → SQL (%)' },
+  sqlToWin: { value: 25.0, direction: 'min', label: 'SQL → Contrato (%)' },
   mqlAgingDays: { value: 7.0, direction: 'max', label: 'Aging MQL (dias)' },
   salesCycleDays: { value: 30.0, direction: 'max', label: 'Ciclo de vendas (dias)' },
   discountRate: { value: 15.0, direction: 'max', label: 'Taxa de desconto (%)' },
@@ -88,6 +87,7 @@ export interface Stage {
   metrics: string[];
 }
 
+// Funil simplificado: 3 etapas (sem reuniões separadas)
 export const STAGES: Stage[] = [
   {
     id: 'lead_to_mql',
@@ -102,16 +102,10 @@ export const STAGES: Stage[] = [
     metrics: ['ttft', 'contactRate24h', 'connectRate', 'salRate', 'mqlAgingDays', 'mqlToSql'],
   },
   {
-    id: 'sql_to_meeting',
-    name: 'SQL → Reunião',
-    mainConversionKey: 'sqlToMeeting',
-    metrics: ['sqlToMeeting', 'responseRate', 'attemptsPerSql', 'meetingWithDecisionMakerRate', 'timeToScheduleDays'],
-  },
-  {
-    id: 'meeting_to_win',
-    name: 'Reunião → Contrato',
-    mainConversionKey: 'meetingToWin',
-    metrics: ['meetingToWin', 'salesCycleDays', 'discountRate'],
+    id: 'sql_to_win',
+    name: 'SQL → Contrato',
+    mainConversionKey: 'sqlToWin',
+    metrics: ['sqlToWin', 'responseRate', 'attemptsPerSql', 'timeToScheduleDays', 'salesCycleDays', 'discountRate'],
   },
 ];
 

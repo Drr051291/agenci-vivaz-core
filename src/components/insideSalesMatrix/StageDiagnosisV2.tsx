@@ -5,15 +5,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { CheckCircle2, AlertTriangle, XCircle, Minus, Info, Send } from "lucide-react";
 import { StageImpact } from "@/lib/insideSalesMatrix/impact";
 import { DiagnosticItem } from "@/lib/insideSalesMatrix/rules";
-import { BenchmarkProfile, getBenchmarkForStage } from "@/lib/insideSalesMatrix/benchmarkProfile";
 import { cn } from "@/lib/utils";
 
 interface StageDiagnosisV2Props {
   impacts: StageImpact[];
   stageDiagnostics: { stageId: string; diagnostics: DiagnosticItem[] }[];
   onAddToActionPlan?: (action: { title: string; stage: string; type: 'midia' | 'processo' }) => void;
-  benchmarkProfile?: BenchmarkProfile | null;
-  showBenchmarks?: boolean;
 }
 
 const statusConfig = {

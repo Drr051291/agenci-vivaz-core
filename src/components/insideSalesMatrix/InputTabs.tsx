@@ -89,7 +89,7 @@ function InputField({
 export function InputTabs({ inputs, outputs, targets, onInputChange, onTargetChange, onResetTargets }: InputTabsProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
-  // Validation
+  // Validation (funil simplificado: Leads → MQL → SQL → Contrato)
   const validationErrors: Record<string, string> = {};
   if (inputs.mql !== undefined && inputs.leads !== undefined && inputs.mql > inputs.leads) {
     validationErrors.mql = "MQL não pode ser maior que Leads";
@@ -97,11 +97,8 @@ export function InputTabs({ inputs, outputs, targets, onInputChange, onTargetCha
   if (inputs.sql !== undefined && inputs.mql !== undefined && inputs.sql > inputs.mql) {
     validationErrors.sql = "SQL não pode ser maior que MQL";
   }
-  if (inputs.reunioes !== undefined && inputs.sql !== undefined && inputs.reunioes > inputs.sql) {
-    validationErrors.reunioes = "Reuniões não pode ser maior que SQL";
-  }
-  if (inputs.contratos !== undefined && inputs.reunioes !== undefined && inputs.contratos > inputs.reunioes) {
-    validationErrors.contratos = "Contratos não pode ser maior que Reuniões";
+  if (inputs.contratos !== undefined && inputs.sql !== undefined && inputs.contratos > inputs.sql) {
+    validationErrors.contratos = "Contratos não pode ser maior que SQL";
   }
 
   return (
@@ -152,14 +149,6 @@ export function InputTabs({ inputs, outputs, targets, onInputChange, onTargetCha
                 error={validationErrors.sql}
               />
               <InputField
-                id="reunioes"
-                label="Reuniões"
-                value={inputs.reunioes ?? ''}
-                onChange={v => onInputChange('reunioes', v)}
-                tooltip="Reuniões agendadas/realizadas"
-                error={validationErrors.reunioes}
-              />
-              <InputField
                 id="contratos"
                 label="Contratos"
                 value={inputs.contratos ?? ''}
@@ -182,12 +171,11 @@ export function InputTabs({ inputs, outputs, targets, onInputChange, onTargetCha
             {/* Preview das taxas calculadas */}
             <div className="pt-3 border-t">
               <p className="text-xs text-muted-foreground mb-2">Taxas calculadas:</p>
-              <div className="grid grid-cols-4 gap-2 text-xs">
+              <div className="grid grid-cols-3 gap-2 text-xs">
                 {[
                   { key: 'leadToMql', label: 'Lead→MQL' },
                   { key: 'mqlToSql', label: 'MQL→SQL' },
-                  { key: 'sqlToMeeting', label: 'SQL→Reunião' },
-                  { key: 'meetingToWin', label: 'Win Rate' },
+                  { key: 'sqlToWin', label: 'SQL→Contrato' },
                 ].map(({ key, label }) => (
                   <div key={key} className="bg-muted/50 rounded px-2 py-1.5 text-center">
                     <span className="text-muted-foreground block text-[10px]">{label}</span>
@@ -301,8 +289,7 @@ export function InputTabs({ inputs, outputs, targets, onInputChange, onTargetCha
               {[
                 { key: 'leadToMql', label: 'Lead → MQL (%)' },
                 { key: 'mqlToSql', label: 'MQL → SQL (%)' },
-                { key: 'sqlToMeeting', label: 'SQL → Reunião (%)' },
-                { key: 'meetingToWin', label: 'Reunião → Contrato (%)' },
+                { key: 'sqlToWin', label: 'SQL → Contrato (%)' },
               ].map(({ key, label }) => (
                 <div key={key} className="space-y-1">
                   <Label className="text-sm">{label}</Label>

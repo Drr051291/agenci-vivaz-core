@@ -30,7 +30,7 @@ export function calculateConfidenceScore(
   const penalties: ConfidencePenalty[] = [];
   let score = 100;
 
-  const { leads = 0, mql = 0, sql = 0, reunioes = 0, contratos = 0, investimento, cliques, impressoes } = inputs;
+  const { leads = 0, mql = 0, sql = 0, contratos = 0, investimento, cliques, impressoes } = inputs;
   const { periodDays } = options;
 
   // A) Sample size penalties (most important)
@@ -65,17 +65,6 @@ export function calculateConfidenceScore(
   } else if (sql < 10) {
     penalties.push({ reason: `Amostra de SQL moderada (${sql} < 10)`, penalty: 15, category: 'amostra' });
     score -= 15;
-  }
-
-  if (reunioes === 0 && sql > 0) {
-    penalties.push({ reason: 'Reuniões não informadas', penalty: 35, category: 'amostra' });
-    score -= 35;
-  } else if (reunioes < 5) {
-    penalties.push({ reason: `Amostra de reuniões pequena (${reunioes} < 5)`, penalty: 35, category: 'amostra' });
-    score -= 35;
-  } else if (reunioes < 10) {
-    penalties.push({ reason: `Amostra de reuniões moderada (${reunioes} < 10)`, penalty: 20, category: 'amostra' });
-    score -= 20;
   }
 
   // B) Investment density penalty
@@ -115,14 +104,9 @@ export function calculateConfidenceScore(
     penalties.push({ reason: 'Dados inconsistentes: SQL > MQL', penalty: 30, category: 'consistencia' });
     score -= 30;
   }
-  if (reunioes > sql && sql > 0) {
+  if (contratos > sql && sql > 0) {
     hasInconsistency = true;
-    penalties.push({ reason: 'Dados inconsistentes: Reuniões > SQL', penalty: 30, category: 'consistencia' });
-    score -= 30;
-  }
-  if (contratos > reunioes && reunioes > 0) {
-    hasInconsistency = true;
-    penalties.push({ reason: 'Dados inconsistentes: Contratos > Reuniões', penalty: 30, category: 'consistencia' });
+    penalties.push({ reason: 'Dados inconsistentes: Contratos > SQL', penalty: 30, category: 'consistencia' });
     score -= 30;
   }
 

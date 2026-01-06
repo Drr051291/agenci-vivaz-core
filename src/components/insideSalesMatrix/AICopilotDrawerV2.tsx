@@ -11,8 +11,7 @@ import { InsideSalesInputs, InsideSalesOutputs } from "@/lib/insideSalesMatrix/c
 import { Targets } from "@/lib/insideSalesMatrix/status";
 import { StageImpact } from "@/lib/insideSalesMatrix/impact";
 import { MatrixRule } from "@/lib/insideSalesMatrix/rules";
-import { BenchmarkProfile } from "@/lib/insideSalesMatrix/benchmarkProfile";
-import { FPSChannel, FPSSegment } from "@/lib/insideSalesMatrix/benchmarksFPS";
+import { SegmentoNegocio } from "@/lib/insideSalesMatrix/benchmarksSegmento";
 import { ActionItemV2 } from "./ActionPlanV2";
 import { ApplyPlanDialog } from "./ApplyPlanDialog";
 import { cn } from "@/lib/utils";
@@ -30,8 +29,8 @@ interface AIActionItem {
 interface AIAnalysisV2 {
   headline: string;
   confidence: 'Baixa' | 'Média' | 'Alta';
-  context?: { segment?: string; channel?: string; benchmark_mode?: boolean };
-  snapshot: { stage: string; current: string; target: string; benchmark?: string; gap_pp: number; vs_bench_pp?: number; eligible?: boolean; status: string }[];
+  context?: { segmento?: string };
+  snapshot: { stage: string; current: string; target: string; benchmark_range?: string; gap_pp: number; eligible?: boolean; status: string }[];
   bottlenecks?: { stage: string; reason: string; impact_level?: string }[];
   top_bottlenecks?: { stage: string; why: string; impact: string; gap_pp: number }[];
   actions: AIActionItem[] | { midia?: AIActionItem[]; processo?: AIActionItem[] };
@@ -55,18 +54,14 @@ interface AICopilotDrawerV2Props {
   investmentDensity?: InvestmentDensity;
   adjustedTargets?: Targets;
   clientId?: string;
-  // New benchmark props
-  fpsChannel?: FPSChannel | '';
-  fpsSegment?: FPSSegment | '';
-  benchmarkMode?: boolean;
-  benchmarkProfile?: BenchmarkProfile | null;
+  segmentoNegocio?: SegmentoNegocio;
 }
 
 export function AICopilotDrawerV2({
   open, onOpenChange, inputs, outputs, targets, impacts, rules,
   onApplyPlan, cachedAnalysis, onAnalysisGenerated,
   channel, formComplexity, investmentDensity, adjustedTargets, clientId,
-  fpsChannel, fpsSegment, benchmarkMode, benchmarkProfile,
+  segmentoNegocio,
 }: AICopilotDrawerV2Props) {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<AIAnalysisV2 | null>(cachedAnalysis || null);
@@ -80,7 +75,7 @@ export function AICopilotDrawerV2({
         body: { 
           inputs, outputs, targets, impacts, rules: rules.slice(0, 15), mode,
           channel, formComplexity, investmentDensity, adjustedTargets,
-          fpsChannel, fpsSegment, benchmarkMode, benchmarkProfile,
+          segmentoNegocio,
         },
       });
 
@@ -216,7 +211,7 @@ export function AICopilotDrawerV2({
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             Copiloto IA
-            {benchmarkMode && <Badge variant="outline" className="text-[10px]">FPS</Badge>}
+            {segmentoNegocio && <Badge variant="outline" className="text-[10px]">{segmentoNegocio}</Badge>}
           </SheetTitle>
         </SheetHeader>
 
@@ -250,15 +245,15 @@ export function AICopilotDrawerV2({
                   <p className="font-semibold text-sm">{analysis.headline}</p>
                   <div className="flex items-center gap-1 mt-1">
                     <Badge variant="outline" className="text-[10px]">{analysis.confidence}</Badge>
-                    {analysis.context?.benchmark_mode && analysis.context.segment && (
-                      <Badge variant="secondary" className="text-[10px]">{analysis.context.segment}</Badge>
+                    {analysis.context?.segmento && (
+                      <Badge variant="secondary" className="text-[10px]">{analysis.context.segmento}</Badge>
                     )}
                   </div>
                 </div>
                 <Button variant="ghost" size="sm" onClick={generateAnalysis}><RefreshCw className="h-4 w-4" /></Button>
               </div>
 
-              {/* Snapshot table with benchmark column */}
+              {/* Snapshot table */}
               <div className="border rounded-lg overflow-hidden">
                 <Table className="text-xs">
                   <TableHeader>
@@ -266,7 +261,7 @@ export function AICopilotDrawerV2({
                       <TableHead className="h-7 py-1">Etapa</TableHead>
                       <TableHead className="h-7 py-1 text-right">Atual</TableHead>
                       <TableHead className="h-7 py-1 text-right">Meta</TableHead>
-                      {benchmarkMode && <TableHead className="h-7 py-1 text-right text-blue-600">Bench</TableHead>}
+                      {segmentoNegocio && <TableHead className="h-7 py-1 text-right text-primary">Bench</TableHead>}
                       <TableHead className="h-7 py-1 text-right">Gap</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -276,7 +271,7 @@ export function AICopilotDrawerV2({
                         <TableCell className="py-1.5">{s.stage}</TableCell>
                         <TableCell className="py-1.5 text-right">{s.current}</TableCell>
                         <TableCell className="py-1.5 text-right">{s.target}</TableCell>
-                        {benchmarkMode && <TableCell className="py-1.5 text-right text-blue-600">{s.benchmark || '—'}</TableCell>}
+                        {segmentoNegocio && <TableCell className="py-1.5 text-right text-primary">{s.benchmark_range || '—'}</TableCell>}
                         <TableCell className={cn("py-1.5 text-right font-medium", s.gap_pp < 0 ? "text-red-500" : "text-green-500")}>
                           {s.gap_pp > 0 ? '+' : ''}{s.gap_pp.toFixed(1)}pp
                         </TableCell>
