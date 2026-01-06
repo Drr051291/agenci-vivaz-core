@@ -5,48 +5,89 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Channel benchmarks for context
-const CHANNEL_INFO = {
-  landing: {
-    label: 'Landing Page',
-    description: 'Menor conversão clique→lead (~4-6%), porém leads mais qualificados',
-    cvrExpected: '4-6%',
-    qualityNote: 'Alta qualidade'
+// Benchmarks por segmento de negócio (pesquisa consolidada 2024/2025)
+const SEGMENTO_BENCHMARKS: Record<string, { 
+  leadToMql: { min: number; max: number; medio: number }; 
+  mqlToSql: { min: number; max: number; medio: number }; 
+  sqlToContrato: { min: number; max: number; medio: number };
+  cicloVendasDias: number;
+  notas: string;
+}> = {
+  b2b_software: {
+    leadToMql: { min: 25, max: 45, medio: 35 },
+    mqlToSql: { min: 30, max: 50, medio: 40 },
+    sqlToContrato: { min: 15, max: 30, medio: 22 },
+    cicloVendasDias: 60,
+    notas: 'Conversões dependem de trial/demo. Ciclo mais longo para enterprise.',
   },
-  lead_nativo: {
-    label: 'Lead Nativo',
-    description: 'Alta conversão (~10-20%), qualidade depende do formulário',
-    cvrExpected: '10-20%',
-    qualityNote: 'Qualidade variável'
+  b2b_servicos: {
+    leadToMql: { min: 20, max: 40, medio: 30 },
+    mqlToSql: { min: 25, max: 45, medio: 35 },
+    sqlToContrato: { min: 20, max: 35, medio: 27 },
+    cicloVendasDias: 30,
+    notas: 'Relacionamento e confiança são críticos. Propostas customizadas.',
   },
-  whatsapp: {
-    label: 'WhatsApp',
-    description: 'Maior conversão (~25-50%), requer qualificação ativa',
-    cvrExpected: '25-50%',
-    qualityNote: 'Baixa qualificação inicial'
+  b2b_consultoria: {
+    leadToMql: { min: 30, max: 50, medio: 40 },
+    mqlToSql: { min: 35, max: 55, medio: 45 },
+    sqlToContrato: { min: 25, max: 40, medio: 32 },
+    cicloVendasDias: 90,
+    notas: 'Alto ticket, decisão complexa. Requer múltiplos stakeholders.',
   },
-  outro: { label: 'Outro', description: 'Canal não especificado', cvrExpected: 'Variável', qualityNote: 'Indefinida' }
+  b2b_industria: {
+    leadToMql: { min: 35, max: 55, medio: 45 },
+    mqlToSql: { min: 30, max: 50, medio: 40 },
+    sqlToContrato: { min: 20, max: 35, medio: 28 },
+    cicloVendasDias: 90,
+    notas: 'Leads mais qualificados naturalmente. Decisão técnica + comercial.',
+  },
+  b2c_varejo: {
+    leadToMql: { min: 15, max: 30, medio: 22 },
+    mqlToSql: { min: 40, max: 65, medio: 52 },
+    sqlToContrato: { min: 30, max: 50, medio: 40 },
+    cicloVendasDias: 3,
+    notas: 'Volume alto, decisão rápida. Foco em abandono e remarketing.',
+  },
+  b2c_servicos: {
+    leadToMql: { min: 20, max: 40, medio: 30 },
+    mqlToSql: { min: 35, max: 55, medio: 45 },
+    sqlToContrato: { min: 35, max: 55, medio: 45 },
+    cicloVendasDias: 7,
+    notas: 'Decisão emocional. Urgência e conveniência são fatores-chave.',
+  },
+  b2c_educacao: {
+    leadToMql: { min: 25, max: 50, medio: 38 },
+    mqlToSql: { min: 30, max: 50, medio: 40 },
+    sqlToContrato: { min: 20, max: 40, medio: 30 },
+    cicloVendasDias: 21,
+    notas: 'Sazonalidade forte. Proof of concept via conteúdo gratuito.',
+  },
+  b2b_saude: {
+    leadToMql: { min: 35, max: 55, medio: 45 },
+    mqlToSql: { min: 35, max: 50, medio: 42 },
+    sqlToContrato: { min: 25, max: 40, medio: 32 },
+    cicloVendasDias: 150,
+    notas: 'Regulamentação afeta ciclo. Decisão por comitês técnicos.',
+  },
+  b2b_financeiro: {
+    leadToMql: { min: 28, max: 48, medio: 38 },
+    mqlToSql: { min: 35, max: 55, medio: 45 },
+    sqlToContrato: { min: 25, max: 42, medio: 33 },
+    cicloVendasDias: 60,
+    notas: 'Compliance e segurança são críticos. Múltiplos decisores.',
+  },
 };
 
-// FPS Segment benchmarks
-const FPS_SEGMENTS: Record<string, { leadToMql: number; mqlToSql: number; sqlToOpp: number; oppToClose: number }> = {
-  adtech: { leadToMql: 39, mqlToSql: 35, sqlToOpp: 40, oppToClose: 37 },
-  automotive_saas: { leadToMql: 37, mqlToSql: 39, sqlToOpp: 44, oppToClose: 36 },
-  crms: { leadToMql: 36, mqlToSql: 42, sqlToOpp: 48, oppToClose: 38 },
-  chemical_pharmaceutical: { leadToMql: 47, mqlToSql: 46, sqlToOpp: 41, oppToClose: 39 },
-  cybersecurity: { leadToMql: 44, mqlToSql: 38, sqlToOpp: 40, oppToClose: 39 },
-  design: { leadToMql: 40, mqlToSql: 34, sqlToOpp: 45, oppToClose: 38 },
-  edtech: { leadToMql: 46, mqlToSql: 35, sqlToOpp: 39, oppToClose: 40 },
-  entertainment: { leadToMql: 41, mqlToSql: 39, sqlToOpp: 47, oppToClose: 43 },
-  fintech: { leadToMql: 38, mqlToSql: 42, sqlToOpp: 48, oppToClose: 39 },
-  hospitality: { leadToMql: 45, mqlToSql: 38, sqlToOpp: 38, oppToClose: 38 },
-  industrial_iot: { leadToMql: 47, mqlToSql: 39, sqlToOpp: 42, oppToClose: 39 },
-  insurance: { leadToMql: 40, mqlToSql: 28, sqlToOpp: 41, oppToClose: 37 },
-  legaltech: { leadToMql: 41, mqlToSql: 40, sqlToOpp: 47, oppToClose: 42 },
-  medtech: { leadToMql: 48, mqlToSql: 43, sqlToOpp: 41, oppToClose: 35 },
-  project_management: { leadToMql: 46, mqlToSql: 37, sqlToOpp: 42, oppToClose: 35 },
-  retail_ecommerce: { leadToMql: 41, mqlToSql: 36, sqlToOpp: 45, oppToClose: 39 },
-  telecom: { leadToMql: 46, mqlToSql: 35, sqlToOpp: 41, oppToClose: 36 },
+const SEGMENTO_LABELS: Record<string, string> = {
+  b2b_software: 'B2B Software / SaaS',
+  b2b_servicos: 'B2B Serviços',
+  b2b_consultoria: 'B2B Consultoria',
+  b2b_industria: 'B2B Indústria',
+  b2c_varejo: 'B2C Varejo / E-commerce',
+  b2c_servicos: 'B2C Serviços',
+  b2c_educacao: 'B2C Educação',
+  b2b_saude: 'B2B Saúde / Medtech',
+  b2b_financeiro: 'B2B Financeiro / Fintech',
 };
 
 serve(async (req) => {
@@ -57,8 +98,7 @@ serve(async (req) => {
   try {
     const { 
       inputs, outputs, targets, impacts, rules, mode = 'compacto', 
-      channel, formComplexity, investmentDensity, adjustedTargets,
-      fpsSegment, fpsChannel, benchmarkMode, benchmarkProfile
+      segmentoNegocio, adjustedTargets,
     } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -68,89 +108,136 @@ serve(async (req) => {
       });
     }
 
-    const maxActions = mode === 'compacto' ? 5 : 12;
-    const channelData = CHANNEL_INFO[channel as keyof typeof CHANNEL_INFO] || CHANNEL_INFO.outro;
+    const maxActions = mode === 'compacto' ? 5 : 10;
     
-    // Build FPS benchmark context
+    // Build benchmark context
     let benchmarkContext = '';
-    if (benchmarkMode && (fpsSegment || fpsChannel)) {
-      const segmentBench = fpsSegment ? FPS_SEGMENTS[fpsSegment] : null;
-      if (segmentBench) {
-        benchmarkContext = `
-BENCHMARKS FPS (${fpsSegment}):
-- Lead→MQL: ${segmentBench.leadToMql}%
-- MQL→SQL: ${segmentBench.mqlToSql}%
-- SQL→Reunião: ${segmentBench.sqlToOpp}%
-- Reunião→Contrato: ${segmentBench.oppToClose}%
-Compare as taxas atuais com estes benchmarks e indique se estão acima ou abaixo do mercado.`;
-      }
+    const segmentoBench = segmentoNegocio ? SEGMENTO_BENCHMARKS[segmentoNegocio] : null;
+    const segmentoLabel = segmentoNegocio ? SEGMENTO_LABELS[segmentoNegocio] : 'Não especificado';
+    
+    if (segmentoBench) {
+      benchmarkContext = `
+SEGMENTO: ${segmentoLabel}
+BENCHMARKS DE MERCADO (faixas típicas):
+- Lead→MQL: ${segmentoBench.leadToMql.min}-${segmentoBench.leadToMql.max}% (médio: ${segmentoBench.leadToMql.medio}%)
+- MQL→SQL: ${segmentoBench.mqlToSql.min}-${segmentoBench.mqlToSql.max}% (médio: ${segmentoBench.mqlToSql.medio}%)
+- SQL→Contrato: ${segmentoBench.sqlToContrato.min}-${segmentoBench.sqlToContrato.max}% (médio: ${segmentoBench.sqlToContrato.medio}%)
+- Ciclo de vendas típico: ${segmentoBench.cicloVendasDias} dias
+- Observações: ${segmentoBench.notas}
+
+Compare as taxas atuais com esses benchmarks. Indique se estão dentro da faixa, acima ou abaixo.`;
     }
 
-    const systemPrompt = `Você é um consultor Inside Sales especialista em funil B2B. Retorne APENAS JSON válido.
+    const systemPrompt = `Você é um consultor especialista em Inside Sales e funis B2B/B2C. 
+Analise os dados do funil (Leads → MQL → SQL → Contrato) e forneça diagnóstico e ações.
 
-CONTEXTO DO CANAL: ${channelData.label} - ${channelData.description}
+RETORNE APENAS JSON VÁLIDO, sem texto adicional.
 ${benchmarkContext}
 
-REGRAS:
-- Ações: "Mídia" (CTR/CPC/CPL) ou "Processo" (conversões funil)
-- Modo compacto: max 2 Mídia + 3 Processo
-- Títulos: max 50 chars, next_step: max 80 chars
-- Se etapa tem "baixa_amostra", não conclua sobre ela
-- Inclua benchmark vs atual quando disponível
+REGRAS ESTRITAS:
+1. Ações divididas em: "midia" (CTR/CPC/CPL/qualidade de tráfego) e "processo" (conversões do funil, SDR, follow-up)
+2. Máximo ${maxActions} ações no total (2 mídia + 3 processo em modo compacto)
+3. Títulos: máx 50 caracteres
+4. next_step: máx 80 caracteres, ação específica e mensurável
+5. Se etapa tem status "baixa_amostra" ou "sem_dados", NÃO conclua sobre ela
+6. Base suas recomendações nas regras da matriz e nos benchmarks do segmento
+7. Priorize ações com maior impacto potencial em contratos
 
-FORMATO JSON:
+ESTRUTURA DE RESPOSTA JSON:
 {
-  "headline": "string (max 60 chars)",
+  "headline": "string (máx 60 chars, conclusão principal)",
   "confidence": "Baixa|Média|Alta",
-  "context": {"segment":"${fpsSegment||''}","channel":"${fpsChannel||''}","benchmark_mode":${!!benchmarkMode}},
-  "snapshot": [{"stage":"Lead→MQL","current":"29% (X/Y)","target":"25%","benchmark":"41%","gap_pp":4.0,"vs_bench_pp":-12,"eligible":true,"status":"OK"}],
-  "bottlenecks": [{"stage":"string","reason":"string","impact_level":"Alto|Médio|Baixo"}],
-  "actions": {"midia":[{"priority":"Alta","stage":"string","title":"string","next_step":"string","metric_to_watch":"string"}],"processo":[...]},
-  "rules_used": ["rule_id"],
-  "questions": ["string"]
+  "context": { "segmento": "${segmentoLabel}" },
+  "snapshot": [
+    { "stage": "Lead→MQL", "current": "29% (X/Y)", "target": "30%", "benchmark_range": "25-45%", "gap_pp": -1, "eligible": true, "status": "OK|Atenção|Crítico" }
+  ],
+  "bottlenecks": [
+    { "stage": "string", "reason": "string (1 frase)", "impact_level": "Alto|Médio|Baixo" }
+  ],
+  "actions": {
+    "midia": [
+      { "priority": "Alta|Média", "stage": "Lead→MQL", "title": "string", "next_step": "string", "metric_to_watch": "CPL|CTR|CPC" }
+    ],
+    "processo": [
+      { "priority": "Alta|Média", "stage": "MQL→SQL", "title": "string", "next_step": "string", "metric_to_watch": "MQL→SQL (%)" }
+    ]
+  },
+  "rules_used": ["rule_id_1"],
+  "questions": ["Pergunta de qualificação 1", "Pergunta 2"]
 }`;
 
-    const userPrompt = `Funil: Leads ${inputs.leads||0}, MQL ${inputs.mql||0}, SQL ${inputs.sql||0}, Reuniões ${inputs.reunioes||0}, Contratos ${inputs.contratos||0}.
+    const userPrompt = `FUNIL (Leads → MQL → SQL → Contrato):
+- Leads: ${inputs.leads || 0}
+- MQL: ${inputs.mql || 0}
+- SQL: ${inputs.sql || 0}
+- Contratos: ${inputs.contratos || 0}
+- Investimento: R$ ${inputs.investimento || 0}
 
-Taxas:
+TAXAS ATUAIS vs METAS:
 ${impacts.map((i: any) => {
-  const bench = benchmarkProfile?.[i.stageId === 'lead_to_mql' ? 'leadToMql' : i.stageId === 'mql_to_sql' ? 'mqlToSql' : i.stageId === 'sql_to_meeting' ? 'sqlToMeeting' : 'meetingToWin'];
-  const benchStr = bench !== undefined ? ` [Bench: ${bench.toFixed(0)}%]` : '';
-  return `${i.stageName}: ${i.current.rate?.toFixed(1)||0}% (meta ${i.target.rate}%)${benchStr} - ${i.status}`;
+  const bench = segmentoBench ? (
+    i.stageId === 'lead_to_mql' ? `${segmentoBench.leadToMql.min}-${segmentoBench.leadToMql.max}%` :
+    i.stageId === 'mql_to_sql' ? `${segmentoBench.mqlToSql.min}-${segmentoBench.mqlToSql.max}%` :
+    i.stageId === 'sql_to_win' ? `${segmentoBench.sqlToContrato.min}-${segmentoBench.sqlToContrato.max}%` : ''
+  ) : '';
+  const benchStr = bench ? ` [Benchmark: ${bench}]` : '';
+  return `• ${i.stageName}: ${i.current.rate?.toFixed(1) || '—'}% (meta: ${i.target.rate}%)${benchStr} — Status: ${i.status}`;
 }).join('\n')}
 
-Regras: ${rules.slice(0,6).map((r:any)=>`${r.stage}: ${r.action}`).join('; ')}
+REGRAS DISPONÍVEIS:
+${rules.slice(0, 8).map((r: any) => `- ${r.stage}: ${r.action}`).join('\n')}
 
-Gere JSON. Max ${maxActions} ações.`;
+Gere o JSON de análise. Máximo ${maxActions} ações.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
       }),
     });
 
     if (!response.ok) {
       const status = response.status;
-      if (status === 429) return new Response(JSON.stringify({ error: "Rate limit - 429" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (status === 402) return new Response(JSON.stringify({ error: "Payment required - 402" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      throw new Error(`AI error: ${status}`);
+      console.error(`AI API error: ${status}`);
+      if (status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit excedido. Tente novamente em alguns segundos." }), { 
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
+      }
+      if (status === 402) {
+        return new Response(JSON.stringify({ error: "Créditos de IA esgotados." }), { 
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
+      }
+      throw new Error(`AI API error: ${status}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
+    
+    // Extract JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Invalid response");
+    if (!jsonMatch) {
+      console.error("Invalid AI response - no JSON found:", content.substring(0, 200));
+      throw new Error("Resposta da IA inválida");
+    }
     
     const analysis = JSON.parse(jsonMatch[0]);
-    console.log("AI analysis with FPS benchmarks generated");
+    console.log("AI analysis generated for segment:", segmentoLabel);
     
-    return new Response(JSON.stringify(analysis), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify(analysis), { 
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
   } catch (error: unknown) {
     console.error("Copilot v2 error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erro" }), {
+    return new Response(JSON.stringify({ 
+      error: error instanceof Error ? error.message : "Erro ao processar análise" 
+    }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

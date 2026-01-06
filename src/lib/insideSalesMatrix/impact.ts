@@ -1,4 +1,5 @@
 // Impact estimation calculations
+// Funil simplificado: Leads → MQL → SQL → Contrato
 import { InsideSalesInputs, InsideSalesOutputs, safeDiv } from './calc';
 import { Targets, STAGES, evaluateMetricStatus } from './status';
 import { checkStageEligibility, STAGE_THRESHOLDS, StageId } from './eligibility';
@@ -24,22 +25,20 @@ export function calculateStageImpacts(
   outputs: InsideSalesOutputs,
   targets: Targets
 ): StageImpact[] {
-  const { leads = 0, mql = 0, sql = 0, reunioes = 0, contratos = 0 } = inputs;
+  const { leads = 0, mql = 0, sql = 0, contratos = 0 } = inputs;
   
   // Current rates as decimals
   const rates = {
     leadToMql: safeDiv(mql, leads),
     mqlToSql: safeDiv(sql, mql),
-    sqlToMeeting: safeDiv(reunioes, sql),
-    meetingToWin: safeDiv(contratos, reunioes),
+    sqlToWin: safeDiv(contratos, sql),
   };
   
   // Target rates as decimals
   const targetRates = {
-    leadToMql: (targets.leadToMql?.value || 25) / 100,
-    mqlToSql: (targets.mqlToSql?.value || 25) / 100,
-    sqlToMeeting: (targets.sqlToMeeting?.value || 35) / 100,
-    meetingToWin: (targets.meetingToWin?.value || 15) / 100,
+    leadToMql: (targets.leadToMql?.value || 30) / 100,
+    mqlToSql: (targets.mqlToSql?.value || 40) / 100,
+    sqlToWin: (targets.sqlToWin?.value || 25) / 100,
   };
 
   const stageData: { 
@@ -51,8 +50,7 @@ export function calculateStageImpacts(
   }[] = [
     { id: 'lead_to_mql', name: 'Lead → MQL', key: 'leadToMql', denominator: leads, numerator: mql },
     { id: 'mql_to_sql', name: 'MQL → SQL', key: 'mqlToSql', denominator: mql, numerator: sql },
-    { id: 'sql_to_meeting', name: 'SQL → Reunião', key: 'sqlToMeeting', denominator: sql, numerator: reunioes },
-    { id: 'meeting_to_win', name: 'Reunião → Contrato', key: 'meetingToWin', denominator: reunioes, numerator: contratos },
+    { id: 'sql_to_win', name: 'SQL → Contrato', key: 'sqlToWin', denominator: sql, numerator: contratos },
   ];
 
   return stageData.map((stage, index) => {
@@ -122,14 +120,14 @@ export function calculateStageImpacts(
         
         extraContratos = Math.round(extraContratos);
         
-        const stageNames = ['MQL', 'SQL', 'Reuniões', 'Contratos'];
+        const stageNames = ['MQL', 'SQL', 'Contratos'];
         const outputName = stageNames[index];
         
         if (allDownstreamEligible) {
           impact = {
             extraOutput,
             extraContratos,
-            description: `+${extraOutput} ${outputName}${extraContratos > 0 && index < 3 ? ` → +${extraContratos} contratos` : ''}`,
+            description: `+${extraOutput} ${outputName}${extraContratos > 0 && index < 2 ? ` → +${extraContratos} contratos` : ''}`,
           };
         } else {
           impact = {
@@ -163,8 +161,7 @@ export function calculateStageImpacts(
 const STAGE_WEIGHTS: Record<string, number> = {
   'lead_to_mql': 1.2,
   'mql_to_sql': 1.1,
-  'sql_to_meeting': 1.0,
-  'meeting_to_win': 1.0,
+  'sql_to_win': 1.0,
 };
 
 export function findBottlenecks(impacts: StageImpact[]): {
@@ -199,8 +196,8 @@ export function calculateConfidenceLevel(inputs: InsideSalesInputs): {
   label: string;
   description: string;
 } {
-  const { leads = 0, mql = 0, sql = 0, reunioes = 0 } = inputs;
-  const minSample = Math.min(leads, mql || leads, sql || mql || leads, reunioes || sql || mql || leads);
+  const { leads = 0, mql = 0, sql = 0 } = inputs;
+  const minSample = Math.min(leads, mql || leads, sql || mql || leads);
   
   if (minSample >= 50) {
     return { level: 'alta', label: 'Alta confiança', description: 'Amostra robusta para análise' };

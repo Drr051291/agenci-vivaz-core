@@ -1,4 +1,5 @@
 // Eligibility and sample size gating for Inside Sales Matrix
+// Funil simplificado: Leads → MQL → SQL → Contrato
 
 import { InsideSalesInputs, InsideSalesOutputs } from './calc';
 
@@ -6,8 +7,7 @@ import { InsideSalesInputs, InsideSalesOutputs } from './calc';
 export const STAGE_THRESHOLDS = {
   lead_to_mql: { denominator: 'leads', minValue: 30 },
   mql_to_sql: { denominator: 'mql', minValue: 20 },
-  sql_to_meeting: { denominator: 'sql', minValue: 10 },
-  meeting_to_win: { denominator: 'reunioes', minValue: 10 },
+  sql_to_win: { denominator: 'sql', minValue: 10 },
 } as const;
 
 // Media metrics gating
