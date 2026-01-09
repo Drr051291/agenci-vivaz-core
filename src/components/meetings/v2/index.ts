@@ -6,3 +6,7 @@ export { ExperimentsSection } from "./ExperimentsSection";
 export { ActionPlanSection } from "./ActionPlanSection";
 export { ApprovalsSection } from "./ApprovalsSection";
 export { MeetingHeaderV2 } from "./MeetingHeaderV2";
+export { RetrovisorSection } from "./RetrovisorSection";
+export { DiagnosisPickerSection } from "./DiagnosisPickerSection";
+export { EnhancedSidebar } from "./EnhancedSidebar";
+export { SendToTasksButton } from "./SendToTasksButton";
