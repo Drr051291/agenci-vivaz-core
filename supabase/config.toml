@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.inside-sales-copilot-v2]
 verify_jwt = false
+
+[functions.inside-sales-copilot-br2025]
+verify_jwt = false
+
+[functions.vivaz-ai-chat]
+verify_jwt = false
