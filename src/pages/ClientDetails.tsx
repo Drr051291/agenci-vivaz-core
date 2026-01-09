@@ -5,7 +5,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Bot } from "lucide-react";
 import { toast } from "sonner";
 import { ClientOverview } from "@/components/client-details/ClientOverview";
 import { ClientTasks } from "@/components/client-details/ClientTasks";
@@ -13,6 +13,7 @@ import { ClientMeetings } from "@/components/client-details/ClientMeetings";
 import { ClientDashboardsNew } from "@/components/client-details/ClientDashboardsNew";
 import { ClientFinancial } from "@/components/client-details/ClientFinancial";
 import { ClientPerformance } from "@/components/client-details/ClientPerformance";
+import { ClientAIAgent } from "@/components/client-details/ClientAIAgent";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface Client {
@@ -132,13 +133,17 @@ export default function ClientDetails() {
 
         {/* Tabs com foco no conteúdo */}
         <Tabs value={activeTab} onValueChange={(value) => setSearchParams({ tab: value })} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="tasks">Atividades</TabsTrigger>
             <TabsTrigger value="meetings">Reuniões</TabsTrigger>
             <TabsTrigger value="dashboards">Dashboards</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
+            <TabsTrigger value="ai" className="flex items-center gap-1">
+              <Bot className="h-3 w-3" />
+              Vivaz AI
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-4">
@@ -163,6 +168,10 @@ export default function ClientDetails() {
 
           <TabsContent value="financial" className="mt-4">
             <ClientFinancial clientId={client.id} />
+          </TabsContent>
+
+          <TabsContent value="ai" className="mt-4">
+            <ClientAIAgent clientId={client.id} clientName={client.company_name} />
           </TabsContent>
         </Tabs>
       </div>

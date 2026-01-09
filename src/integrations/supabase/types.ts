@@ -14,6 +14,133 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          session_id: string
+          sources: Json | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          session_id: string
+          sources?: Json | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          session_id?: string
+          sources?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_chat_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "ai_chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_chat_sessions: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_chat_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_chat_sessions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_knowledge_base: {
+        Row: {
+          client_id: string
+          content_text: string
+          created_at: string
+          embedding: string | null
+          id: string
+          is_active: boolean | null
+          metadata: Json | null
+          source_name: string
+          source_reference: string | null
+          source_type: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          content_text: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          source_name: string
+          source_reference?: string | null
+          source_type: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          content_text?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          source_name?: string
+          source_reference?: string | null
+          source_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_knowledge_base_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asaas_config: {
         Row: {
           api_key_encrypted: string
