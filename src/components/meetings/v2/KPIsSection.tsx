@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Trash2, TrendingUp, TrendingDown, Minus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Metric {
@@ -21,6 +22,16 @@ interface KPIsSectionProps {
   isEditing?: boolean;
 }
 
+const UNIT_OPTIONS = [
+  { value: "", label: "Número" },
+  { value: "R$", label: "R$" },
+  { value: "%", label: "%" },
+  { value: "x", label: "x (multiplicador)" },
+  { value: "un", label: "Unidades" },
+  { value: "dias", label: "Dias" },
+  { value: "h", label: "Horas" },
+];
+
 const DEFAULT_KPIS: Metric[] = [
   { metric_key: "investimento", metric_label: "Investimento", target_value: null, actual_value: null, unit: "R$" },
   { metric_key: "leads", metric_label: "Leads", target_value: null, actual_value: null, unit: "" },
@@ -33,7 +44,6 @@ const DEFAULT_KPIS: Metric[] = [
 
 export function KPIsSection({ metrics, highlight, lowlight, onChange, isEditing = false }: KPIsSectionProps) {
   const [localMetrics, setLocalMetrics] = useState<Metric[]>(metrics.length > 0 ? metrics : DEFAULT_KPIS);
-  const [showAddRow, setShowAddRow] = useState(false);
 
   useEffect(() => {
     if (metrics.length === 0 && isEditing) {
@@ -66,7 +76,6 @@ export function KPIsSection({ metrics, highlight, lowlight, onChange, isEditing 
     const updated = [...localMetrics, newMetric];
     setLocalMetrics(updated);
     onChange({ metrics: updated, highlight, lowlight });
-    setShowAddRow(false);
   };
 
   const removeMetric = (index: number) => {
@@ -90,10 +99,13 @@ export function KPIsSection({ metrics, highlight, lowlight, onChange, isEditing 
   const formatValue = (value: number | null, unit: string) => {
     if (value === null) return "—";
     const formatted = value.toLocaleString('pt-BR', { 
-      minimumFractionDigits: unit === 'x' ? 2 : 0,
-      maximumFractionDigits: unit === 'x' ? 2 : 0 
+      minimumFractionDigits: unit === 'x' || unit === '%' ? 2 : 0,
+      maximumFractionDigits: unit === 'x' || unit === '%' ? 2 : 0 
     });
-    return unit === 'R$' ? `R$ ${formatted}` : unit === 'x' ? `${formatted}x` : formatted;
+    if (unit === 'R$') return `R$ ${formatted}`;
+    if (unit === 'x') return `${formatted}x`;
+    if (unit === '%') return `${formatted}%`;
+    return unit ? `${formatted} ${unit}` : formatted;
   };
 
   // Identify best and worst performing metrics
@@ -113,8 +125,12 @@ export function KPIsSection({ metrics, highlight, lowlight, onChange, isEditing 
       {/* KPI Table */}
       <div className="rounded-lg border overflow-hidden">
         {/* Header */}
-        <div className="grid grid-cols-12 gap-1 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground">
-          <div className="col-span-3">Métrica</div>
+        <div className={cn(
+          "grid gap-1 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground",
+          isEditing ? "grid-cols-13" : "grid-cols-12"
+        )}>
+          <div className="col-span-2">Métrica</div>
+          {isEditing && <div className="col-span-1">Unidade</div>}
           <div className="col-span-2 text-right">Meta</div>
           <div className="col-span-2 text-right">Realizado</div>
           <div className="col-span-2 text-center">Var.</div>
@@ -134,13 +150,14 @@ export function KPIsSection({ metrics, highlight, lowlight, onChange, isEditing 
               <div 
                 key={metric.metric_key}
                 className={cn(
-                  "grid grid-cols-12 gap-1 px-3 py-2 items-center text-sm transition-colors",
+                  "grid gap-1 px-3 py-2 items-center text-sm transition-colors",
+                  isEditing ? "grid-cols-13" : "grid-cols-12",
                   isBest && "bg-emerald-50/50",
                   isWorst && "bg-red-50/50"
                 )}
               >
                 {/* Label */}
-                <div className="col-span-3">
+                <div className="col-span-2">
                   {isEditing ? (
                     <Input
                       value={metric.metric_label}
@@ -152,6 +169,27 @@ export function KPIsSection({ metrics, highlight, lowlight, onChange, isEditing 
                     <span className="font-medium">{metric.metric_label}</span>
                   )}
                 </div>
+
+                {/* Unit Selector (only in edit mode) */}
+                {isEditing && (
+                  <div className="col-span-1">
+                    <Select
+                      value={metric.unit}
+                      onValueChange={(value) => handleMetricChange(index, "unit", value)}
+                    >
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {UNIT_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {/* Target */}
                 <div className="col-span-2 text-right">

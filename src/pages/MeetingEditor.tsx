@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "@/components/meeting-editor/RichTextEditor";
 import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, CheckSquare, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, RefreshCw, Check, ListTodo, FileText, BarChart3, TrendingUp, Lightbulb, CheckCircle2, Target } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, RefreshCw, Check, FileText, BarChart3, TrendingUp, Lightbulb, CheckCircle2, Target, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -26,10 +27,10 @@ import {
   ChannelsSection,
   BulletsSection,
   InsightsSection,
-  ChecklistSection,
   MeetingSidebar,
   MeetingStatusBadge,
 } from "@/components/meetings";
+import { MeetingActionPlan, ActionPlanItem } from "@/components/meetings/MeetingActionPlan";
 
 interface Task {
   id: string;
@@ -86,8 +87,7 @@ interface MeetingSections {
   whatWorkedWell: string[];
   pointsForImprovement: string[];
   actionsPerformed: string[];
-  strategicRecommendations: string[];
-  approvalsNeeded: ChecklistItem[];
+  actionPlan: ActionPlanItem[];
   questionsAndDiscussions: string;
 }
 
@@ -110,8 +110,7 @@ const DEFAULT_SECTIONS: MeetingSections = {
   whatWorkedWell: [],
   pointsForImprovement: [],
   actionsPerformed: [],
-  strategicRecommendations: [],
-  approvalsNeeded: [],
+  actionPlan: [],
   questionsAndDiscussions: "",
 };
 
@@ -300,17 +299,14 @@ export default function MeetingEditor() {
               case "actions_performed":
                 loadedSections.actionsPerformed = (content.items as string[]) || [];
                 break;
-              case "strategic_recommendations":
-                loadedSections.strategicRecommendations = (content.items as string[]) || [];
+              case "action_plan":
+                loadedSections.actionPlan = (content.items as ActionPlanItem[]) || [];
                 break;
               case "questions_discussions":
                 loadedSections.questionsAndDiscussions = (content.text as string) || "";
                 break;
               case "insights":
                 loadedSections.insights = (content.items as Insight[]) || [];
-                break;
-              case "approvals_needed":
-                loadedSections.approvalsNeeded = (content.items as ChecklistItem[]) || [];
                 break;
             }
           }
@@ -418,10 +414,9 @@ export default function MeetingEditor() {
         { section_key: "what_worked_well", title: "O que funcionou bem", content_json: JSON.parse(JSON.stringify({ items: sections.whatWorkedWell })), sort_order: 3 },
         { section_key: "points_for_improvement", title: "Pontos de melhoria", content_json: JSON.parse(JSON.stringify({ items: sections.pointsForImprovement })), sort_order: 4 },
         { section_key: "actions_performed", title: "Ações realizadas", content_json: JSON.parse(JSON.stringify({ items: sections.actionsPerformed })), sort_order: 5 },
-        { section_key: "strategic_recommendations", title: "Recomendações estratégicas", content_json: JSON.parse(JSON.stringify({ items: sections.strategicRecommendations })), sort_order: 6 },
+        { section_key: "action_plan", title: "Plano de ação", content_json: JSON.parse(JSON.stringify({ items: sections.actionPlan })), sort_order: 6 },
         { section_key: "questions_discussions", title: "Dúvidas e discussões", content_json: JSON.parse(JSON.stringify({ text: sections.questionsAndDiscussions })), sort_order: 7 },
         { section_key: "insights", title: "Insights", content_json: JSON.parse(JSON.stringify({ items: sections.insights })), sort_order: 8 },
-        { section_key: "approvals_needed", title: "Aprovações necessárias", content_json: JSON.parse(JSON.stringify({ items: sections.approvalsNeeded })), sort_order: 9 },
       ];
 
       for (const section of sectionsToSave) {
@@ -793,7 +788,7 @@ export default function MeetingEditor() {
               {section.id === 'actions' && (
                 <>
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <CheckSquare className="h-5 w-5 text-primary" />
+                    <Wrench className="h-5 w-5 text-primary" />
                     Plano de Ação
                   </h2>
                   <div className="space-y-3">
@@ -830,11 +825,20 @@ export default function MeetingEditor() {
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3">
                 <div>
-                  <h1 className="text-xl font-semibold">
-                    {meetingData.title || "Nova Reunião"}
-                  </h1>
+                  {isEditMode ? (
+                    <Input
+                      value={meetingData.title}
+                      onChange={(e) => setMeetingData({ ...meetingData, title: e.target.value })}
+                      placeholder="Nome da reunião..."
+                      className="text-xl font-semibold h-9 border-0 bg-transparent px-0 focus-visible:ring-0"
+                    />
+                  ) : (
+                    <h1 className="text-xl font-semibold">
+                      {meetingData.title || "Nova Reunião"}
+                    </h1>
+                  )}
                   <p className="text-sm text-muted-foreground">{clientName}</p>
                 </div>
                 <MeetingStatusBadge status={meetingData.status} />
@@ -1004,35 +1008,6 @@ export default function MeetingEditor() {
               </p>
             )}
           </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <ListTodo className="h-5 w-5 text-primary" />
-              </div>
-              <span className="font-medium">Próximos Passos</span>
-            </div>
-            {isEditMode ? (
-              <Textarea
-                placeholder="Ex: Enviar proposta, Agendar follow-up..."
-                value={meetingData.action_items.join(", ")}
-                onChange={(e) =>
-                  setMeetingData({
-                    ...meetingData,
-                    action_items: e.target.value.split(",").map(item => item.trim()).filter(Boolean),
-                  })
-                }
-                className="min-h-[40px] resize-none text-sm"
-                rows={1}
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground truncate">
-                {meetingData.action_items.length > 0 
-                  ? `${meetingData.action_items.length} item(s) definido(s)` 
-                  : "Nenhum item definido"}
-              </p>
-            )}
-          </Card>
         </div>
 
         {/* Main Content with Sidebar */}
@@ -1169,29 +1144,15 @@ export default function MeetingEditor() {
               />
             </CollapsibleSection>
 
-            {/* Recomendações Estratégicas */}
+            {/* Plano de Ação */}
             <CollapsibleSection 
-              title="Recomendações Estratégicas" 
-              icon={<Target className="h-5 w-5" />}
-              badge={sections.strategicRecommendations.length > 0 ? `${sections.strategicRecommendations.length}` : undefined}
+              title="Plano de Ação" 
+              icon={<Wrench className="h-5 w-5" />}
+              badge={sections.actionPlan.length > 0 ? `${sections.actionPlan.length}` : undefined}
             >
-              <BulletsSection
-                items={sections.strategicRecommendations}
-                onChange={(items) => setSections({ ...sections, strategicRecommendations: items })}
-                isEditing={isEditMode}
-                placeholder="Ex: Aumentar investimento em Google Ads, Testar novos públicos..."
-              />
-            </CollapsibleSection>
-
-            {/* Aprovações Necessárias */}
-            <CollapsibleSection 
-              title="Aprovações Necessárias" 
-              icon={<CheckSquare className="h-5 w-5" />}
-              badge={sections.approvalsNeeded.length > 0 ? `${sections.approvalsNeeded.length}` : undefined}
-            >
-              <ChecklistSection
-                items={sections.approvalsNeeded}
-                onChange={(items) => setSections({ ...sections, approvalsNeeded: items })}
+              <MeetingActionPlan
+                items={sections.actionPlan}
+                onChange={(items) => setSections({ ...sections, actionPlan: items })}
                 isEditing={isEditMode}
               />
             </CollapsibleSection>
@@ -1210,25 +1171,6 @@ export default function MeetingEditor() {
               ) : (
                 <div className="prose max-w-none">
                   <MeetingViewer content={sections.questionsAndDiscussions} />
-                </div>
-              )}
-            </CollapsibleSection>
-
-            {/* Conteúdo Livre (legado) */}
-            <CollapsibleSection 
-              title="Anotações Adicionais" 
-              icon={<FileText className="h-5 w-5" />}
-              defaultOpen={false}
-            >
-              {isEditMode ? (
-                <RichTextEditor
-                  content={meetingData.content}
-                  onChange={(content) => setMeetingData({ ...meetingData, content })}
-                  placeholder="Descreva os pontos discutidos na reunião..."
-                />
-              ) : (
-                <div className="prose max-w-none">
-                  <MeetingViewer content={meetingData.content} />
                 </div>
               )}
             </CollapsibleSection>

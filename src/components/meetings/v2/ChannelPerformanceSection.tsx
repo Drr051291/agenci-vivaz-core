@@ -3,7 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,27 +22,45 @@ interface ChannelPerformanceSectionProps {
   channels: Channel[];
   onChange: (channels: Channel[]) => void;
   isEditing?: boolean;
+  focusMetric?: "leads" | "conversions";
+  onFocusMetricChange?: (focus: "leads" | "conversions") => void;
 }
 
+// Only paid media channels
 const CHANNEL_OPTIONS = [
   { value: "meta_ads", label: "Meta Ads" },
   { value: "google_ads", label: "Google Ads" },
   { value: "tiktok_ads", label: "TikTok Ads" },
   { value: "linkedin_ads", label: "LinkedIn Ads" },
-  { value: "seo", label: "SEO" },
-  { value: "email", label: "E-mail" },
-  { value: "organico_social", label: "Orgânico Social" },
-  { value: "direto", label: "Direto" },
-  { value: "outros", label: "Outros" },
+  { value: "pinterest_ads", label: "Pinterest Ads" },
+  { value: "twitter_ads", label: "Twitter/X Ads" },
+  { value: "programatica", label: "Mídia Programática" },
+  { value: "outros_paid", label: "Outros (Mídia Paga)" },
 ];
 
-export function ChannelPerformanceSection({ channels, onChange, isEditing = false }: ChannelPerformanceSectionProps) {
+export function ChannelPerformanceSection({ 
+  channels, 
+  onChange, 
+  isEditing = false,
+  focusMetric = "leads",
+  onFocusMetricChange
+}: ChannelPerformanceSectionProps) {
   const [localChannels, setLocalChannels] = useState<Channel[]>(channels);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [localFocusMetric, setLocalFocusMetric] = useState<"leads" | "conversions">(focusMetric);
 
   useEffect(() => {
     setLocalChannels(channels);
   }, [channels]);
+
+  useEffect(() => {
+    setLocalFocusMetric(focusMetric);
+  }, [focusMetric]);
+
+  const handleFocusChange = (value: "leads" | "conversions") => {
+    setLocalFocusMetric(value);
+    onFocusMetricChange?.(value);
+  };
 
   const handleChange = (index: number, field: keyof Channel, value: string | number) => {
     const updated = [...localChannels];
@@ -99,6 +118,11 @@ export function ChannelPerformanceSection({ channels, onChange, isEditing = fals
     return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  // Show leads columns when focusMetric is "leads"
+  // Show conversions/revenue columns when focusMetric is "conversions"
+  const showLeadsColumns = localFocusMetric === "leads";
+  const showConversionsColumns = localFocusMetric === "conversions";
+
   if (!isEditing && localChannels.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -108,17 +132,55 @@ export function ChannelPerformanceSection({ channels, onChange, isEditing = fals
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
+      {/* Focus Metric Selector */}
+      {isEditing && (
+        <div className="p-3 rounded-lg bg-muted/50 border">
+          <Label className="text-xs font-medium text-muted-foreground mb-2 block">
+            Qual é o foco principal?
+          </Label>
+          <RadioGroup
+            value={localFocusMetric}
+            onValueChange={(value) => handleFocusChange(value as "leads" | "conversions")}
+            className="flex gap-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="leads" id="focus-leads" />
+              <Label htmlFor="focus-leads" className="text-sm cursor-pointer">
+                Geração de Leads (CPL)
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="conversions" id="focus-conversions" />
+              <Label htmlFor="focus-conversions" className="text-sm cursor-pointer">
+                Conversões/Vendas (CPA, ROAS)
+              </Label>
+            </div>
+          </RadioGroup>
+        </div>
+      )}
+
       {/* Table Header */}
-      <div className="grid grid-cols-12 gap-1 px-3 py-2 bg-muted/50 rounded-t-lg text-xs font-medium text-muted-foreground">
+      <div className={cn(
+        "grid gap-1 px-3 py-2 bg-muted/50 rounded-t-lg text-xs font-medium text-muted-foreground",
+        showLeadsColumns ? "grid-cols-8" : "grid-cols-10"
+      )}>
         <div className="col-span-2">Canal</div>
         <div className="col-span-1 text-right">Invest.</div>
-        <div className="col-span-1 text-right">Leads</div>
-        <div className="col-span-1 text-right">CPL</div>
-        <div className="col-span-1 text-right">Conv.</div>
-        <div className="col-span-1 text-right">CPA</div>
-        <div className="col-span-2 text-right">Receita</div>
-        <div className="col-span-1 text-right">ROAS</div>
+        {showLeadsColumns && (
+          <>
+            <div className="col-span-1 text-right">Leads</div>
+            <div className="col-span-1 text-right">CPL</div>
+          </>
+        )}
+        {showConversionsColumns && (
+          <>
+            <div className="col-span-1 text-right">Conv.</div>
+            <div className="col-span-1 text-right">CPA</div>
+            <div className="col-span-2 text-right">Receita</div>
+            <div className="col-span-1 text-right">ROAS</div>
+          </>
+        )}
         {isEditing && <div className="col-span-1"></div>}
       </div>
 
@@ -132,7 +194,10 @@ export function ChannelPerformanceSection({ channels, onChange, isEditing = fals
           return (
             <div key={index} className="rounded-lg border bg-card overflow-hidden">
               {/* Main Row */}
-              <div className="grid grid-cols-12 gap-1 px-3 py-2 items-center text-sm">
+              <div className={cn(
+                "grid gap-1 px-3 py-2 items-center text-sm",
+                showLeadsColumns ? "grid-cols-8" : "grid-cols-10"
+              )}>
                 <div className="col-span-2 flex items-center gap-1">
                   {(isEditing || hasDetails) && (
                     <button
@@ -182,75 +247,83 @@ export function ChannelPerformanceSection({ channels, onChange, isEditing = fals
                   )}
                 </div>
 
-                {/* Leads */}
-                <div className="col-span-1 text-right">
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={channel.leads || ""}
-                      onChange={(e) => handleChange(index, "leads", e.target.value)}
-                      className="h-7 text-xs text-right"
-                      placeholder="0"
-                    />
-                  ) : (
-                    <span className="text-xs">{channel.leads || "—"}</span>
-                  )}
-                </div>
+                {/* Leads columns */}
+                {showLeadsColumns && (
+                  <>
+                    <div className="col-span-1 text-right">
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          value={channel.leads || ""}
+                          onChange={(e) => handleChange(index, "leads", e.target.value)}
+                          className="h-7 text-xs text-right"
+                          placeholder="0"
+                        />
+                      ) : (
+                        <span className="text-xs">{channel.leads || "—"}</span>
+                      )}
+                    </div>
 
-                {/* CPL (calculated) */}
-                <div className="col-span-1 text-right">
-                  <span className="text-xs text-muted-foreground">
-                    {calculated.cpl ? formatCurrency(calculated.cpl) : "—"}
-                  </span>
-                </div>
+                    {/* CPL (calculated) */}
+                    <div className="col-span-1 text-right">
+                      <span className="text-xs text-muted-foreground">
+                        {calculated.cpl ? formatCurrency(calculated.cpl) : "—"}
+                      </span>
+                    </div>
+                  </>
+                )}
 
-                {/* Conversions */}
-                <div className="col-span-1 text-right">
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={channel.conversions || ""}
-                      onChange={(e) => handleChange(index, "conversions", e.target.value)}
-                      className="h-7 text-xs text-right"
-                      placeholder="0"
-                    />
-                  ) : (
-                    <span className="text-xs">{channel.conversions || "—"}</span>
-                  )}
-                </div>
+                {/* Conversions columns */}
+                {showConversionsColumns && (
+                  <>
+                    <div className="col-span-1 text-right">
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          value={channel.conversions || ""}
+                          onChange={(e) => handleChange(index, "conversions", e.target.value)}
+                          className="h-7 text-xs text-right"
+                          placeholder="0"
+                        />
+                      ) : (
+                        <span className="text-xs">{channel.conversions || "—"}</span>
+                      )}
+                    </div>
 
-                {/* CPA (calculated) */}
-                <div className="col-span-1 text-right">
-                  <span className="text-xs text-muted-foreground">
-                    {calculated.cpa ? formatCurrency(calculated.cpa) : "—"}
-                  </span>
-                </div>
+                    {/* CPA (calculated) */}
+                    <div className="col-span-1 text-right">
+                      <span className="text-xs text-muted-foreground">
+                        {calculated.cpa ? formatCurrency(calculated.cpa) : "—"}
+                      </span>
+                    </div>
 
-                {/* Revenue */}
-                <div className="col-span-2 text-right">
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={channel.revenue || ""}
-                      onChange={(e) => handleChange(index, "revenue", e.target.value)}
-                      className="h-7 text-xs text-right"
-                      placeholder="0"
-                    />
-                  ) : (
-                    <span className="text-xs font-medium">{formatCurrency(channel.revenue)}</span>
-                  )}
-                </div>
+                    {/* Revenue */}
+                    <div className="col-span-2 text-right">
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          value={channel.revenue || ""}
+                          onChange={(e) => handleChange(index, "revenue", e.target.value)}
+                          className="h-7 text-xs text-right"
+                          placeholder="0"
+                        />
+                      ) : (
+                        <span className="text-xs font-medium">{formatCurrency(channel.revenue)}</span>
+                      )}
+                    </div>
 
-                {/* ROAS (calculated) */}
-                <div className="col-span-1 text-right">
-                  <span className={cn(
-                    "text-xs font-medium",
-                    calculated.roas && calculated.roas >= 3 && "text-emerald-600",
-                    calculated.roas && calculated.roas < 1 && "text-red-600"
-                  )}>
-                    {calculated.roas ? `${calculated.roas.toFixed(2)}x` : "—"}
-                  </span>
-                </div>
+                    {/* ROAS (calculated) */}
+                    <div className="col-span-1 text-right">
+                      <span className={cn(
+                        "text-xs font-medium",
+                        calculated.roas && calculated.roas >= 3 && "text-emerald-600",
+                        calculated.roas && calculated.roas < 1 && "text-red-600"
+                      )}>
+                        {calculated.roas ? `${calculated.roas.toFixed(2)}x` : "—"}
+                      </span>
+                    </div>
+                  </>
+                )}
 
                 {/* Actions */}
                 {isEditing && (
