@@ -496,6 +496,8 @@ export default function MatrizInsideSales() {
               impacts={impacts}
               eligibleStages={eligibleStages}
               confidence={confidenceScore}
+              hasMediaData={inputs.investimento > 0 || inputs.cliques > 0}
+              playbookActions={deterministicActions}
               onOpenCopilot={() => setCopilotOpen(true)}
               canUseAI={!!canUseAI}
             />
@@ -577,7 +579,7 @@ export default function MatrizInsideSales() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">Não especificado</SelectItem>
-                        {CANAIS_MIDIA_BR2025.map(c => (
+                        {CANAIS_MIDIA_LIST.map(c => (
                           <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                         ))}
                       </SelectContent>
@@ -593,7 +595,7 @@ export default function MatrizInsideSales() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">Não especificado</SelectItem>
-                        {SEGMENTOS_BR2025.map(s => (
+                        {SEGMENTOS_BR2025_LIST.map(s => (
                           <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                         ))}
                       </SelectContent>
@@ -683,10 +685,7 @@ export default function MatrizInsideSales() {
           <div>
             <GapsImpactPanelBR2025
               impacts={impacts}
-              eligibleStages={eligibleStages}
-              benchmarkProfile={benchmarkProfile}
               onAddToActionPlan={addToActionPlan}
-              deterministicActions={deterministicActions}
             />
           </div>
         </div>
@@ -695,10 +694,7 @@ export default function MatrizInsideSales() {
         <ActionPlanBR2025
           items={actionItems}
           onChange={setActionItems}
-          deterministicActions={deterministicActions}
-          impacts={impacts}
-          eligibleStages={eligibleStages}
-          confidence={confidenceScore}
+          dailyChecklist={deterministicActions.slice(0, 3)}
         />
 
         {/* AI Copilot Drawer */}
