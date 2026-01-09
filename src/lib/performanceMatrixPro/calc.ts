@@ -8,6 +8,7 @@ export interface FunnelInputs {
   contratos: number;
   cicloVendas?: number; // days (optional)
   ticketMedio?: number; // R$ (optional)
+  investimento?: number; // R$ (optional - paid traffic)
 }
 
 export interface FunnelStage {
@@ -23,10 +24,18 @@ export interface FunnelStage {
   minSampleSize: number;
 }
 
+export interface FinancialMetrics {
+  cpl: number | null; // Cost per Lead
+  cac: number | null; // Customer Acquisition Cost
+  roi: number | null; // Return on Investment
+  revenue: number | null; // Total revenue estimate
+}
+
 export interface FunnelOutputs {
   globalConversion: number | null; // Lead -> Sale %
   stages: FunnelStage[];
   salesVelocity: number | null; // R$/day
+  financial: FinancialMetrics;
   hasValidData: boolean;
 }
 
@@ -49,10 +58,43 @@ function safeDivide(numerator: number, denominator: number): number | null {
 }
 
 /**
+ * Safe division for currency (not percentage)
+ */
+function safeDivideCurrency(numerator: number, denominator: number): number | null {
+  if (!denominator || isNaN(denominator) || denominator === 0) return null;
+  if (isNaN(numerator)) return null;
+  return numerator / denominator;
+}
+
+/**
  * Check if a stage has enough data for reliable analysis
  */
 function isEligible(value: number, minSample: number): boolean {
   return value >= minSample;
+}
+
+/**
+ * Calculate financial metrics
+ */
+function calculateFinancialMetrics(inputs: FunnelInputs): FinancialMetrics {
+  const { leads, contratos, investimento, ticketMedio } = inputs;
+  
+  // CPL = Investment / Leads
+  const cpl = investimento && leads > 0 ? safeDivideCurrency(investimento, leads) : null;
+  
+  // CAC = Investment / Contracts
+  const cac = investimento && contratos > 0 ? safeDivideCurrency(investimento, contratos) : null;
+  
+  // Revenue estimate = Contracts × Ticket
+  const revenue = contratos > 0 && ticketMedio ? contratos * ticketMedio : null;
+  
+  // ROI = (Revenue - Investment) / Investment
+  let roi: number | null = null;
+  if (revenue !== null && investimento && investimento > 0) {
+    roi = ((revenue - investimento) / investimento) * 100;
+  }
+  
+  return { cpl, cac, roi, revenue };
 }
 
 /**
@@ -123,12 +165,16 @@ export function calculateFunnel(inputs: FunnelInputs): FunnelOutputs {
     salesVelocity = (oportunidades * ticketMedio * winRate) / cicloVendas;
   }
   
+  // Financial metrics
+  const financial = calculateFinancialMetrics(inputs);
+  
   const hasValidData = leads > 0 && contratos >= 0;
   
   return {
     globalConversion,
     stages,
     salesVelocity,
+    financial,
     hasValidData,
   };
 }
