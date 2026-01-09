@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -83,6 +83,33 @@ export default function MatrizPerformancePro() {
   const [isExporting, setIsExporting] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [diagnosticName, setDiagnosticName] = useState('');
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [clients, setClients] = useState<{ id: string; company_name: string }[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
+
+  // Load clients when dialog opens
+  useEffect(() => {
+    if (saveDialogOpen && clients.length === 0) {
+      const loadClients = async () => {
+        setIsLoadingClients(true);
+        try {
+          const { data, error } = await supabase
+            .from('clients')
+            .select('id, company_name')
+            .eq('status', 'active')
+            .order('company_name');
+          
+          if (error) throw error;
+          setClients(data || []);
+        } catch (error) {
+          console.error('Error loading clients:', error);
+        } finally {
+          setIsLoadingClients(false);
+        }
+      };
+      loadClients();
+    }
+  }, [saveDialogOpen, clients.length]);
 
   // Calculations
   const benchmark = useMemo(() => getBenchmarkForSetor(setor), [setor]);
@@ -118,6 +145,7 @@ export default function MatrizPerformancePro() {
 
       const { error } = await supabase.from('performance_matrix_diagnostics' as never).insert({
         user_id: user.id,
+        client_id: selectedClientId || null,
         name: diagnosticName.trim(),
         setor,
         inputs: inputs as unknown as Record<string, unknown>,
@@ -130,6 +158,7 @@ export default function MatrizPerformancePro() {
       toast({ title: "Diagnóstico salvo com sucesso!" });
       setSaveDialogOpen(false);
       setDiagnosticName('');
+      setSelectedClientId(null);
     } catch (error) {
       console.error('Error saving diagnostic:', error);
       toast({ title: "Erro ao salvar diagnóstico", variant: "destructive" });
@@ -691,6 +720,25 @@ export default function MatrizPerformancePro() {
                     onChange={(e) => setDiagnosticName(e.target.value)}
                     placeholder="Ex: Análise Q1 2025"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="client">Vincular a cliente (opcional)</Label>
+                  <Select 
+                    value={selectedClientId || "none"} 
+                    onValueChange={(v) => setSelectedClientId(v === "none" ? null : v)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={isLoadingClients ? "Carregando..." : "Selecione um cliente"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum cliente</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.company_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter>
