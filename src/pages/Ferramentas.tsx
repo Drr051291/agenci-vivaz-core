@@ -2,7 +2,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, Zap, BarChart3, Target, Users, Tag, ShoppingBag, FileSpreadsheet, ShoppingCart } from "lucide-react";
+import { Calculator, Zap, BarChart3, Target, Users, Tag, ShoppingBag, FileSpreadsheet, ShoppingCart, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -47,6 +47,14 @@ const tools: Tool[] = [
     icon: Users,
     status: 'active',
     path: '/ferramentas/matriz-inside-sales',
+  },
+  {
+    id: 'matriz-performance-pro',
+    name: 'Matriz de Performance Pro',
+    description: 'Análise de funil com benchmarks Brasil 2025, identificação de gargalos e insights acionáveis.',
+    icon: TrendingUp,
+    status: 'active',
+    path: '/ferramentas/matriz-performance-pro',
   },
   {
     id: 'precificacao-ml',

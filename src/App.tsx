@@ -24,6 +24,7 @@ import Ferramentas from "./pages/Ferramentas";
 import ProjecaoFaturamento from "./pages/ferramentas/ProjecaoFaturamento";
 import MatrizInsideSales from "./pages/ferramentas/MatrizInsideSales";
 import MatrizEcommerce from "./pages/ferramentas/MatrizEcommerce";
+import MatrizPerformancePro from "./pages/ferramentas/MatrizPerformancePro";
 import PrecificacaoMercadoLivre from "./pages/ferramentas/PrecificacaoMercadoLivre";
 import PrecificacaoProduto from "./pages/ferramentas/PrecificacaoProduto";
 import DREProjetado from "./pages/ferramentas/DREProjetado";
@@ -55,6 +56,7 @@ const App = () => (
           <Route path="/ferramentas/projecao" element={<ProjecaoFaturamento />} />
           <Route path="/ferramentas/matriz-inside-sales" element={<MatrizInsideSales />} />
           <Route path="/ferramentas/matriz-ecommerce" element={<MatrizEcommerce />} />
+          <Route path="/ferramentas/matriz-performance-pro" element={<MatrizPerformancePro />} />
           <Route path="/ferramentas/precificacao-mercado-livre" element={<PrecificacaoMercadoLivre />} />
           <Route path="/ferramentas/precificacao-produto" element={<PrecificacaoProduto />} />
           <Route path="/ferramentas/dre-projetado" element={<DREProjetado />} />
