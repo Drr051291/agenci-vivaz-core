@@ -636,12 +636,12 @@ export default function MatrizInsideSales() {
                     <BarChart3 className="h-4 w-4 text-primary" />
                     <Label className="text-sm font-medium">Segmento de negócio</Label>
                   </div>
-                  <Select value={segmentoNegocio} onValueChange={(v) => setSegmentoNegocio(v as SegmentoNegocio)}>
+                  <Select value={segmentoNegocio || "__none__"} onValueChange={(v) => setSegmentoNegocio(v === "__none__" ? '' as SegmentoNegocio : v as SegmentoNegocio)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione para benchmarks" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="" className="text-muted-foreground">Nenhum (usar metas manuais)</SelectItem>
+                      <SelectItem value="__none__" className="text-muted-foreground">Nenhum (usar metas manuais)</SelectItem>
                       {SEGMENTOS_LIST.map(s => (
                         <SelectItem key={s.value} value={s.value}>
                           <span className="text-xs text-muted-foreground mr-1">[{s.grupo}]</span>
