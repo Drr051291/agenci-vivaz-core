@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { InsideSalesInputs, InsideSalesOutputs } from "@/lib/insideSalesMatrix/calc";
 import { Targets } from "@/lib/insideSalesMatrix/status";
 import { StageImpact } from "@/lib/insideSalesMatrix/impact";
-import { ActionItemV2 } from "./ActionPlanV2";
+import { ActionItemBR2025 } from "./ActionPlanBR2025";
 import { ApplyPlanDialog } from "./ApplyPlanDialog";
 import { cn } from "@/lib/utils";
 import { BR2025Context } from "@/lib/insideSalesMatrix/benchmarksBR2025";
@@ -44,7 +44,7 @@ interface AICopilotDrawerBR2025Props {
   impacts: StageImpact[];
   context: BR2025Context;
   eligibleStages: string[];
-  onApplyPlan: (items: ActionItemV2[], options?: { linkToMeeting: boolean; meetingId?: string; createTasks: boolean }) => void;
+  onApplyPlan: (items: ActionItemBR2025[], options?: { linkToMeeting: boolean; meetingId?: string; createTasks: boolean }) => void;
   clientId?: string;
 }
 
@@ -79,28 +79,30 @@ export function AICopilotDrawerBR2025({
     }
   };
 
-  const getActionItems = (): ActionItemV2[] => {
+  const getActionItems = (): ActionItemBR2025[] => {
     if (!analysis?.actions) return [];
     
-    const midiaActions = (analysis.actions.midia || []).map(a => ({
+    const midiaActions: ActionItemBR2025[] = (analysis.actions.midia || []).map(a => ({
       id: crypto.randomUUID(),
       title: a.title,
       stage: a.stage,
       type: 'midia' as const,
       priority: a.priority,
       status: 'A Fazer' as const,
-      metricFocus: a.metric_to_watch,
+      metricToWatch: a.metric_to_watch,
       nextStep: a.next_step,
+      source: 'ai' as const,
     }));
-    const processoActions = (analysis.actions.processo || []).map(a => ({
+    const processoActions: ActionItemBR2025[] = (analysis.actions.processo || []).map(a => ({
       id: crypto.randomUUID(),
       title: a.title,
       stage: a.stage,
       type: 'processo' as const,
       priority: a.priority,
       status: 'A Fazer' as const,
-      metricFocus: a.metric_to_watch,
+      metricToWatch: a.metric_to_watch,
       nextStep: a.next_step,
+      source: 'ai' as const,
     }));
     return [...midiaActions, ...processoActions];
   };

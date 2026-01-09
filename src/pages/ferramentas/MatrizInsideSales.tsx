@@ -39,6 +39,7 @@ import { getEligibleStages, hasMediaDataComplete } from "@/lib/insideSalesMatrix
 
 import { InputTabs } from "@/components/insideSalesMatrix/InputTabs";
 import { ActionItemV2 } from "@/components/insideSalesMatrix/ActionPlanV2";
+import { ActionItemBR2025 } from "@/components/insideSalesMatrix/ActionPlanBR2025";
 import { PeriodPickerPresets, PeriodRange, formatPeriodLabel } from "@/components/insideSalesMatrix/PeriodPickerPresets";
 import { ConfidenceChip } from "@/components/insideSalesMatrix/ConfidenceChip";
 import { MobileBottomBar } from "@/components/insideSalesMatrix/MobileBottomBar";
@@ -104,7 +105,7 @@ export default function MatrizInsideSales() {
   const [rules, setRules] = useState<MatrixRule[]>(DEFAULT_RULES);
 
   // Action Plan
-  const [actionItems, setActionItems] = useState<ActionItemV2[]>([]);
+  const [actionItems, setActionItems] = useState<ActionItemBR2025[]>([]);
 
   // AI Copilot
   const [copilotOpen, setCopilotOpen] = useState(false);
@@ -241,21 +242,22 @@ export default function MatrizInsideSales() {
   }, [inputs, outputs, impacts, br2025Context]);
 
   function addToActionPlan(action: PlaybookAction) {
-    const newItem: ActionItemV2 = {
+    const newItem: ActionItemBR2025 = {
       id: crypto.randomUUID(),
       title: action.title,
       stage: action.stage,
       type: action.type,
       priority: action.priority,
       status: 'A Fazer',
-      metricFocus: action.metricToWatch,
+      metricToWatch: action.metricToWatch,
       nextStep: action.nextStep,
+      source: 'br2025',
     };
     setActionItems(prev => [...prev, newItem]);
     toast.success('Ação adicionada ao plano!');
   }
 
-  async function applyAIPlan(items: ActionItemV2[], options?: { linkToMeeting: boolean; meetingId?: string; createTasks: boolean }) {
+  async function applyAIPlan(items: ActionItemBR2025[], options?: { linkToMeeting: boolean; meetingId?: string; createTasks: boolean }) {
     setActionItems(prev => [...prev, ...items]);
     
     if (options?.linkToMeeting && options.meetingId) {
@@ -269,7 +271,7 @@ export default function MatrizInsideSales() {
               type: item.type,
               stage: item.stage,
               priority: item.priority,
-              metric_to_watch: item.metricFocus,
+              metric_to_watch: item.metricToWatch,
               next_step: item.nextStep,
             },
           })
@@ -415,13 +417,29 @@ export default function MatrizInsideSales() {
 
   // Apply benchmark as targets
   function applyBenchmarkAsTargets() {
-    if (benchmarkProfile) {
-      // Simple mapping from benchmark to targets
-      const newTargets = { ...targets };
-      // Update based on benchmark hints
-      toast.success('Metas atualizadas com benchmarks BR 2025!');
-      setTargets(newTargets);
+    if (!benchmarkProfile) return;
+    
+    const newTargets = { ...targets };
+    
+    // Conversão geral aplica ao Lead→MQL como proxy
+    if (benchmarkProfile.conversaoGeral) {
+      newTargets.leadToMql = { ...newTargets.leadToMql, value: Math.round(benchmarkProfile.conversaoGeral * 10) / 10 };
     }
+    
+    // CPL range - usa o valor médio
+    if (benchmarkProfile.cplRange) {
+      const avgCpl = (benchmarkProfile.cplRange.min + benchmarkProfile.cplRange.max) / 2;
+      newTargets.cpl = { ...newTargets.cpl, value: Math.round(avgCpl) };
+    }
+    
+    // Lead→Oportunidade (SQL) do LinkedIn
+    if (benchmarkProfile.leadToOportunidade) {
+      const avgLeadToSql = (benchmarkProfile.leadToOportunidade.min + benchmarkProfile.leadToOportunidade.max) / 2;
+      newTargets.mqlToSql = { ...newTargets.mqlToSql, value: Math.round(avgLeadToSql) };
+    }
+    
+    setTargets(newTargets);
+    toast.success('Metas atualizadas com benchmarks BR 2025!');
   }
 
   return (
@@ -629,15 +647,24 @@ export default function MatrizInsideSales() {
                   </div>
                 </div>
 
-                {/* Benchmark hints */}
+                {/* Benchmark chip compacto + botão "Usar Bench como Meta" */}
                 {benchmarkProfile && (
-                  <div className="p-2 bg-primary/5 border border-primary/20 rounded text-xs space-y-1">
-                    <p className="font-medium text-primary">Benchmark BR 2025</p>
-                    <p>Conversão geral: {benchmarkProfile.conversaoGeral}%</p>
-                    {benchmarkProfile.cplRange && (
-                      <p>CPL: R$ {benchmarkProfile.cplRange.min} – R$ {benchmarkProfile.cplRange.max}</p>
-                    )}
-                    <p className="text-muted-foreground">{benchmarkProfile.notasContexto}</p>
+                  <div className="flex items-center justify-between p-2 bg-primary/5 border border-primary/20 rounded text-xs">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] h-5">Bench ativo</Badge>
+                      <span className="text-muted-foreground truncate max-w-[200px]">
+                        {mercado}{segmento ? ` • ${SEGMENTOS_BR2025_LIST.find(s => s.value === segmento)?.label?.split(' ')[0] || segmento}` : ''}
+                        {canal ? ` • ${CANAIS_MIDIA_LIST.find(c => c.value === canal)?.label}` : ''}
+                      </span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 text-[10px] px-2"
+                      onClick={applyBenchmarkAsTargets}
+                    >
+                      Usar como Meta
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -681,21 +708,21 @@ export default function MatrizInsideSales() {
             )}
           </div>
 
-          {/* RIGHT: Gaps & Impact */}
-          <div>
+          {/* RIGHT: Gaps & Impact + Action Plan (melhor uso do espaço) */}
+          <div className="space-y-4">
             <GapsImpactPanelBR2025
               impacts={impacts}
               onAddToActionPlan={addToActionPlan}
             />
+            
+            {/* Action Plan agora no grid direito para preencher espaço */}
+            <ActionPlanBR2025
+              items={actionItems}
+              onChange={setActionItems}
+              dailyChecklist={deterministicActions.slice(0, 3)}
+            />
           </div>
         </div>
-
-        {/* D) ROW 3: Action Plan */}
-        <ActionPlanBR2025
-          items={actionItems}
-          onChange={setActionItems}
-          dailyChecklist={deterministicActions.slice(0, 3)}
-        />
 
         {/* AI Copilot Drawer */}
         <AICopilotDrawerBR2025
