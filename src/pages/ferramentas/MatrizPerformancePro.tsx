@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -8,14 +8,15 @@ import {
   CheckCircle, 
   Info,
   Zap,
-  Target,
   Users,
   Clock,
   DollarSign,
   HelpCircle,
   Wallet,
-  PiggyBank,
   BarChart3,
+  Save,
+  FileDown,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { jsPDF } from "jspdf";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 import { 
   SetorAtuacao, 
@@ -60,6 +65,7 @@ const STAGE_COLORS = [
 export default function MatrizPerformancePro() {
   usePageMeta({ title: "Matriz de Performance Pro | Ferramentas" });
   const navigate = useNavigate();
+  const reportRef = useRef<HTMLDivElement>(null);
 
   // State
   const [setor, setSetor] = useState<SetorAtuacao>('geral_b2b');
@@ -73,6 +79,10 @@ export default function MatrizPerformancePro() {
     ticketMedio: undefined,
     investimento: undefined,
   });
+  const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [diagnosticName, setDiagnosticName] = useState('');
 
   // Calculations
   const benchmark = useMemo(() => getBenchmarkForSetor(setor), [setor]);
@@ -89,6 +99,176 @@ export default function MatrizPerformancePro() {
   const updateOptionalInput = (key: 'cicloVendas' | 'ticketMedio' | 'investimento', value: string) => {
     const parsed = value === '' ? undefined : parseFloat(value);
     setInputs(prev => ({ ...prev, [key]: parsed }));
+  };
+
+  // Save diagnostic to database
+  const handleSave = async () => {
+    if (!diagnosticName.trim()) {
+      toast({ title: "Digite um nome para o diagnóstico", variant: "destructive" });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Faça login para salvar", variant: "destructive" });
+        return;
+      }
+
+      const { error } = await supabase.from('performance_matrix_diagnostics' as never).insert({
+        user_id: user.id,
+        name: diagnosticName.trim(),
+        setor,
+        inputs: inputs as unknown as Record<string, unknown>,
+        outputs: outputs as unknown as Record<string, unknown>,
+        insights: insights as unknown as Record<string, unknown>[],
+      } as never);
+
+      if (error) throw error;
+
+      toast({ title: "Diagnóstico salvo com sucesso!" });
+      setSaveDialogOpen(false);
+      setDiagnosticName('');
+    } catch (error) {
+      console.error('Error saving diagnostic:', error);
+      toast({ title: "Erro ao salvar diagnóstico", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Export as PDF
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let y = 20;
+
+      // Title
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("Matriz de Performance Pro", pageWidth / 2, y, { align: "center" });
+      y += 10;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Setor: ${benchmark.label} | Data: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, y, { align: "center" });
+      y += 15;
+
+      // Funnel Data
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Dados do Funil", 14, y);
+      y += 8;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      const funnelData = [
+        `Leads: ${formatNumber(inputs.leads)}`,
+        `MQL: ${formatNumber(inputs.mqls)}`,
+        `SQL: ${formatNumber(inputs.sqls)}`,
+        `Oportunidades: ${formatNumber(inputs.oportunidades)}`,
+        `Contratos: ${formatNumber(inputs.contratos)}`,
+      ];
+      funnelData.forEach(line => {
+        doc.text(line, 14, y);
+        y += 6;
+      });
+      y += 5;
+
+      // Conversion Rates
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Taxas de Conversão", 14, y);
+      y += 8;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Conversão Geral: ${formatPercent(outputs.globalConversion)} (Benchmark: ${formatPercent(benchmark.conversionRate)})`, 14, y);
+      y += 6;
+
+      outputs.stages.forEach(stage => {
+        const isBottleneck = bottleneck?.key === stage.key;
+        doc.text(`${stage.labelShort}: ${formatPercent(stage.rate)}${isBottleneck ? ' ⚠️ GARGALO' : ''}`, 14, y);
+        y += 6;
+      });
+      y += 5;
+
+      // Financial Metrics
+      if (inputs.investimento) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Métricas Financeiras", 14, y);
+        y += 8;
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`CPL: ${formatCurrency(outputs.financial.cpl)}`, 14, y);
+        y += 6;
+        doc.text(`CAC: ${formatCurrency(outputs.financial.cac)}`, 14, y);
+        y += 6;
+        if (outputs.financial.roi !== null) {
+          doc.text(`ROI: ${outputs.financial.roi.toFixed(0)}%`, 14, y);
+          y += 6;
+        }
+        y += 5;
+      }
+
+      // Insights
+      if (insights.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Diagnóstico & Ações", 14, y);
+        y += 8;
+
+        insights.forEach(insight => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "bold");
+          const typeLabel = insight.type === 'critical' ? '❌' : insight.type === 'warning' ? '⚠️' : insight.type === 'success' ? '✅' : 'ℹ️';
+          doc.text(`${typeLabel} ${insight.title}`, 14, y);
+          y += 6;
+
+          if (insight.diagnosis) {
+            doc.setFont("helvetica", "normal");
+            const diagLines = doc.splitTextToSize(insight.diagnosis, pageWidth - 28);
+            diagLines.forEach((line: string) => {
+              doc.text(line, 14, y);
+              y += 5;
+            });
+          }
+
+          if (insight.action) {
+            doc.setFont("helvetica", "italic");
+            const actionLines = doc.splitTextToSize(`→ ${insight.action}`, pageWidth - 28);
+            actionLines.forEach((line: string) => {
+              doc.text(line, 14, y);
+              y += 5;
+            });
+          }
+          y += 4;
+        });
+      }
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("Hub Vivaz - Matriz de Performance Pro | Benchmark Brasil 2025", pageWidth / 2, 290, { align: "center" });
+
+      doc.save(`diagnostico-performance-${new Date().toISOString().slice(0,10)}.pdf`);
+      toast({ title: "PDF exportado com sucesso!" });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast({ title: "Erro ao exportar PDF", variant: "destructive" });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Get insight icon
@@ -127,6 +307,30 @@ export default function MatrizPerformancePro() {
                   Benchmark Brasil 2025 • {benchmark.label}
                 </p>
               </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSaveDialogOpen(true)}
+                disabled={inputs.leads === 0}
+              >
+                <Save className="h-4 w-4 mr-1" />
+                Salvar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportPDF}
+                disabled={isExporting || inputs.leads === 0}
+              >
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <FileDown className="h-4 w-4 mr-1" />
+                )}
+                PDF
+              </Button>
             </div>
           </div>
 
@@ -471,6 +675,44 @@ export default function MatrizPerformancePro() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Save Dialog */}
+          <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Salvar Diagnóstico</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome do diagnóstico</Label>
+                  <Input
+                    id="name"
+                    value={diagnosticName}
+                    onChange={(e) => setDiagnosticName(e.target.value)}
+                    placeholder="Ex: Análise Q1 2025"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Salvar
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </TooltipProvider>
     </DashboardLayout>

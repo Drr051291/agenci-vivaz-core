@@ -1530,6 +1530,60 @@ export type Database = {
           },
         ]
       }
+      performance_matrix_diagnostics: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          id: string
+          inputs: Json
+          insights: Json
+          name: string
+          outputs: Json
+          setor: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          inputs?: Json
+          insights?: Json
+          name: string
+          outputs?: Json
+          setor: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          inputs?: Json
+          insights?: Json
+          name?: string
+          outputs?: Json
+          setor?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_matrix_diagnostics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_matrix_diagnostics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
