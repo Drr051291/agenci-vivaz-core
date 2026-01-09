@@ -31,6 +31,8 @@ import {
   MeetingStatusBadge,
 } from "@/components/meetings";
 import { MeetingActionPlan, ActionPlanItem } from "@/components/meetings/MeetingActionPlan";
+import { RetrovisorSection, DiagnosisPickerSection, EnhancedSidebar, SendToTasksButton } from "@/components/meetings/v2";
+import { History, Stethoscope } from "lucide-react";
 
 interface Task {
   id: string;
@@ -77,6 +79,13 @@ interface ChecklistItem {
   notes?: string;
 }
 
+interface DiagnosisItem {
+  tagId: string;
+  tagLabel: string;
+  context: string;
+  solution: string;
+}
+
 interface MeetingSections {
   objective: string;
   context: string;
@@ -89,6 +98,7 @@ interface MeetingSections {
   actionsPerformed: string[];
   actionPlan: ActionPlanItem[];
   questionsAndDiscussions: string;
+  diagnosisItems: DiagnosisItem[];
 }
 
 const AUTOSAVE_DELAY = 3000;
@@ -112,6 +122,7 @@ const DEFAULT_SECTIONS: MeetingSections = {
   actionsPerformed: [],
   actionPlan: [],
   questionsAndDiscussions: "",
+  diagnosisItems: [],
 };
 
 export default function MeetingEditor() {
@@ -308,6 +319,9 @@ export default function MeetingEditor() {
               case "insights":
                 loadedSections.insights = (content.items as Insight[]) || [];
                 break;
+              case "diagnosis_items":
+                loadedSections.diagnosisItems = (content.items as DiagnosisItem[]) || [];
+                break;
             }
           }
         });
@@ -417,6 +431,7 @@ export default function MeetingEditor() {
         { section_key: "action_plan", title: "Plano de ação", content_json: JSON.parse(JSON.stringify({ items: sections.actionPlan })), sort_order: 6 },
         { section_key: "questions_discussions", title: "Dúvidas e discussões", content_json: JSON.parse(JSON.stringify({ text: sections.questionsAndDiscussions })), sort_order: 7 },
         { section_key: "insights", title: "Insights", content_json: JSON.parse(JSON.stringify({ items: sections.insights })), sort_order: 8 },
+        { section_key: "diagnosis_items", title: "Diagnósticos", content_json: JSON.parse(JSON.stringify({ items: sections.diagnosisItems })), sort_order: 9 },
       ];
 
       for (const section of sectionsToSave) {
@@ -1014,11 +1029,24 @@ export default function MeetingEditor() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Structured Editor */}
           <div className="lg:col-span-3 space-y-4">
+            {/* Retrovisor (Commitment Review) */}
+            <CollapsibleSection 
+              title="Retrovisor" 
+              icon={<History className="h-5 w-5" />}
+              defaultOpen={true}
+            >
+              <RetrovisorSection
+                clientId={clientId || ""}
+                meetingId={meetingId}
+                isEditing={isEditMode}
+                onTasksUpdated={() => loadMeetingData()}
+              />
+            </CollapsibleSection>
+
             {/* Abertura e Alinhamento */}
             <CollapsibleSection 
               title="Abertura e Alinhamento" 
               icon={<Target className="h-5 w-5" />}
-              defaultOpen={true}
             >
               <div className="space-y-4">
                 <div>
@@ -1103,6 +1131,19 @@ export default function MeetingEditor() {
               />
             </CollapsibleSection>
 
+            {/* Diagnóstico (The Matrix) */}
+            <CollapsibleSection 
+              title="Diagnóstico" 
+              icon={<Stethoscope className="h-5 w-5" />}
+              badge={sections.diagnosisItems.length > 0 ? `${sections.diagnosisItems.length}` : undefined}
+            >
+              <DiagnosisPickerSection
+                items={sections.diagnosisItems}
+                onChange={(items) => setSections({ ...sections, diagnosisItems: items })}
+                isEditing={isEditMode}
+              />
+            </CollapsibleSection>
+
             {/* O que funcionou bem / Pontos de melhoria */}
             <CollapsibleSection 
               title="Análise de Performance" 
@@ -1162,31 +1203,46 @@ export default function MeetingEditor() {
               title="Dúvidas e Discussões" 
               icon={<FileText className="h-5 w-5" />}
             >
-              {isEditMode ? (
-                <RichTextEditor
-                  content={sections.questionsAndDiscussions}
-                  onChange={(content) => setSections({ ...sections, questionsAndDiscussions: content })}
-                  placeholder="Registre dúvidas e discussões importantes..."
-                />
-              ) : (
-                <div className="prose max-w-none">
-                  <MeetingViewer content={sections.questionsAndDiscussions} />
-                </div>
-              )}
+              <div className="space-y-3">
+                {isEditMode ? (
+                  <>
+                    <RichTextEditor
+                      content={sections.questionsAndDiscussions}
+                      onChange={(content) => setSections({ ...sections, questionsAndDiscussions: content })}
+                      placeholder="Registre dúvidas e discussões importantes..."
+                    />
+                    {sections.questionsAndDiscussions && (
+                      <div className="flex justify-end">
+                        <SendToTasksButton
+                          clientId={clientId || ""}
+                          meetingId={meetingId}
+                          text={sections.questionsAndDiscussions.replace(/<[^>]*>/g, '').substring(0, 100)}
+                          profiles={profiles}
+                          onTaskCreated={() => loadMeetingData()}
+                          variant="popover"
+                        />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="prose max-w-none">
+                    <MeetingViewer content={sections.questionsAndDiscussions} />
+                  </div>
+                )}
+              </div>
             </CollapsibleSection>
           </div>
 
-          {/* Sidebar */}
-          <MeetingSidebar
+          {/* Enhanced Sidebar */}
+          <EnhancedSidebar
+            clientId={clientId || ""}
+            meetingId={meetingId}
             tasks={tasks}
+            profiles={profiles}
             selectedTasks={selectedTasks}
             onTaskToggle={handleTaskToggle}
+            onTasksUpdated={() => loadMeetingData()}
             isEditing={isEditMode}
-            onSelectPending={() => {
-              const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
-              setSelectedTasks(pendingTasks.map(t => t.id));
-            }}
-            onClear={() => setSelectedTasks([])}
           />
         </div>
       </div>
