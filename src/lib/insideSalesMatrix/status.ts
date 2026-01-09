@@ -16,22 +16,26 @@ export interface Targets {
 }
 
 // Funil simplificado: Leads → MQL → SQL → Contrato
+// Targets baseados no estudo BR 2025 (removendo defaults de 25%/30%/40%)
+// Lead→MQL: B2B ~10-15%, B2C ~15-25% (não existe 25% universal)
+// MQL→SQL: Varia muito por segmento (20-50%)
+// SQL→Contrato: Varia (15-30%)
 export const DEFAULT_TARGETS: Targets = {
-  ctr: { value: 1.0, direction: 'min', label: 'CTR (%)' },
-  cpc: { value: 6.0, direction: 'max', label: 'CPC (R$)' },
+  ctr: { value: 1.5, direction: 'min', label: 'CTR (%)' },
+  cpc: { value: 8.0, direction: 'max', label: 'CPC (R$)' },
   cpm: { value: 60.0, direction: 'max', label: 'CPM (R$)' },
-  cvrClickLead: { value: 6.0, direction: 'min', label: 'CVR clique → lead (%)' },
-  cpl: { value: 120.0, direction: 'max', label: 'CPL (R$)' },
-  invalidLeadRate: { value: 10.0, direction: 'max', label: '% leads inválidos' },
-  leadToMql: { value: 30.0, direction: 'min', label: 'Lead → MQL (%)' },
-  ttft: { value: 15.0, direction: 'max', label: 'TTFT (min)' },
+  cvrClickLead: { value: 5.0, direction: 'min', label: 'CVR clique → lead (%)' },
+  cpl: { value: 150.0, direction: 'max', label: 'CPL (R$)' },
+  invalidLeadRate: { value: 15.0, direction: 'max', label: '% leads inválidos' },
+  leadToMql: { value: 15.0, direction: 'min', label: 'Lead → MQL (%)' }, // BR 2025: 10-20% típico
+  ttft: { value: 5.0, direction: 'max', label: 'TTFT (min)' }, // BR 2025: <5 min ideal
   contactRate24h: { value: 80.0, direction: 'min', label: 'Contact rate 24h (%)' },
   connectRate: { value: 25.0, direction: 'min', label: 'Connect rate (%)' },
   salRate: { value: 60.0, direction: 'min', label: 'SAL rate (%)' },
-  mqlToSql: { value: 40.0, direction: 'min', label: 'MQL → SQL (%)' },
-  sqlToWin: { value: 25.0, direction: 'min', label: 'SQL → Contrato (%)' },
+  mqlToSql: { value: 30.0, direction: 'min', label: 'MQL → SQL (%)' }, // BR 2025: 20-35%
+  sqlToWin: { value: 20.0, direction: 'min', label: 'SQL → Contrato (%)' }, // BR 2025: 15-25%
   mqlAgingDays: { value: 7.0, direction: 'max', label: 'Aging MQL (dias)' },
-  salesCycleDays: { value: 30.0, direction: 'max', label: 'Ciclo de vendas (dias)' },
+  salesCycleDays: { value: 69.0, direction: 'max', label: 'Ciclo de vendas (dias)' }, // BR 2025 alto ticket
   discountRate: { value: 15.0, direction: 'max', label: 'Taxa de desconto (%)' },
 };
 

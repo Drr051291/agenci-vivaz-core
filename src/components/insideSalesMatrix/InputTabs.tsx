@@ -168,32 +168,7 @@ export function InputTabs({ inputs, outputs, targets, onInputChange, onTargetCha
               </div>
             </div>
 
-            {/* Preview das taxas calculadas */}
-            <div className="pt-3 border-t">
-              <p className="text-xs text-muted-foreground mb-2">Taxas calculadas:</p>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                {[
-                  { key: 'leadToMql', label: 'Lead→MQL' },
-                  { key: 'mqlToSql', label: 'MQL→SQL' },
-                  { key: 'sqlToWin', label: 'SQL→Contrato' },
-                ].map(({ key, label }) => (
-                  <div key={key} className="bg-muted/50 rounded px-2 py-1.5 text-center">
-                    <span className="text-muted-foreground block text-[10px]">{label}</span>
-                    <span className="font-medium">{formatMetricByKey(key, outputs[key as keyof InsideSalesOutputs])}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
-                <div className="bg-muted/50 rounded px-2 py-1.5 text-center">
-                  <span className="text-muted-foreground block text-[10px]">CPL</span>
-                  <span className="font-medium">{formatMetricByKey('cpl', outputs.cpl)}</span>
-                </div>
-                <div className="bg-muted/50 rounded px-2 py-1.5 text-center">
-                  <span className="text-muted-foreground block text-[10px]">CAC</span>
-                  <span className="font-medium">{formatMetricByKey('cac', outputs.cac)}</span>
-                </div>
-              </div>
-            </div>
+            {/* Removido: Preview duplicado das taxas - já aparece no funil */}
 
             {/* Advanced fields collapsible */}
             <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
@@ -253,25 +228,7 @@ export function InputTabs({ inputs, outputs, targets, onInputChange, onTargetCha
               />
             </div>
 
-            {(inputs.impressoes || inputs.cliques) && (
-              <div className="pt-3 border-t">
-                <p className="text-xs text-muted-foreground mb-2">Métricas calculadas:</p>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div className="bg-muted/50 rounded px-2 py-1.5 text-center">
-                    <span className="text-muted-foreground block text-[10px]">CTR</span>
-                    <span className="font-medium">{formatMetricByKey('ctr', outputs.ctr)}</span>
-                  </div>
-                  <div className="bg-muted/50 rounded px-2 py-1.5 text-center">
-                    <span className="text-muted-foreground block text-[10px]">CPC</span>
-                    <span className="font-medium">{formatMetricByKey('cpc', outputs.cpc)}</span>
-                  </div>
-                  <div className="bg-muted/50 rounded px-2 py-1.5 text-center">
-                    <span className="text-muted-foreground block text-[10px]">CPM</span>
-                    <span className="font-medium">{formatMetricByKey('cpm', outputs.cpm)}</span>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Removido: Métricas duplicadas - já aparecem no painel */}
           </TabsContent>
 
           <TabsContent value="metas" className="space-y-4">

@@ -34,11 +34,11 @@ export function calculateStageImpacts(
     sqlToWin: safeDiv(contratos, sql),
   };
   
-  // Target rates as decimals
+  // Target rates as decimals (defaults baseados no BR 2025)
   const targetRates = {
-    leadToMql: (targets.leadToMql?.value || 30) / 100,
-    mqlToSql: (targets.mqlToSql?.value || 40) / 100,
-    sqlToWin: (targets.sqlToWin?.value || 25) / 100,
+    leadToMql: (targets.leadToMql?.value || 15) / 100, // BR 2025: 10-20%
+    mqlToSql: (targets.mqlToSql?.value || 30) / 100,   // BR 2025: 20-35%
+    sqlToWin: (targets.sqlToWin?.value || 20) / 100,   // BR 2025: 15-25%
   };
 
   const stageData: { 
