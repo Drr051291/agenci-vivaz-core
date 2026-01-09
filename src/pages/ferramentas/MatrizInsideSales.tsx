@@ -494,55 +494,32 @@ export default function MatrizInsideSales() {
           </div>
         </div>
 
-        {/* B) ROW 1: Funnel + Decision Panel */}
+        {/* LAYOUT OTIMIZADO: 3 colunas */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Funnel Visual BR 2025 (8 cols on desktop) */}
-          <div className="lg:col-span-8">
-            <FunnelVisualBR2025 
-              inputs={inputs} 
-              outputs={outputs} 
-              impacts={impacts}
-              br2025Context={br2025Context}
-            />
-          </div>
           
-          {/* Decision Panel (4 cols on desktop, hidden on mobile - use bottom bar) */}
-          <div className="hidden lg:block lg:col-span-4">
-            <DecisionPanelBR2025
-              gargalo1={gargalo1}
-              gargalo2={gargalo2}
-              impacts={impacts}
-              eligibleStages={eligibleStages}
-              confidence={confidenceScore}
-              hasMediaData={inputs.investimento > 0 || inputs.cliques > 0}
-              playbookActions={deterministicActions}
-              onOpenCopilot={() => setCopilotOpen(true)}
-              canUseAI={!!canUseAI}
-            />
-          </div>
-        </div>
-
-        {/* C) ROW 2: Inputs + Gaps/Impact */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* LEFT: Inputs */}
-          <div className="space-y-4">
-            {/* Context Card BR 2025 */}
+          {/* COLUNA ESQUERDA (4 cols): Contexto + Inputs */}
+          <div className="lg:col-span-4 space-y-3">
+            {/* Context Card BR 2025 - Compacto */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Contexto BR 2025</CardTitle>
+              <CardHeader className="pb-2 pt-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">Contexto</CardTitle>
+                  {benchmarkProfile && (
+                    <Badge variant="outline" className="text-[10px] h-5">Bench ativo</Badge>
+                  )}
+                </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Cliente */}
+              <CardContent className="space-y-2 pt-0">
+                <div className="grid grid-cols-2 gap-2">
                   {clients.length > 0 ? (
                     <div className="space-y-1">
-                      <Label className="text-xs">Cliente</Label>
+                      <Label className="text-[10px] text-muted-foreground">Cliente</Label>
                       <Select value={clientId} onValueChange={(v) => {
                         setClientId(v);
                         const c = clients.find(c => c.id === v);
                         setClientName(c?.company_name || '');
                       }}>
-                        <SelectTrigger className="h-8 text-xs">
+                        <SelectTrigger className="h-7 text-xs">
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
@@ -554,21 +531,19 @@ export default function MatrizInsideSales() {
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      <Label className="text-xs">Nome do cliente</Label>
+                      <Label className="text-[10px] text-muted-foreground">Cliente</Label>
                       <Input 
-                        className="h-8 text-xs"
+                        className="h-7 text-xs"
                         value={clientName} 
                         onChange={(e) => setClientName(e.target.value)}
                         placeholder="Nome"
                       />
                     </div>
                   )}
-                  
-                  {/* Mercado */}
                   <div className="space-y-1">
-                    <Label className="text-xs">Mercado *</Label>
+                    <Label className="text-[10px] text-muted-foreground">Mercado</Label>
                     <Select value={mercado} onValueChange={(v) => setMercado(v as MercadoBR)}>
-                      <SelectTrigger className="h-8 text-xs">
+                      <SelectTrigger className="h-7 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -578,41 +553,30 @@ export default function MatrizInsideSales() {
                     </Select>
                   </div>
                 </div>
-
-                {/* Período */}
-                <div>
-                  <PeriodPickerPresets
-                    value={periodRange}
-                    onChange={setPeriodRange}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Canal */}
+                <PeriodPickerPresets value={periodRange} onChange={setPeriodRange} />
+                <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Canal de Mídia</Label>
+                    <Label className="text-[10px] text-muted-foreground">Canal</Label>
                     <Select value={canal || "__none__"} onValueChange={(v) => setCanal(v === "__none__" ? '' : v as CanalMidia)}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Opcional" />
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">Não especificado</SelectItem>
+                        <SelectItem value="__none__">—</SelectItem>
                         {CANAIS_MIDIA_LIST.map(c => (
                           <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* Segmento */}
                   <div className="space-y-1">
-                    <Label className="text-xs">Segmento</Label>
+                    <Label className="text-[10px] text-muted-foreground">Segmento</Label>
                     <Select value={segmento || "__none__"} onValueChange={(v) => setSegmento(v === "__none__" ? '' : v as SegmentoBR)}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Opcional" />
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">Não especificado</SelectItem>
+                        <SelectItem value="__none__">—</SelectItem>
                         {SEGMENTOS_BR2025_LIST.map(s => (
                           <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                         ))}
@@ -620,57 +584,36 @@ export default function MatrizInsideSales() {
                     </Select>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Tipo de Captura */}
+                <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Tipo de Captura</Label>
+                    <Label className="text-[10px] text-muted-foreground">Captura</Label>
                     <Select value={captura || "__none__"} onValueChange={(v) => setCaptura(v === "__none__" ? '' : v as TipoCaptura)}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Opcional" />
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">Não especificado</SelectItem>
+                        <SelectItem value="__none__">—</SelectItem>
                         <SelectItem value="landing_page">Landing Page</SelectItem>
-                        <SelectItem value="lead_nativo">Lead Nativo (Form)</SelectItem>
+                        <SelectItem value="lead_nativo">Lead Nativo</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* WhatsApp CRM */}
                   <div className="space-y-1">
-                    <Label className="text-xs">WhatsApp integrado ao CRM?</Label>
-                    <div className="flex items-center gap-2 h-8">
-                      <Switch checked={whatsappCrm} onCheckedChange={setWhatsappCrm} />
+                    <Label className="text-[10px] text-muted-foreground">WhatsApp CRM</Label>
+                    <div className="flex items-center gap-2 h-7">
+                      <Switch checked={whatsappCrm} onCheckedChange={setWhatsappCrm} className="scale-90" />
                       <span className="text-xs text-muted-foreground">{whatsappCrm ? 'Sim' : 'Não'}</span>
                     </div>
                   </div>
                 </div>
-
-                {/* Benchmark chip compacto + botão "Usar Bench como Meta" */}
                 {benchmarkProfile && (
-                  <div className="flex items-center justify-between p-2 bg-primary/5 border border-primary/20 rounded text-xs">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px] h-5">Bench ativo</Badge>
-                      <span className="text-muted-foreground truncate max-w-[200px]">
-                        {mercado}{segmento ? ` • ${SEGMENTOS_BR2025_LIST.find(s => s.value === segmento)?.label?.split(' ')[0] || segmento}` : ''}
-                        {canal ? ` • ${CANAIS_MIDIA_LIST.find(c => c.value === canal)?.label}` : ''}
-                      </span>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-6 text-[10px] px-2"
-                      onClick={applyBenchmarkAsTargets}
-                    >
-                      Usar como Meta
-                    </Button>
-                  </div>
+                  <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={applyBenchmarkAsTargets}>
+                    Usar Bench como Meta
+                  </Button>
                 )}
               </CardContent>
             </Card>
 
-            {/* Input Tabs */}
             <InputTabs
               inputs={inputs}
               outputs={outputs}
@@ -680,25 +623,19 @@ export default function MatrizInsideSales() {
               onResetTargets={resetTargets}
             />
 
-            {/* History */}
             {history.length > 0 && (
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Histórico</CardTitle>
+                <CardHeader className="pb-1 pt-2">
+                  <CardTitle className="text-xs">Histórico</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
-                    {history.map((h) => (
-                      <div key={h.id} className="flex items-center justify-between text-xs bg-muted/30 rounded p-2">
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium truncate block">{h.client_name || 'Sem cliente'}</span>
-                          <span className="text-muted-foreground">
-                            {h.period_label || 'Sem período'} • {new Date(h.created_at).toLocaleDateString('pt-BR')}
-                          </span>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => loadDiagnostic(h)}>Ver</Button>
-                          <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-destructive" onClick={() => deleteDiagnostic(h.id)}>×</Button>
+                <CardContent className="pt-0 pb-2">
+                  <div className="space-y-1 max-h-[100px] overflow-y-auto">
+                    {history.slice(0, 5).map((h) => (
+                      <div key={h.id} className="flex items-center justify-between text-[10px] bg-muted/30 rounded px-2 py-1">
+                        <span className="truncate flex-1">{h.client_name || h.period_label || 'Sem nome'}</span>
+                        <div className="flex gap-1 shrink-0">
+                          <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => loadDiagnostic(h)}>Ver</Button>
+                          <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1 text-destructive" onClick={() => deleteDiagnostic(h.id)}>×</Button>
                         </div>
                       </div>
                     ))}
@@ -707,15 +644,36 @@ export default function MatrizInsideSales() {
               </Card>
             )}
           </div>
-
-          {/* RIGHT: Gaps & Impact + Action Plan (melhor uso do espaço) */}
-          <div className="space-y-4">
+          
+          {/* COLUNA CENTRAL (5 cols): Funnel + Gaps */}
+          <div className="lg:col-span-5 space-y-3">
+            <FunnelVisualBR2025 
+              inputs={inputs} 
+              outputs={outputs} 
+              impacts={impacts}
+              br2025Context={br2025Context}
+            />
             <GapsImpactPanelBR2025
               impacts={impacts}
               onAddToActionPlan={addToActionPlan}
             />
-            
-            {/* Action Plan agora no grid direito para preencher espaço */}
+          </div>
+          
+          {/* COLUNA DIREITA (3 cols): Decision + Action Plan */}
+          <div className="lg:col-span-3 space-y-3">
+            <div className="hidden lg:block">
+              <DecisionPanelBR2025
+                gargalo1={gargalo1}
+                gargalo2={gargalo2}
+                impacts={impacts}
+                eligibleStages={eligibleStages}
+                confidence={confidenceScore}
+                hasMediaData={inputs.investimento > 0 || inputs.cliques > 0}
+                playbookActions={deterministicActions}
+                onOpenCopilot={() => setCopilotOpen(true)}
+                canUseAI={!!canUseAI}
+              />
+            </div>
             <ActionPlanBR2025
               items={actionItems}
               onChange={setActionItems}
