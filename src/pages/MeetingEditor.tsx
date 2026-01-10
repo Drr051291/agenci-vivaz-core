@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, RefreshCw, Check, FileText, BarChart3, TrendingUp, Lightbulb, CheckCircle2, Target, Wrench } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, RefreshCw, Check, FileText, BarChart3, TrendingUp, Target, Wrench, History, Stethoscope, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -26,13 +26,10 @@ import {
   MetricsSection,
   ChannelsSection,
   BulletsSection,
-  InsightsSection,
-  MeetingSidebar,
   MeetingStatusBadge,
 } from "@/components/meetings";
 import { MeetingActionPlan, ActionPlanItem } from "@/components/meetings/MeetingActionPlan";
 import { RetrovisorSection, DiagnosisPickerSection, EnhancedSidebar, SendToTasksButton } from "@/components/meetings/v2";
-import { History, Stethoscope } from "lucide-react";
 
 interface Task {
   id: string;
@@ -67,11 +64,6 @@ interface Channel {
   notes?: string;
 }
 
-interface Insight {
-  text: string;
-  impact: "high" | "medium" | "low";
-  evidence?: string;
-}
 
 interface ChecklistItem {
   text: string;
@@ -92,10 +84,6 @@ interface MeetingSections {
   executiveSummary: string[];
   metrics: Metric[];
   channels: Channel[];
-  insights: Insight[];
-  whatWorkedWell: string[];
-  pointsForImprovement: string[];
-  actionsPerformed: string[];
   actionPlan: ActionPlanItem[];
   questionsAndDiscussions: string;
   diagnosisItems: DiagnosisItem[];
@@ -116,10 +104,6 @@ const DEFAULT_SECTIONS: MeetingSections = {
     { metric_key: "revenue", metric_label: "Receita", target_value: null, actual_value: null, unit: "R$" },
   ],
   channels: [],
-  insights: [],
-  whatWorkedWell: [],
-  pointsForImprovement: [],
-  actionsPerformed: [],
   actionPlan: [],
   questionsAndDiscussions: "",
   diagnosisItems: [],
@@ -301,23 +285,11 @@ export default function MeetingEditor() {
               case "executive_summary":
                 loadedSections.executiveSummary = (content.items as string[]) || [];
                 break;
-              case "what_worked_well":
-                loadedSections.whatWorkedWell = (content.items as string[]) || [];
-                break;
-              case "points_for_improvement":
-                loadedSections.pointsForImprovement = (content.items as string[]) || [];
-                break;
-              case "actions_performed":
-                loadedSections.actionsPerformed = (content.items as string[]) || [];
-                break;
               case "action_plan":
                 loadedSections.actionPlan = (content.items as ActionPlanItem[]) || [];
                 break;
               case "questions_discussions":
                 loadedSections.questionsAndDiscussions = (content.text as string) || "";
-                break;
-              case "insights":
-                loadedSections.insights = (content.items as Insight[]) || [];
                 break;
               case "diagnosis_items":
                 loadedSections.diagnosisItems = (content.items as DiagnosisItem[]) || [];
@@ -425,13 +397,9 @@ export default function MeetingEditor() {
         { section_key: "objective", title: "Objetivo da reunião", content_json: JSON.parse(JSON.stringify({ text: sections.objective })), sort_order: 0 },
         { section_key: "context", title: "Contexto", content_json: JSON.parse(JSON.stringify({ text: sections.context })), sort_order: 1 },
         { section_key: "executive_summary", title: "Resumo executivo", content_json: JSON.parse(JSON.stringify({ items: sections.executiveSummary })), sort_order: 2 },
-        { section_key: "what_worked_well", title: "O que funcionou bem", content_json: JSON.parse(JSON.stringify({ items: sections.whatWorkedWell })), sort_order: 3 },
-        { section_key: "points_for_improvement", title: "Pontos de melhoria", content_json: JSON.parse(JSON.stringify({ items: sections.pointsForImprovement })), sort_order: 4 },
-        { section_key: "actions_performed", title: "Ações realizadas", content_json: JSON.parse(JSON.stringify({ items: sections.actionsPerformed })), sort_order: 5 },
-        { section_key: "action_plan", title: "Plano de ação", content_json: JSON.parse(JSON.stringify({ items: sections.actionPlan })), sort_order: 6 },
-        { section_key: "questions_discussions", title: "Dúvidas e discussões", content_json: JSON.parse(JSON.stringify({ text: sections.questionsAndDiscussions })), sort_order: 7 },
-        { section_key: "insights", title: "Insights", content_json: JSON.parse(JSON.stringify({ items: sections.insights })), sort_order: 8 },
-        { section_key: "diagnosis_items", title: "Diagnósticos", content_json: JSON.parse(JSON.stringify({ items: sections.diagnosisItems })), sort_order: 9 },
+        { section_key: "action_plan", title: "Plano de ação", content_json: JSON.parse(JSON.stringify({ items: sections.actionPlan })), sort_order: 3 },
+        { section_key: "questions_discussions", title: "Dúvidas e discussões", content_json: JSON.parse(JSON.stringify({ text: sections.questionsAndDiscussions })), sort_order: 4 },
+        { section_key: "diagnosis_items", title: "Diagnósticos", content_json: JSON.parse(JSON.stringify({ items: sections.diagnosisItems })), sort_order: 5 },
       ];
 
       for (const section of sectionsToSave) {
@@ -550,24 +518,21 @@ export default function MeetingEditor() {
     const presentationSections = [];
     
     if (sections.objective || sections.context) {
-      presentationSections.push({ id: 'opening', title: 'Abertura' });
+      presentationSections.push({ id: 'opening', title: 'Abertura e Alinhamento' });
     }
     if (sections.executiveSummary.length > 0) {
       presentationSections.push({ id: 'summary', title: 'Resumo Executivo' });
     }
     if (sections.metrics.some(m => m.actual_value !== null)) {
-      presentationSections.push({ id: 'metrics', title: 'Métricas Principais' });
+      presentationSections.push({ id: 'metrics', title: 'Análise de KPIs' });
     }
     if (sections.channels.length > 0) {
       presentationSections.push({ id: 'channels', title: 'Desempenho por Canal' });
     }
-    if (sections.insights.length > 0) {
-      presentationSections.push({ id: 'insights', title: 'Insights' });
+    if (sections.diagnosisItems.length > 0) {
+      presentationSections.push({ id: 'diagnosis', title: 'Diagnóstico' });
     }
-    if (sections.whatWorkedWell.length > 0 || sections.pointsForImprovement.length > 0) {
-      presentationSections.push({ id: 'analysis', title: 'Análise' });
-    }
-    if (meetingData.action_items.length > 0) {
+    if (sections.actionPlan.length > 0 || meetingData.action_items.length > 0) {
       presentationSections.push({ id: 'actions', title: 'Plano de Ação' });
     }
     
@@ -737,7 +702,7 @@ export default function MeetingEditor() {
                 <>
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-primary" />
-                    Métricas Principais
+                    Análise de KPIs
                   </h2>
                   <MetricsSection metrics={sections.metrics} onChange={() => {}} isEditing={false} />
                 </>
@@ -753,50 +718,13 @@ export default function MeetingEditor() {
                 </>
               )}
 
-              {section.id === 'insights' && (
+              {section.id === 'diagnosis' && (
                 <>
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Lightbulb className="h-5 w-5 text-primary" />
-                    Insights
+                    <Stethoscope className="h-5 w-5 text-primary" />
+                    Diagnóstico
                   </h2>
-                  <InsightsSection insights={sections.insights} onChange={() => {}} isEditing={false} />
-                </>
-              )}
-
-              {section.id === 'analysis' && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                    Análise
-                  </h2>
-                  <div className="grid md:grid-cols-2 gap-6">
-                    {sections.whatWorkedWell.length > 0 && (
-                      <div>
-                        <p className="text-sm font-medium text-emerald-700 mb-2">O que funcionou bem</p>
-                        <ul className="space-y-1">
-                          {sections.whatWorkedWell.map((item, i) => (
-                            <li key={i} className="text-sm flex items-start gap-2">
-                              <Check className="h-4 w-4 text-emerald-500 mt-0.5" />
-                              {item}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {sections.pointsForImprovement.length > 0 && (
-                      <div>
-                        <p className="text-sm font-medium text-amber-700 mb-2">Pontos de melhoria</p>
-                        <ul className="space-y-1">
-                          {sections.pointsForImprovement.map((item, i) => (
-                            <li key={i} className="text-sm flex items-start gap-2">
-                              <div className="h-1.5 w-1.5 rounded-full bg-amber-500 mt-2" />
-                              {item}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
+                  <DiagnosisPickerSection items={sections.diagnosisItems} onChange={() => {}} isEditing={false} />
                 </>
               )}
 
@@ -1027,26 +955,12 @@ export default function MeetingEditor() {
 
         {/* Main Content with Sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Structured Editor */}
           <div className="lg:col-span-3 space-y-4">
-            {/* Retrovisor (Commitment Review) */}
-            <CollapsibleSection 
-              title="Retrovisor" 
-              icon={<History className="h-5 w-5" />}
-              defaultOpen={true}
-            >
-              <RetrovisorSection
-                clientId={clientId || ""}
-                meetingId={meetingId}
-                isEditing={isEditMode}
-                onTasksUpdated={() => loadMeetingData()}
-              />
-            </CollapsibleSection>
-
-            {/* Abertura e Alinhamento */}
+            {/* 1. Abertura e Alinhamento */}
             <CollapsibleSection 
               title="Abertura e Alinhamento" 
               icon={<Target className="h-5 w-5" />}
+              defaultOpen={true}
             >
               <div className="space-y-4">
                 <div>
@@ -1078,7 +992,7 @@ export default function MeetingEditor() {
               </div>
             </CollapsibleSection>
 
-            {/* Resumo Executivo */}
+            {/* 2. Resumo Executivo */}
             <CollapsibleSection 
               title="Resumo Executivo" 
               icon={<FileText className="h-5 w-5" />}
@@ -1093,9 +1007,22 @@ export default function MeetingEditor() {
               />
             </CollapsibleSection>
 
-            {/* Métricas Principais */}
+            {/* 3. Retrovisor */}
             <CollapsibleSection 
-              title="Métricas Principais" 
+              title="Retrovisor" 
+              icon={<History className="h-5 w-5" />}
+            >
+              <RetrovisorSection
+                clientId={clientId || ""}
+                meetingId={meetingId}
+                isEditing={isEditMode}
+                onTasksUpdated={() => loadMeetingData()}
+              />
+            </CollapsibleSection>
+
+            {/* Análise de KPIs */}
+            <CollapsibleSection 
+              title="Análise de KPIs" 
               icon={<BarChart3 className="h-5 w-5" />}
             >
               <MetricsSection
@@ -1118,20 +1045,7 @@ export default function MeetingEditor() {
               />
             </CollapsibleSection>
 
-            {/* Insights */}
-            <CollapsibleSection 
-              title="Insights" 
-              icon={<Lightbulb className="h-5 w-5" />}
-              badge={sections.insights.length > 0 ? `${sections.insights.length}` : undefined}
-            >
-              <InsightsSection
-                insights={sections.insights}
-                onChange={(insights) => setSections({ ...sections, insights })}
-                isEditing={isEditMode}
-              />
-            </CollapsibleSection>
-
-            {/* Diagnóstico (The Matrix) */}
+            {/* Diagnóstico */}
             <CollapsibleSection 
               title="Diagnóstico" 
               icon={<Stethoscope className="h-5 w-5" />}
@@ -1141,47 +1055,6 @@ export default function MeetingEditor() {
                 items={sections.diagnosisItems}
                 onChange={(items) => setSections({ ...sections, diagnosisItems: items })}
                 isEditing={isEditMode}
-              />
-            </CollapsibleSection>
-
-            {/* O que funcionou bem / Pontos de melhoria */}
-            <CollapsibleSection 
-              title="Análise de Performance" 
-              icon={<CheckCircle2 className="h-5 w-5" />}
-            >
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-sm font-medium mb-2 block text-emerald-700">O que funcionou bem</label>
-                  <BulletsSection
-                    items={sections.whatWorkedWell}
-                    onChange={(items) => setSections({ ...sections, whatWorkedWell: items })}
-                    isEditing={isEditMode}
-                    placeholder="Ex: Campanha de remarketing teve ótimo ROI..."
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block text-amber-700">Pontos de melhoria</label>
-                  <BulletsSection
-                    items={sections.pointsForImprovement}
-                    onChange={(items) => setSections({ ...sections, pointsForImprovement: items })}
-                    isEditing={isEditMode}
-                    placeholder="Ex: Taxa de conversão do site precisa melhorar..."
-                  />
-                </div>
-              </div>
-            </CollapsibleSection>
-
-            {/* Ações Realizadas */}
-            <CollapsibleSection 
-              title="Ações Realizadas" 
-              icon={<Check className="h-5 w-5" />}
-              badge={sections.actionsPerformed.length > 0 ? `${sections.actionsPerformed.length}` : undefined}
-            >
-              <BulletsSection
-                items={sections.actionsPerformed}
-                onChange={(items) => setSections({ ...sections, actionsPerformed: items })}
-                isEditing={isEditMode}
-                placeholder="Ex: Otimização de campanhas, Criação de novos anúncios..."
               />
             </CollapsibleSection>
 
@@ -1201,7 +1074,7 @@ export default function MeetingEditor() {
             {/* Dúvidas e Discussões */}
             <CollapsibleSection 
               title="Dúvidas e Discussões" 
-              icon={<FileText className="h-5 w-5" />}
+              icon={<MessageSquare className="h-5 w-5" />}
             >
               <div className="space-y-3">
                 {isEditMode ? (
