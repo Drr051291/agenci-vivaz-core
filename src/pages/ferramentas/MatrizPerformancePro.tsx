@@ -112,6 +112,12 @@ export default function MatrizPerformancePro() {
     sql_to_opp: 0,
     opp_to_sale: 0,
   });
+  
+  // Save scenario state
+  const [saveScenarioDialogOpen, setSaveScenarioDialogOpen] = useState(false);
+  const [scenarioName, setScenarioName] = useState('');
+  const [scenarioNotes, setScenarioNotes] = useState('');
+  const [isSavingScenario, setIsSavingScenario] = useState(false);
 
   // Load clients when dialog opens
   useEffect(() => {
@@ -220,7 +226,81 @@ export default function MatrizPerformancePro() {
     }
   };
 
-  // Export as PDF
+  // Save simulation scenario for client
+  const handleSaveScenario = async () => {
+    if (!scenarioName.trim()) {
+      toast({ title: "Digite um nome para o cenário", variant: "destructive" });
+      return;
+    }
+    if (!selectedClientId) {
+      toast({ title: "Selecione um cliente", variant: "destructive" });
+      return;
+    }
+    if (!simulationResult) {
+      toast({ title: "Execute uma simulação primeiro", variant: "destructive" });
+      return;
+    }
+
+    setIsSavingScenario(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Faça login para salvar", variant: "destructive" });
+        return;
+      }
+
+      const { error } = await supabase.from('performance_simulation_scenarios' as never).insert({
+        client_id: selectedClientId,
+        created_by: user.id,
+        name: scenarioName.trim(),
+        setor,
+        inputs: inputs,
+        simulated_rates: simRates,
+        current_results: {
+          contratos: inputs.contratos,
+          revenue: outputs.financial.revenue,
+          roi: outputs.financial.roi,
+          cac: outputs.financial.cac,
+          globalConversion: outputs.globalConversion,
+          stages: outputs.stages.map(s => ({
+            key: s.key,
+            label: s.label,
+            rate: s.rate,
+            status: s.status,
+          })),
+        },
+        simulated_results: {
+          leads: simulationResult.leads,
+          mqls: simulationResult.mqls,
+          sqls: simulationResult.sqls,
+          oportunidades: simulationResult.oportunidades,
+          contratos: simulationResult.contratos,
+          revenue: simulationResult.revenue,
+          roi: simulationResult.roi,
+          cac: simulationResult.cac,
+          globalConversion: simulationResult.globalConversion,
+        },
+        benchmark_data: {
+          label: benchmark.label,
+          conversionRange: benchmark.conversionRange,
+          stages: benchmark.stages,
+        },
+        notes: scenarioNotes.trim() || null,
+      } as never);
+
+      if (error) throw error;
+
+      toast({ title: "Cenário salvo com sucesso!", description: "O cliente poderá visualizar na área de performance." });
+      setSaveScenarioDialogOpen(false);
+      setScenarioName('');
+      setScenarioNotes('');
+    } catch (error) {
+      console.error('Error saving scenario:', error);
+      toast({ title: "Erro ao salvar cenário", variant: "destructive" });
+    } finally {
+      setIsSavingScenario(false);
+    }
+  };
   const handleExportPDF = async () => {
     setIsExporting(true);
     try {
@@ -597,6 +677,33 @@ export default function MatrizPerformancePro() {
                             </p>
                           )}
                         </div>
+
+                        {/* Save Scenario Button */}
+                        <Button 
+                          className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
+                          size="sm"
+                          onClick={() => {
+                            if (!selectedClientId) {
+                              // Ensure clients are loaded
+                              if (clients.length === 0) {
+                                const loadClients = async () => {
+                                  const { data } = await supabase
+                                    .from('clients')
+                                    .select('id, company_name')
+                                    .eq('status', 'active')
+                                    .order('company_name');
+                                  setClients(data || []);
+                                };
+                                loadClients();
+                              }
+                            }
+                            setSaveScenarioDialogOpen(true);
+                          }}
+                          disabled={!simulationResult}
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          Salvar Cenário para Cliente
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -1089,6 +1196,106 @@ export default function MatrizPerformancePro() {
                     <>
                       <Save className="h-4 w-4 mr-2" />
                       Salvar
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Save Scenario Dialog */}
+          <Dialog open={saveScenarioDialogOpen} onOpenChange={setSaveScenarioDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-purple-500" />
+                  Salvar Cenário de Simulação
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="scenario-name">Nome do cenário</Label>
+                  <Input
+                    id="scenario-name"
+                    value={scenarioName}
+                    onChange={(e) => setScenarioName(e.target.value)}
+                    placeholder="Ex: Cenário Otimista Q1 2025"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scenario-client">Cliente *</Label>
+                  <Select 
+                    value={selectedClientId || ""} 
+                    onValueChange={(v) => setSelectedClientId(v || null)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={isLoadingClients ? "Carregando..." : "Selecione um cliente"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.company_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    O cenário ficará visível na área de Performance do cliente
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scenario-notes">Observações (opcional)</Label>
+                  <Input
+                    id="scenario-notes"
+                    value={scenarioNotes}
+                    onChange={(e) => setScenarioNotes(e.target.value)}
+                    placeholder="Ex: Meta agressiva de conversão"
+                  />
+                </div>
+
+                {/* Preview */}
+                {simulationResult && (
+                  <div className="p-3 bg-purple-50 rounded-lg border border-purple-100 space-y-2">
+                    <p className="text-xs font-medium text-purple-700">Resumo do cenário:</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Setor:</span>{' '}
+                        <span className="font-medium">{benchmark.label}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Leads:</span>{' '}
+                        <span className="font-medium">{formatNumber(inputs.leads)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Contratos simulados:</span>{' '}
+                        <span className="font-medium text-purple-600">{formatNumber(simulationResult.contratos)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Conversão:</span>{' '}
+                        <span className="font-medium text-purple-600">{formatPercent(simulationResult.globalConversion)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSaveScenarioDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={handleSaveScenario} 
+                  disabled={isSavingScenario || !selectedClientId}
+                  className="bg-gradient-to-r from-purple-500 to-indigo-500"
+                >
+                  {isSavingScenario ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Salvar Cenário
                     </>
                   )}
                 </Button>

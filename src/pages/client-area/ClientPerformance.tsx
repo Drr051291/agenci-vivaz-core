@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart3, ChevronDown, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { BarChart3, ChevronDown, TrendingUp, TrendingDown, Minus, Sparkles, ArrowRight } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -38,6 +38,40 @@ interface InsideSalesDiagnostic {
   created_at: string;
 }
 
+interface SimulationScenario {
+  id: string;
+  name: string;
+  setor: string;
+  inputs: {
+    leads?: number;
+    ticketMedio?: number;
+  };
+  simulated_rates: {
+    lead_to_mql?: number;
+    mql_to_sql?: number;
+    sql_to_opp?: number;
+    opp_to_sale?: number;
+  };
+  current_results: {
+    contratos?: number;
+    revenue?: number;
+    roi?: number;
+    globalConversion?: number;
+  };
+  simulated_results: {
+    leads?: number;
+    contratos?: number;
+    revenue?: number;
+    roi?: number;
+    globalConversion?: number;
+  };
+  benchmark_data: {
+    label?: string;
+  };
+  notes: string | null;
+  created_at: string;
+}
+
 const entryTypeLabels: Record<string, string> = {
   inside_sales_matrix: "Inside Sales",
   ecommerce_matrix: "E-commerce",
@@ -49,12 +83,29 @@ const channelLabels: Record<string, string> = {
   whatsapp: "WhatsApp",
 };
 
+const formatNumber = (n?: number | null): string => {
+  if (n === undefined || n === null) return "—";
+  return n.toLocaleString("pt-BR");
+};
+
+const formatPercent = (n?: number | null): string => {
+  if (n === undefined || n === null) return "—";
+  return `${n.toFixed(1)}%`;
+};
+
+const formatCurrency = (n?: number | null): string => {
+  if (n === undefined || n === null) return "—";
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+};
+
 const ClientPerformance = () => {
   const [loading, setLoading] = useState(true);
   const [clientId, setClientId] = useState<string | null>(null);
   const [performanceEntries, setPerformanceEntries] = useState<PerformanceEntry[]>([]);
   const [diagnostics, setDiagnostics] = useState<InsideSalesDiagnostic[]>([]);
+  const [scenarios, setScenarios] = useState<SimulationScenario[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedScenarioId, setExpandedScenarioId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -106,23 +157,28 @@ const ClientPerformance = () => {
 
       setClientId(client.id);
 
-      // Buscar performance entries
-      const { data: entries } = await supabase
-        .from("client_performance_entries")
-        .select("*")
-        .eq("client_id", client.id)
-        .order("created_at", { ascending: false });
+      // Buscar dados em paralelo
+      const [entriesRes, diagsRes, scenariosRes] = await Promise.all([
+        supabase
+          .from("client_performance_entries")
+          .select("*")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("inside_sales_diagnostics")
+          .select("*")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("performance_simulation_scenarios" as never)
+          .select("*")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: false }),
+      ]);
 
-      setPerformanceEntries((entries || []) as PerformanceEntry[]);
-
-      // Buscar diagnósticos de inside sales
-      const { data: diags } = await supabase
-        .from("inside_sales_diagnostics")
-        .select("*")
-        .eq("client_id", client.id)
-        .order("created_at", { ascending: false });
-
-      setDiagnostics((diags || []) as InsideSalesDiagnostic[]);
+      setPerformanceEntries((entriesRes.data || []) as PerformanceEntry[]);
+      setDiagnostics((diagsRes.data || []) as InsideSalesDiagnostic[]);
+      setScenarios((scenariosRes.data || []) as SimulationScenario[]);
       setLoading(false);
     };
 
@@ -159,7 +215,7 @@ const ClientPerformance = () => {
     );
   }
 
-  const hasData = performanceEntries.length > 0 || diagnostics.length > 0;
+  const hasData = performanceEntries.length > 0 || diagnostics.length > 0 || scenarios.length > 0;
 
   return (
     <DashboardLayout>
@@ -168,7 +224,7 @@ const ClientPerformance = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Performance</h1>
           <p className="text-muted-foreground">
-            Visualize análises de performance e diagnósticos do seu funil
+            Visualize análises de performance, diagnósticos e cenários simulados
           </p>
         </div>
 
@@ -181,6 +237,150 @@ const ClientPerformance = () => {
               <p className="text-sm text-muted-foreground text-center max-w-sm">
                 As análises de performance serão exibidas aqui quando disponíveis.
               </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Simulation Scenarios */}
+        {scenarios.length > 0 && (
+          <Card className="border-purple-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-purple-500" />
+                Cenários de Simulação
+              </CardTitle>
+              <CardDescription>
+                Projeções "E se?" criadas pela equipe para análise de oportunidades
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {scenarios.map((scenario) => (
+                <div key={scenario.id} className="border rounded-lg overflow-hidden">
+                  <div
+                    className={cn(
+                      "flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors",
+                      expandedScenarioId === scenario.id && "bg-purple-50"
+                    )}
+                    onClick={() => setExpandedScenarioId(expandedScenarioId === scenario.id ? null : scenario.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center">
+                        <Sparkles className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{scenario.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {scenario.benchmark_data?.label || scenario.setor} •{" "}
+                          {format(new Date(scenario.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                        +{formatNumber((scenario.simulated_results?.contratos ?? 0) - (scenario.current_results?.contratos ?? 0))} contratos
+                      </Badge>
+                      <ChevronDown className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform",
+                        expandedScenarioId === scenario.id && "rotate-180"
+                      )} />
+                    </div>
+                  </div>
+
+                  {expandedScenarioId === scenario.id && (
+                    <div className="px-4 pb-4 pt-2 border-t bg-gradient-to-r from-purple-50/50 to-indigo-50/50">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Current vs Simulated */}
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">Comparativo</p>
+                          
+                          {/* Contracts */}
+                          <div className="flex items-center gap-2 p-2 bg-white rounded border">
+                            <div className="flex-1">
+                              <p className="text-[10px] text-muted-foreground">Contratos atuais</p>
+                              <p className="font-bold">{formatNumber(scenario.current_results?.contratos)}</p>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-purple-400" />
+                            <div className="flex-1 text-right">
+                              <p className="text-[10px] text-muted-foreground">Contratos simulados</p>
+                              <p className="font-bold text-purple-600">
+                                {formatNumber(scenario.simulated_results?.contratos)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Revenue */}
+                          <div className="flex items-center gap-2 p-2 bg-white rounded border">
+                            <div className="flex-1">
+                              <p className="text-[10px] text-muted-foreground">Faturamento atual</p>
+                              <p className="font-bold">{formatCurrency(scenario.current_results?.revenue)}</p>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-purple-400" />
+                            <div className="flex-1 text-right">
+                              <p className="text-[10px] text-muted-foreground">Faturamento simulado</p>
+                              <p className="font-bold text-purple-600">
+                                {formatCurrency(scenario.simulated_results?.revenue)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* ROI */}
+                          <div className="flex items-center gap-2 p-2 bg-white rounded border">
+                            <div className="flex-1">
+                              <p className="text-[10px] text-muted-foreground">ROI atual</p>
+                              <p className="font-bold">
+                                {scenario.current_results?.roi != null ? `${scenario.current_results.roi.toFixed(0)}%` : "—"}
+                              </p>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-purple-400" />
+                            <div className="flex-1 text-right">
+                              <p className="text-[10px] text-muted-foreground">ROI simulado</p>
+                              <p className="font-bold text-purple-600">
+                                {scenario.simulated_results?.roi != null ? `${scenario.simulated_results.roi.toFixed(0)}%` : "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Simulated Rates */}
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">Taxas Simuladas</p>
+                          <div className="space-y-1">
+                            {[
+                              { key: "lead_to_mql", label: "Lead → MQL" },
+                              { key: "mql_to_sql", label: "MQL → SQL" },
+                              { key: "sql_to_opp", label: "SQL → Oportunidade" },
+                              { key: "opp_to_sale", label: "Oportunidade → Venda" },
+                            ].map(({ key, label }) => (
+                              <div key={key} className="flex justify-between items-center p-2 bg-white rounded border text-xs">
+                                <span className="text-muted-foreground">{label}</span>
+                                <span className="font-medium text-purple-600">
+                                  {formatPercent((scenario.simulated_rates as Record<string, number>)?.[key])}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Conversion Summary */}
+                          <div className="p-2 bg-gradient-to-r from-purple-100 to-indigo-100 rounded text-center">
+                            <p className="text-[10px] text-muted-foreground">Conversão Geral Projetada</p>
+                            <p className="text-xl font-bold text-purple-600">
+                              {formatPercent(scenario.simulated_results?.globalConversion)}
+                            </p>
+                          </div>
+
+                          {scenario.notes && (
+                            <div className="p-2 bg-amber-50 border border-amber-200 rounded">
+                              <p className="text-xs text-amber-800">
+                                <strong>Obs:</strong> {scenario.notes}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}
