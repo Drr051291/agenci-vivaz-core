@@ -2,13 +2,14 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Calendar, Users, Download, Target, TrendingUp, TrendingDown, Minus, BarChart3, MessageSquare, Lightbulb, CheckCircle2, Circle } from "lucide-react";
+import { Calendar, Users, Download, Target, TrendingUp, TrendingDown, Minus, BarChart3, MessageSquare, Lightbulb, CheckCircle2, Circle, History, FileText, ClipboardList, FlaskConical, Sparkles, AlertTriangle, Award, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { Badge } from "@/components/ui/badge";
+import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 
 interface MeetingMinute {
   id: string;
@@ -18,6 +19,10 @@ interface MeetingMinute {
   content: string;
   action_items?: string[];
   created_at: string;
+  next_period_priority?: string;
+  analysis_period_start?: string;
+  analysis_period_end?: string;
+  client_id?: string;
 }
 
 interface MeetingSection {
@@ -36,6 +41,7 @@ interface MeetingMetric {
   actual_value: number | null;
   unit: string | null;
   variation_pct: number | null;
+  quick_note?: string | null;
 }
 
 interface MeetingChannel {
@@ -52,12 +58,41 @@ interface MeetingChannel {
   what_to_adjust: string | null;
 }
 
+interface ActionPlanItem {
+  title: string;
+  responsible?: string;
+  deadline?: string;
+  status?: string;
+  owner_type?: string;
+  category?: string;
+}
+
+interface ApprovalItem {
+  item_type: string;
+  label: string;
+  details?: string;
+  value?: number;
+  is_approved?: boolean;
+}
+
+interface Experiment {
+  idea: string;
+  objective?: string;
+  how_to_measure?: string;
+  effort?: string;
+  impact?: string;
+}
+
 export default function SharedMeeting() {
   const { token } = useParams<{ token: string }>();
   const [meeting, setMeeting] = useState<MeetingMinute | null>(null);
   const [sections, setSections] = useState<MeetingSection[]>([]);
   const [metrics, setMetrics] = useState<MeetingMetric[]>([]);
   const [channels, setChannels] = useState<MeetingChannel[]>([]);
+  const [actionPlanItems, setActionPlanItems] = useState<ActionPlanItem[]>([]);
+  const [approvalItems, setApprovalItems] = useState<ApprovalItem[]>([]);
+  const [experiments, setExperiments] = useState<Experiment[]>([]);
+  const [recentTasks, setRecentTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -87,7 +122,7 @@ export default function SharedMeeting() {
       setMeeting(meetingData);
 
       // Fetch all related data in parallel
-      const [sectionsRes, metricsRes, channelsRes] = await Promise.all([
+      const [sectionsRes, metricsRes, channelsRes, approvalsRes, experimentsRes] = await Promise.all([
         supabase
           .from("meeting_sections")
           .select("*")
@@ -102,11 +137,56 @@ export default function SharedMeeting() {
           .from("meeting_channels")
           .select("*")
           .eq("meeting_id", meetingData.id),
+        supabase
+          .from("meeting_approval_items")
+          .select("*")
+          .eq("meeting_id", meetingData.id)
+          .order("sort_order"),
+        supabase
+          .from("meeting_experiments")
+          .select("*")
+          .eq("meeting_id", meetingData.id)
+          .order("sort_order"),
       ]);
 
       setSections(sectionsRes.data || []);
       setMetrics(metricsRes.data || []);
       setChannels(channelsRes.data || []);
+      setApprovalItems(approvalsRes.data || []);
+      setExperiments(experimentsRes.data || []);
+
+      // Parse action plan from sections
+      const actionPlanSection = sectionsRes.data?.find(s => s.section_key === "action_plan");
+      const contentJson = actionPlanSection?.content_json as any;
+      if (contentJson?.vivazTasks || contentJson?.clientTasks) {
+        const vivazTasks = (contentJson.vivazTasks || []).map((t: any) => ({ ...t, owner_type: 'vivaz' }));
+        const clientTasks = (contentJson.clientTasks || []).map((t: any) => ({ ...t, owner_type: 'client' }));
+        setActionPlanItems([...vivazTasks, ...clientTasks]);
+      } else if (contentJson?.actions) {
+        setActionPlanItems(contentJson.actions);
+      }
+
+      // Fetch recent tasks for retrovisor if client_id exists
+      if (meetingData.client_id) {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        const { data: tasksData } = await supabase
+          .from("tasks")
+          .select("id, title, status, priority, due_date, category, assigned_to, profiles:assigned_to(full_name)")
+          .eq("client_id", meetingData.client_id)
+          .gte("created_at", sevenDaysAgo.toISOString())
+          .in("status", ["pendente", "em_andamento", "concluido", "solicitado"])
+          .order("created_at", { ascending: false });
+
+        // Filter tasks not excluded from this meeting
+        const filteredTasks = (tasksData || []).filter(task => {
+          const excludedFrom = (task as any).meeting_excluded_from || [];
+          return !excludedFrom.includes(meetingData.id);
+        });
+        
+        setRecentTasks(filteredTasks);
+      }
     } catch (error) {
       console.error("Erro ao buscar reunião:", error);
       toast.error("Reunião não encontrada ou link inválido");
@@ -427,10 +507,34 @@ export default function SharedMeeting() {
     );
   }
 
-  const executiveSummary = getSectionContent("executive_summary");
-  const diagnosis = getSectionContent("diagnosis");
-  const actionPlan = getSectionContent("action_plan");
-  const questionsDiscussions = getSectionContent("questions_discussions");
+  const executiveSummary = getSectionContent("executive_summary") as any;
+  const diagnosis = getSectionContent("diagnosis") as any;
+  const diagnosisPicker = getSectionContent("diagnosis_picker") as any;
+  const actionPlan = getSectionContent("action_plan") as any;
+  const questionsDiscussions = getSectionContent("questions_discussions") as any;
+  const opening = getSectionContent("opening") as any;
+
+  // Format period text
+  const formatPeriod = () => {
+    if (meeting.analysis_period_start && meeting.analysis_period_end) {
+      const start = parseLocalDate(meeting.analysis_period_start).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+      const end = parseLocalDate(meeting.analysis_period_end).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+      return `${start} - ${end}`;
+    }
+    return null;
+  };
+
+  const periodText = formatPeriod();
+
+  // Priority label mapping
+  const PRIORITY_LABELS: Record<string, string> = {
+    growth: "🚀 Crescimento",
+    optimization: "⚡ Otimização",
+    retention: "🎯 Retenção",
+    branding: "✨ Branding",
+    testing: "🧪 Testes",
+    maintenance: "🔧 Manutenção"
+  };
 
   return (
     <div className="min-h-screen bg-background py-8 px-4">
@@ -443,7 +547,7 @@ export default function SharedMeeting() {
             </div>
             <div>
               <h1 className="text-2xl font-bold">{meeting.title}</h1>
-              <p className="text-sm text-muted-foreground">HUB Vivaz - Reunião Compartilhada</p>
+              <p className="text-sm text-muted-foreground">HUB Vivaz - Reunião</p>
             </div>
           </div>
           <Button
@@ -457,9 +561,15 @@ export default function SharedMeeting() {
           </Button>
         </div>
 
-        {/* Meeting Info */}
+        {/* 1. Abertura e Alinhamento */}
         <Card>
-          <CardHeader className="pb-4">
+          <CardHeader>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Abertura e Alinhamento
+            </h3>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
@@ -467,6 +577,11 @@ export default function SharedMeeting() {
                   dateStyle: "long",
                 })}
               </div>
+              {periodText && (
+                <div className="flex items-center gap-2">
+                  <span>Período de análise: {periodText}</span>
+                </div>
+              )}
               {meeting.participants && meeting.participants.length > 0 && (
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
@@ -474,11 +589,28 @@ export default function SharedMeeting() {
                 </div>
               )}
             </div>
-          </CardHeader>
+            
+            {opening?.objective && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Objetivo</p>
+                <p>{opening.objective}</p>
+              </div>
+            )}
+            
+            {opening?.context && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Contexto</p>
+                <p>{opening.context}</p>
+              </div>
+            )}
+          </CardContent>
         </Card>
 
-        {/* Executive Summary */}
-        {executiveSummary?.bullets && executiveSummary.bullets.filter((b: string) => b).length > 0 && (
+        {/* 2. Resumo Executivo */}
+        {(executiveSummary?.periodHighlights?.filter((b: string) => b).length > 0 || 
+          executiveSummary?.mainWins?.filter((b: string) => b).length > 0 ||
+          executiveSummary?.mainRisks?.filter((b: string) => b).length > 0 ||
+          meeting.next_period_priority) && (
           <Card>
             <CardHeader>
               <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -486,20 +618,110 @@ export default function SharedMeeting() {
                 Resumo Executivo
               </h3>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {executiveSummary.bullets.filter((b: string) => b).map((bullet: string, idx: number) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <span className="text-primary mt-1">•</span>
-                    <span>{bullet}</span>
-                  </li>
-                ))}
-              </ul>
+            <CardContent className="space-y-4">
+              {executiveSummary?.periodHighlights?.filter((b: string) => b).length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                    <Sparkles className="h-4 w-4" /> Destaques do Período
+                  </p>
+                  <ul className="space-y-1">
+                    {executiveSummary.periodHighlights.filter((b: string) => b).map((item: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-primary mt-1">•</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {executiveSummary?.mainWins?.filter((b: string) => b).length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                    <Award className="h-4 w-4 text-green-600" /> Principais Vitórias
+                  </p>
+                  <ul className="space-y-1">
+                    {executiveSummary.mainWins.filter((b: string) => b).map((item: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-green-600 mt-1">✓</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {executiveSummary?.mainRisks?.filter((b: string) => b).length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" /> Principais Riscos
+                  </p>
+                  <ul className="space-y-1">
+                    {executiveSummary.mainRisks.filter((b: string) => b).map((item: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-amber-600 mt-1">⚠</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {meeting.next_period_priority && (
+                <div className="pt-2 border-t">
+                  <p className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                    <ArrowRight className="h-4 w-4" /> Próxima Prioridade
+                  </p>
+                  <Badge variant="outline" className="text-sm">
+                    {PRIORITY_LABELS[meeting.next_period_priority] || meeting.next_period_priority}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Legacy bullets support */}
+              {executiveSummary?.bullets?.filter((b: string) => b).length > 0 && !executiveSummary?.periodHighlights && (
+                <ul className="space-y-2">
+                  {executiveSummary.bullets.filter((b: string) => b).map((bullet: string, idx: number) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-primary mt-1">•</span>
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {/* KPIs */}
+        {/* 3. Retrovisor */}
+        {recentTasks.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <History className="h-5 w-5 text-primary" />
+                Retrovisor
+              </h3>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-3">Tarefas dos últimos 7 dias</p>
+              <div className="space-y-2">
+                {recentTasks.slice(0, 10).map((task) => (
+                  <div key={task.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg text-sm">
+                    <Badge variant={task.status === "concluido" ? "default" : task.status === "em_andamento" ? "secondary" : "outline"} className="text-xs">
+                      {task.status === "concluido" ? "Concluído" : task.status === "em_andamento" ? "Em andamento" : task.status === "solicitado" ? "Solicitado" : "Pendente"}
+                    </Badge>
+                    <span className="flex-1">{task.title}</span>
+                    {(task as any).profiles?.full_name && (
+                      <span className="text-muted-foreground text-xs">{(task as any).profiles.full_name}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 4. Análise de KPIs */}
         {metrics.length > 0 && (
           <Card>
             <CardHeader>
@@ -550,7 +772,7 @@ export default function SharedMeeting() {
           </Card>
         )}
 
-        {/* Channels */}
+        {/* 5. Desempenho por Canal */}
         {channels.length > 0 && (
           <Card>
             <CardHeader>
@@ -611,8 +833,8 @@ export default function SharedMeeting() {
           </Card>
         )}
 
-        {/* Diagnosis */}
-        {diagnosis?.items && diagnosis.items.length > 0 && (
+        {/* 6. Diagnóstico */}
+        {((diagnosis?.items && diagnosis.items.length > 0) || (diagnosisPicker?.items && diagnosisPicker.items.length > 0)) && (
           <Card>
             <CardHeader>
               <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -621,7 +843,27 @@ export default function SharedMeeting() {
               </h3>
             </CardHeader>
             <CardContent className="space-y-3">
-              {diagnosis.items.map((item: any, idx: number) => (
+              {/* New diagnosis picker format */}
+              {diagnosisPicker?.items?.map((item: any, idx: number) => (
+                <div key={idx} className="p-4 bg-muted/50 rounded-lg space-y-2">
+                  <Badge variant="secondary">{item.tagLabel || item.tag || 'Diagnóstico'}</Badge>
+                  {item.context && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">Contexto</p>
+                      <p className="text-sm">{item.context}</p>
+                    </div>
+                  )}
+                  {item.solution && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">Solução proposta</p>
+                      <p className="text-sm">{item.solution}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {/* Legacy diagnosis format */}
+              {!diagnosisPicker?.items?.length && diagnosis?.items?.map((item: any, idx: number) => (
                 <div key={idx} className="p-4 bg-muted/50 rounded-lg">
                   <Badge variant="secondary" className="mb-2">{item.tag || 'Diagnóstico'}</Badge>
                   {item.context && <p className="text-muted-foreground">{item.context}</p>}
@@ -631,8 +873,105 @@ export default function SharedMeeting() {
           </Card>
         )}
 
-        {/* Action Plan */}
-        {actionPlan?.actions && actionPlan.actions.length > 0 && (
+        {/* 7. Plano de Ação */}
+        {actionPlanItems.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-primary" />
+                Plano de Ação
+              </h3>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Vivaz Tasks */}
+              {actionPlanItems.filter(t => t.owner_type === 'vivaz').length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Ações Vivaz</p>
+                  <div className="space-y-2">
+                    {actionPlanItems.filter(t => t.owner_type === 'vivaz').map((task, idx) => (
+                      <div key={idx} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                        {task.status === 'completed' || task.status === 'concluido' ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        )}
+                        <div className="flex-1">
+                          <p className={task.status === 'completed' || task.status === 'concluido' ? "line-through text-muted-foreground" : "font-medium"}>
+                            {task.title}
+                          </p>
+                          {(task.responsible || task.deadline) && (
+                            <div className="flex gap-3 mt-1 text-sm text-muted-foreground">
+                              {task.responsible && <span>Responsável: {task.responsible}</span>}
+                              {task.deadline && <span>Prazo: {new Date(task.deadline).toLocaleDateString("pt-BR")}</span>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Client Tasks */}
+              {actionPlanItems.filter(t => t.owner_type === 'client').length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Ações Cliente</p>
+                  <div className="space-y-2">
+                    {actionPlanItems.filter(t => t.owner_type === 'client').map((task, idx) => (
+                      <div key={idx} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                        {task.status === 'completed' || task.status === 'concluido' ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        )}
+                        <div className="flex-1">
+                          <p className={task.status === 'completed' || task.status === 'concluido' ? "line-through text-muted-foreground" : "font-medium"}>
+                            {task.title}
+                          </p>
+                          {(task.responsible || task.deadline) && (
+                            <div className="flex gap-3 mt-1 text-sm text-muted-foreground">
+                              {task.responsible && <span>Responsável: {task.responsible}</span>}
+                              {task.deadline && <span>Prazo: {new Date(task.deadline).toLocaleDateString("pt-BR")}</span>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tasks without owner_type (legacy) */}
+              {actionPlanItems.filter(t => !t.owner_type).length > 0 && (
+                <div className="space-y-2">
+                  {actionPlanItems.filter(t => !t.owner_type).map((task, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                      {task.status === 'completed' || task.status === 'concluido' ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <Circle className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      )}
+                      <div className="flex-1">
+                        <p className={task.status === 'completed' || task.status === 'concluido' ? "line-through text-muted-foreground" : "font-medium"}>
+                          {task.title}
+                        </p>
+                        {(task.responsible || task.deadline) && (
+                          <div className="flex gap-3 mt-1 text-sm text-muted-foreground">
+                            {task.responsible && <span>Responsável: {task.responsible}</span>}
+                            {task.deadline && <span>Prazo: {new Date(task.deadline).toLocaleDateString("pt-BR")}</span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Legacy Action Plan */}
+        {actionPlanItems.length === 0 && actionPlan?.actions && actionPlan.actions.length > 0 && (
           <Card>
             <CardHeader>
               <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -667,8 +1006,75 @@ export default function SharedMeeting() {
           </Card>
         )}
 
-        {/* Questions and Discussions */}
-        {questionsDiscussions?.content && questionsDiscussions.content.trim() && (
+        {/* Approvals */}
+        {approvalItems.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+                Aprovações
+              </h3>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {approvalItems.map((item, idx) => (
+                  <li key={idx} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    {item.is_approved ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      <p className="font-medium">{item.label}</p>
+                      {item.details && <p className="text-sm text-muted-foreground">{item.details}</p>}
+                    </div>
+                    {item.value && (
+                      <Badge variant="outline">R$ {item.value.toLocaleString("pt-BR")}</Badge>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Experiments */}
+        {experiments.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <FlaskConical className="h-5 w-5 text-primary" />
+                Experimentos
+              </h3>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {experiments.map((exp, idx) => (
+                  <div key={idx} className="p-4 bg-muted/50 rounded-lg space-y-2">
+                    <p className="font-medium">{exp.idea}</p>
+                    {exp.objective && (
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-medium">Objetivo:</span> {exp.objective}
+                      </p>
+                    )}
+                    {exp.how_to_measure && (
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-medium">Como medir:</span> {exp.how_to_measure}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      {exp.effort && <Badge variant="outline">Esforço: {exp.effort}</Badge>}
+                      {exp.impact && <Badge variant="outline">Impacto: {exp.impact}</Badge>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 8. Dúvidas e Discussões */}
+        {questionsDiscussions?.content && questionsDiscussions.content.trim() && questionsDiscussions.content !== '<p></p>' && (
           <Card>
             <CardHeader>
               <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -678,7 +1084,7 @@ export default function SharedMeeting() {
             </CardHeader>
             <CardContent>
               <div className="prose prose-sm max-w-none">
-                <p className="whitespace-pre-wrap">{questionsDiscussions.content}</p>
+                <MeetingViewer content={questionsDiscussions.content} />
               </div>
             </CardContent>
           </Card>
@@ -700,7 +1106,7 @@ export default function SharedMeeting() {
         )}
 
         {/* Legacy Action Items */}
-        {meeting.action_items && meeting.action_items.length > 0 && (!actionPlan?.actions || actionPlan.actions.length === 0) && (
+        {meeting.action_items && meeting.action_items.length > 0 && actionPlanItems.length === 0 && (!actionPlan?.actions || actionPlan.actions.length === 0) && (
           <Card>
             <CardHeader>
               <h3 className="text-lg font-semibold">✅ Itens de Ação</h3>
