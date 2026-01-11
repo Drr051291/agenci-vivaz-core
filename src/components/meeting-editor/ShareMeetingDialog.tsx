@@ -27,7 +27,7 @@ export function ShareMeetingDialog({
 }: ShareMeetingDialogProps) {
   const [copied, setCopied] = useState(false);
 
-  const shareUrl = `${window.location.origin}/reunioes/${shareToken}`;
+  const shareUrl = `https://hub.vivazagencia.com.br/reunioes/${shareToken}`;
 
   const handleCopy = async () => {
     try {
