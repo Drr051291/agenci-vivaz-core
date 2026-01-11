@@ -173,6 +173,68 @@ export function calculateFunnel(inputs: FunnelInputs, setor: SetorAtuacao = 'ger
 }
 
 /**
+ * Simulate funnel with custom conversion rates
+ */
+export interface SimulatedRates {
+  lead_to_mql: number;
+  mql_to_sql: number;
+  sql_to_opp: number;
+  opp_to_sale: number;
+}
+
+export interface SimulationResult {
+  leads: number;
+  mqls: number;
+  sqls: number;
+  oportunidades: number;
+  contratos: number;
+  revenue: number | null;
+  roi: number | null;
+  cac: number | null;
+  globalConversion: number | null;
+}
+
+/**
+ * Calculate simulated funnel results based on custom conversion rates
+ */
+export function simulateFunnel(
+  baseLeads: number,
+  rates: SimulatedRates,
+  ticketMedio?: number,
+  investimento?: number
+): SimulationResult {
+  // Calculate each stage sequentially using the simulated rates
+  const mqls = Math.round(baseLeads * (rates.lead_to_mql / 100));
+  const sqls = Math.round(mqls * (rates.mql_to_sql / 100));
+  const oportunidades = Math.round(sqls * (rates.sql_to_opp / 100));
+  const contratos = Math.round(oportunidades * (rates.opp_to_sale / 100));
+  
+  // Calculate financial metrics
+  const revenue = contratos > 0 && ticketMedio ? contratos * ticketMedio : null;
+  
+  let roi: number | null = null;
+  if (revenue !== null && investimento && investimento > 0) {
+    roi = ((revenue - investimento) / investimento) * 100;
+  }
+  
+  const cac = investimento && contratos > 0 ? investimento / contratos : null;
+  
+  const globalConversion = baseLeads > 0 ? (contratos / baseLeads) * 100 : null;
+  
+  return {
+    leads: baseLeads,
+    mqls,
+    sqls,
+    oportunidades,
+    contratos,
+    revenue,
+    roi,
+    cac,
+    globalConversion,
+  };
+}
+
+/**
  * Identify the bottleneck stage (lowest conversion rate among eligible stages)
  */
 export function identifyBottleneck(stages: FunnelStage[]): FunnelStage | null {
