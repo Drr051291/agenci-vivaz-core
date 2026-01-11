@@ -1711,6 +1711,69 @@ export type Database = {
           },
         ]
       }
+      performance_simulation_scenarios: {
+        Row: {
+          benchmark_data: Json | null
+          client_id: string | null
+          created_at: string
+          created_by: string | null
+          current_results: Json
+          id: string
+          inputs: Json
+          name: string
+          notes: string | null
+          setor: string
+          simulated_rates: Json
+          simulated_results: Json
+          updated_at: string
+        }
+        Insert: {
+          benchmark_data?: Json | null
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_results?: Json
+          id?: string
+          inputs?: Json
+          name: string
+          notes?: string | null
+          setor: string
+          simulated_rates?: Json
+          simulated_results?: Json
+          updated_at?: string
+        }
+        Update: {
+          benchmark_data?: Json | null
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_results?: Json
+          id?: string
+          inputs?: Json
+          name?: string
+          notes?: string | null
+          setor?: string
+          simulated_rates?: Json
+          simulated_results?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_simulation_scenarios_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_simulation_scenarios_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
