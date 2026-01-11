@@ -287,7 +287,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     setDownloadingId(meeting.id);
     try {
       // Fetch all meeting data for complete PDF
-      const [sectionsRes, metricsRes, channelsRes] = await Promise.all([
+      const [sectionsRes, metricsRes, channelsRes, meetingFullRes] = await Promise.all([
         supabase
           .from("meeting_sections")
           .select("*")
@@ -302,11 +302,17 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
           .from("meeting_channels")
           .select("*")
           .eq("meeting_id", meeting.id),
+        supabase
+          .from("meeting_minutes")
+          .select("next_period_priority, analysis_period_start, analysis_period_end")
+          .eq("id", meeting.id)
+          .single(),
       ]);
 
       const sections = sectionsRes.data || [];
       const metrics = metricsRes.data || [];
       const channels = channelsRes.data || [];
+      const meetingFull = meetingFullRes.data;
 
       const getSectionContent = (key: string): any => {
         const section = sections.find((s: any) => s.section_key === key);
@@ -336,416 +342,651 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
 
       const pageWidth = 210;
       const pageHeight = 297;
-      const margin = 15;
+      const margin = 20;
       const contentWidth = pageWidth - (margin * 2);
       let y = margin;
+
+      // Colors
+      const primaryColor: [number, number, number] = [45, 55, 72]; // Dark gray
+      const accentColor: [number, number, number] = [99, 102, 241]; // Indigo
+      const successColor: [number, number, number] = [34, 197, 94]; // Green
+      const warningColor: [number, number, number] = [234, 179, 8]; // Yellow
+      const mutedColor: [number, number, number] = [107, 114, 128]; // Gray
+      const lightBg: [number, number, number] = [249, 250, 251]; // Light gray bg
 
       const addNewPageIfNeeded = (requiredHeight: number) => {
         if (y + requiredHeight > pageHeight - margin) {
           pdf.addPage();
           y = margin;
+          return true;
         }
+        return false;
       };
 
-      // Header
-      pdf.setFontSize(18);
+      const drawSectionHeader = (title: string, emoji: string) => {
+        addNewPageIfNeeded(20);
+        
+        // Background bar
+        pdf.setFillColor(...accentColor);
+        pdf.roundedRect(margin, y, contentWidth, 10, 2, 2, 'F');
+        
+        // Title text
+        pdf.setFontSize(12);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(255, 255, 255);
+        pdf.text(`${emoji}  ${title}`, margin + 5, y + 7);
+        
+        y += 15;
+        pdf.setTextColor(0, 0, 0);
+      };
+
+      const drawInfoBox = (content: string[], bgColor: [number, number, number] = lightBg) => {
+        const lineHeight = 6;
+        const boxHeight = content.length * lineHeight + 8;
+        addNewPageIfNeeded(boxHeight);
+        
+        pdf.setFillColor(...bgColor);
+        pdf.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, 'F');
+        
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(...primaryColor);
+        
+        let textY = y + 6;
+        content.forEach(line => {
+          pdf.text(line, margin + 5, textY);
+          textY += lineHeight;
+        });
+        
+        y += boxHeight + 5;
+      };
+
+      // ==================== HEADER ====================
+      // Logo area / Title
+      pdf.setFillColor(...primaryColor);
+      pdf.rect(0, 0, pageWidth, 45, 'F');
+      
+      pdf.setFontSize(22);
       pdf.setFont("helvetica", "bold");
-      const titleLines = pdf.splitTextToSize(meeting.title, contentWidth);
-      pdf.text(titleLines, margin, y);
-      y += titleLines.length * 7 + 5;
-
-      pdf.setFontSize(10);
+      pdf.setTextColor(255, 255, 255);
+      const titleLines = pdf.splitTextToSize(meeting.title, contentWidth - 10);
+      pdf.text(titleLines, margin, 22);
+      
+      pdf.setFontSize(11);
       pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(100);
-      pdf.text(`Data: ${new Date(meeting.meeting_date).toLocaleDateString("pt-BR", { dateStyle: "long" })}`, margin, y);
-      y += 5;
+      const meetingDateFormatted = new Date(meeting.meeting_date).toLocaleDateString("pt-BR", { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      pdf.text(meetingDateFormatted, margin, 35);
+      
+      y = 55;
+      pdf.setTextColor(0, 0, 0);
 
+      // Meeting info box
+      const infoLines: string[] = [];
       if (meeting.participants && meeting.participants.length > 0) {
-        const participantsText = pdf.splitTextToSize(`Participantes: ${meeting.participants.join(", ")}`, contentWidth);
-        pdf.text(participantsText, margin, y);
-        y += participantsText.length * 4 + 2;
+        infoLines.push(`Participantes: ${meeting.participants.join(", ")}`);
+      }
+      if (meetingFull?.analysis_period_start && meetingFull?.analysis_period_end) {
+        const startDate = new Date(meetingFull.analysis_period_start).toLocaleDateString("pt-BR");
+        const endDate = new Date(meetingFull.analysis_period_end).toLocaleDateString("pt-BR");
+        infoLines.push(`Período de Análise: ${startDate} a ${endDate}`);
+      }
+      if (infoLines.length > 0) {
+        drawInfoBox(infoLines);
       }
 
-      pdf.setDrawColor(200);
-      pdf.line(margin, y + 3, pageWidth - margin, y + 3);
-      y += 10;
-      pdf.setTextColor(0);
+      y += 5;
 
-      // Objective & Context
+      // ==================== ABERTURA E ALINHAMENTO ====================
       const objective = getSectionContent("objective");
       const context = getSectionContent("context");
       if (objective?.content || context?.content) {
-        addNewPageIfNeeded(30);
-        pdf.setFontSize(14);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("🎯 Abertura e Alinhamento", margin, y);
-        y += 8;
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "normal");
-
+        drawSectionHeader("Abertura e Alinhamento", "🎯");
+        
         if (objective?.content) {
-          const objLines = pdf.splitTextToSize(`Objetivo: ${objective.content}`, contentWidth);
-          pdf.text(objLines, margin, y);
-          y += objLines.length * 5 + 3;
+          pdf.setFontSize(10);
+          pdf.setFont("helvetica", "bold");
+          pdf.setTextColor(...accentColor);
+          pdf.text("Objetivo:", margin, y);
+          y += 5;
+          
+          pdf.setFont("helvetica", "normal");
+          pdf.setTextColor(...primaryColor);
+          const objLines = pdf.splitTextToSize(objective.content, contentWidth - 5);
+          objLines.forEach((line: string) => {
+            addNewPageIfNeeded(6);
+            pdf.text(line, margin + 3, y);
+            y += 5;
+          });
+          y += 3;
         }
+        
         if (context?.content) {
-          const ctxLines = pdf.splitTextToSize(`Contexto: ${context.content}`, contentWidth);
-          pdf.text(ctxLines, margin, y);
-          y += ctxLines.length * 5 + 3;
+          addNewPageIfNeeded(15);
+          pdf.setFontSize(10);
+          pdf.setFont("helvetica", "bold");
+          pdf.setTextColor(...accentColor);
+          pdf.text("Contexto:", margin, y);
+          y += 5;
+          
+          pdf.setFont("helvetica", "normal");
+          pdf.setTextColor(...primaryColor);
+          const ctxLines = pdf.splitTextToSize(context.content, contentWidth - 5);
+          ctxLines.forEach((line: string) => {
+            addNewPageIfNeeded(6);
+            pdf.text(line, margin + 3, y);
+            y += 5;
+          });
         }
-        y += 5;
+        y += 8;
       }
 
-      // Executive Summary
+      // ==================== RESUMO EXECUTIVO ====================
       const executiveSummary = getSectionContent("executive_summary");
       if (executiveSummary) {
-        const hasBullets = executiveSummary.bullets?.length > 0;
         const hasHighlights = executiveSummary.periodHighlights;
-        const hasWins = executiveSummary.mainWins?.length > 0;
-        const hasRisks = executiveSummary.mainRisks?.length > 0;
+        const hasWins = executiveSummary.mainWins?.some((w: string) => w?.trim());
+        const hasRisks = executiveSummary.mainRisks?.some((r: string) => r?.trim());
+        const hasBullets = executiveSummary.bullets?.some((b: string) => b?.trim());
         
-        if (hasBullets || hasHighlights || hasWins || hasRisks) {
-          addNewPageIfNeeded(30);
-          pdf.setFontSize(14);
-          pdf.setFont("helvetica", "bold");
-          pdf.text("📋 Resumo Executivo", margin, y);
-          y += 8;
-          pdf.setFontSize(10);
-          pdf.setFont("helvetica", "normal");
+        if (hasHighlights || hasWins || hasRisks || hasBullets) {
+          drawSectionHeader("Resumo Executivo", "📋");
 
           if (hasHighlights) {
-            const lines = pdf.splitTextToSize(`Destaques: ${executiveSummary.periodHighlights}`, contentWidth);
-            pdf.text(lines, margin, y);
-            y += lines.length * 5 + 3;
+            pdf.setFillColor(240, 249, 255);
+            const highlightLines = pdf.splitTextToSize(executiveSummary.periodHighlights, contentWidth - 14);
+            const boxH = highlightLines.length * 5 + 10;
+            addNewPageIfNeeded(boxH);
+            pdf.roundedRect(margin, y, contentWidth, boxH, 2, 2, 'F');
+            
+            pdf.setFontSize(10);
+            pdf.setFont("helvetica", "normal");
+            pdf.setTextColor(...primaryColor);
+            let tY = y + 7;
+            highlightLines.forEach((line: string) => {
+              pdf.text(line, margin + 7, tY);
+              tY += 5;
+            });
+            y += boxH + 5;
           }
 
           if (hasWins) {
-            addNewPageIfNeeded(15);
+            addNewPageIfNeeded(20);
+            pdf.setFontSize(10);
             pdf.setFont("helvetica", "bold");
-            pdf.text("Principais Conquistas:", margin, y);
-            y += 5;
+            pdf.setTextColor(...successColor);
+            pdf.text("Principais Conquistas", margin, y);
+            y += 6;
+            
             pdf.setFont("helvetica", "normal");
+            pdf.setTextColor(...primaryColor);
             executiveSummary.mainWins.forEach((win: string) => {
-              if (win) {
+              if (win?.trim()) {
                 addNewPageIfNeeded(8);
-                const lines = pdf.splitTextToSize(`✓ ${win}`, contentWidth - 5);
-                pdf.text(lines, margin + 3, y);
-                y += lines.length * 5 + 2;
+                pdf.setTextColor(...successColor);
+                pdf.text("✓", margin + 2, y);
+                pdf.setTextColor(...primaryColor);
+                const lines = pdf.splitTextToSize(win, contentWidth - 12);
+                pdf.text(lines[0], margin + 8, y);
+                y += 5;
+                if (lines.length > 1) {
+                  for (let i = 1; i < lines.length; i++) {
+                    addNewPageIfNeeded(5);
+                    pdf.text(lines[i], margin + 8, y);
+                    y += 5;
+                  }
+                }
               }
             });
+            y += 3;
           }
 
           if (hasRisks) {
-            addNewPageIfNeeded(15);
+            addNewPageIfNeeded(20);
+            pdf.setFontSize(10);
             pdf.setFont("helvetica", "bold");
-            pdf.text("Riscos e Alertas:", margin, y);
-            y += 5;
+            pdf.setTextColor(...warningColor);
+            pdf.text("Riscos e Alertas", margin, y);
+            y += 6;
+            
             pdf.setFont("helvetica", "normal");
             executiveSummary.mainRisks.forEach((risk: string) => {
-              if (risk) {
+              if (risk?.trim()) {
                 addNewPageIfNeeded(8);
-                const lines = pdf.splitTextToSize(`⚠ ${risk}`, contentWidth - 5);
-                pdf.text(lines, margin + 3, y);
-                y += lines.length * 5 + 2;
+                pdf.setTextColor(234, 88, 12);
+                pdf.text("⚠", margin + 2, y);
+                pdf.setTextColor(...primaryColor);
+                const lines = pdf.splitTextToSize(risk, contentWidth - 12);
+                pdf.text(lines[0], margin + 8, y);
+                y += 5;
+                if (lines.length > 1) {
+                  for (let i = 1; i < lines.length; i++) {
+                    addNewPageIfNeeded(5);
+                    pdf.text(lines[i], margin + 8, y);
+                    y += 5;
+                  }
+                }
               }
             });
+            y += 3;
           }
 
-          if (hasBullets) {
+          if (hasBullets && !hasWins && !hasRisks) {
+            pdf.setFont("helvetica", "normal");
+            pdf.setTextColor(...primaryColor);
             executiveSummary.bullets.forEach((bullet: string) => {
-              if (bullet) {
+              if (bullet?.trim()) {
                 addNewPageIfNeeded(8);
-                const lines = pdf.splitTextToSize(`• ${bullet}`, contentWidth - 5);
-                pdf.text(lines, margin + 3, y);
-                y += lines.length * 5 + 2;
+                pdf.text("•", margin + 2, y);
+                const lines = pdf.splitTextToSize(bullet, contentWidth - 10);
+                pdf.text(lines[0], margin + 7, y);
+                y += 5;
+                if (lines.length > 1) {
+                  for (let i = 1; i < lines.length; i++) {
+                    addNewPageIfNeeded(5);
+                    pdf.text(lines[i], margin + 7, y);
+                    y += 5;
+                  }
+                }
               }
             });
           }
-          y += 5;
+          y += 8;
         }
       }
 
-      // KPIs
+      // ==================== ANÁLISE DE KPIs ====================
       if (metrics.length > 0) {
-        addNewPageIfNeeded(40);
-        pdf.setFontSize(14);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("📊 Análise de KPIs", margin, y);
-        y += 10;
-
+        drawSectionHeader("Análise de KPIs", "📊");
+        
+        // Table header
+        const colWidths = [50, 30, 30, 25, 35];
+        const tableX = margin;
+        
+        pdf.setFillColor(...primaryColor);
+        pdf.rect(tableX, y, contentWidth, 8, 'F');
+        
         pdf.setFontSize(9);
         pdf.setFont("helvetica", "bold");
-        pdf.text("KPI", margin, y);
-        pdf.text("Meta", margin + 55, y);
-        pdf.text("Real", margin + 85, y);
-        pdf.text("Var.", margin + 115, y);
-        pdf.text("Notas", margin + 135, y);
-        y += 5;
-        pdf.line(margin, y, pageWidth - margin, y);
-        y += 3;
+        pdf.setTextColor(255, 255, 255);
+        let xPos = tableX + 3;
+        pdf.text("KPI", xPos, y + 5.5);
+        xPos += colWidths[0];
+        pdf.text("Meta", xPos, y + 5.5);
+        xPos += colWidths[1];
+        pdf.text("Realizado", xPos, y + 5.5);
+        xPos += colWidths[2];
+        pdf.text("Var.", xPos, y + 5.5);
+        xPos += colWidths[3];
+        pdf.text("Observações", xPos, y + 5.5);
+        y += 8;
 
+        // Table rows
         pdf.setFont("helvetica", "normal");
-        metrics.forEach((metric: any) => {
+        metrics.forEach((metric: any, idx: number) => {
           addNewPageIfNeeded(10);
-          const label = metric.metric_label?.substring(0, 20) || "-";
-          pdf.text(label, margin, y);
-          pdf.text(formatValue(metric.target_value, metric.unit), margin + 55, y);
-          pdf.text(formatValue(metric.actual_value, metric.unit), margin + 85, y);
-          const variation = metric.variation_pct !== null ? `${metric.variation_pct > 0 ? '+' : ''}${metric.variation_pct.toFixed(1)}%` : "-";
-          pdf.text(variation, margin + 115, y);
-          if (metric.quick_note) {
-            const noteText = metric.quick_note.substring(0, 25);
-            pdf.text(noteText, margin + 135, y);
+          
+          // Alternating row background
+          if (idx % 2 === 0) {
+            pdf.setFillColor(249, 250, 251);
+            pdf.rect(tableX, y, contentWidth, 8, 'F');
           }
-          y += 6;
+          
+          pdf.setTextColor(...primaryColor);
+          pdf.setFontSize(9);
+          
+          xPos = tableX + 3;
+          const label = (metric.metric_label || "-").substring(0, 25);
+          pdf.text(label, xPos, y + 5.5);
+          
+          xPos += colWidths[0];
+          pdf.text(formatValue(metric.target_value, metric.unit), xPos, y + 5.5);
+          
+          xPos += colWidths[1];
+          pdf.text(formatValue(metric.actual_value, metric.unit), xPos, y + 5.5);
+          
+          xPos += colWidths[2];
+          if (metric.variation_pct !== null) {
+            const isPositive = metric.variation_pct >= 0;
+            pdf.setTextColor(...(isPositive ? successColor : [220, 38, 38] as [number, number, number]));
+            const varText = `${isPositive ? '+' : ''}${metric.variation_pct.toFixed(1)}%`;
+            pdf.text(varText, xPos, y + 5.5);
+          } else {
+            pdf.text("-", xPos, y + 5.5);
+          }
+          
+          xPos += colWidths[3];
+          pdf.setTextColor(...mutedColor);
+          const note = (metric.quick_note || "").substring(0, 20);
+          pdf.text(note, xPos, y + 5.5);
+          
+          y += 8;
         });
-        y += 5;
+        
+        // Table border
+        pdf.setDrawColor(...mutedColor);
+        pdf.rect(tableX, y - (metrics.length * 8), contentWidth, metrics.length * 8);
+        
+        y += 10;
       }
 
-      // Channels
+      // ==================== DESEMPENHO POR CANAL ====================
       if (channels.length > 0) {
-        addNewPageIfNeeded(40);
-        pdf.setFontSize(14);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("📈 Desempenho por Canal", margin, y);
-        y += 10;
+        drawSectionHeader("Desempenho por Canal", "📈");
 
         channels.forEach((channel: any) => {
-          addNewPageIfNeeded(30);
+          addNewPageIfNeeded(35);
+          
+          // Channel card
+          pdf.setFillColor(...lightBg);
+          pdf.roundedRect(margin, y, contentWidth, 8, 2, 2, 'F');
+          
           pdf.setFontSize(11);
           pdf.setFont("helvetica", "bold");
-          pdf.text(channel.channel, margin, y);
-          y += 6;
-
-          pdf.setFont("helvetica", "normal");
+          pdf.setTextColor(...accentColor);
+          pdf.text(channel.channel?.toUpperCase() || "Canal", margin + 5, y + 5.5);
+          y += 12;
+          
+          // Metrics row
           pdf.setFontSize(9);
-          const info = [];
-          if (channel.investment) info.push(`Investimento: R$ ${channel.investment.toLocaleString("pt-BR")}`);
-          if (channel.leads) info.push(`Leads: ${channel.leads}`);
-          if (channel.cpl) info.push(`CPL: R$ ${channel.cpl.toLocaleString("pt-BR")}`);
-          if (channel.roas) info.push(`ROAS: ${channel.roas.toFixed(2)}x`);
-          if (info.length > 0) {
-            pdf.text(info.join(" | "), margin + 3, y);
-            y += 5;
+          pdf.setFont("helvetica", "normal");
+          pdf.setTextColor(...primaryColor);
+          
+          const channelMetrics = [];
+          if (channel.investment) channelMetrics.push(`Investimento: R$ ${channel.investment.toLocaleString("pt-BR")}`);
+          if (channel.leads) channelMetrics.push(`Leads: ${channel.leads}`);
+          if (channel.cpl) channelMetrics.push(`CPL: R$ ${channel.cpl.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+          if (channel.roas) channelMetrics.push(`ROAS: ${channel.roas.toFixed(2)}x`);
+          if (channel.conversions) channelMetrics.push(`Conversões: ${channel.conversions}`);
+          
+          if (channelMetrics.length > 0) {
+            pdf.text(channelMetrics.join("  •  "), margin + 3, y);
+            y += 7;
           }
-
+          
           if (channel.what_worked) {
-            addNewPageIfNeeded(10);
-            const lines = pdf.splitTextToSize(`✓ O que funcionou: ${channel.what_worked}`, contentWidth - 5);
-            pdf.text(lines, margin + 3, y);
-            y += lines.length * 4 + 2;
+            addNewPageIfNeeded(12);
+            pdf.setTextColor(...successColor);
+            pdf.text("✓ O que funcionou:", margin + 3, y);
+            y += 5;
+            pdf.setTextColor(...primaryColor);
+            const lines = pdf.splitTextToSize(channel.what_worked, contentWidth - 10);
+            lines.forEach((line: string) => {
+              addNewPageIfNeeded(5);
+              pdf.text(line, margin + 6, y);
+              y += 5;
+            });
           }
+          
           if (channel.what_to_adjust) {
-            addNewPageIfNeeded(10);
-            const lines = pdf.splitTextToSize(`→ O que ajustar: ${channel.what_to_adjust}`, contentWidth - 5);
-            pdf.text(lines, margin + 3, y);
-            y += lines.length * 4 + 2;
+            addNewPageIfNeeded(12);
+            pdf.setTextColor(234, 88, 12);
+            pdf.text("→ O que ajustar:", margin + 3, y);
+            y += 5;
+            pdf.setTextColor(...primaryColor);
+            const lines = pdf.splitTextToSize(channel.what_to_adjust, contentWidth - 10);
+            lines.forEach((line: string) => {
+              addNewPageIfNeeded(5);
+              pdf.text(line, margin + 6, y);
+              y += 5;
+            });
           }
-          y += 4;
+          
+          y += 8;
         });
-        y += 5;
       }
 
-      // Diagnosis
+      // ==================== DIAGNÓSTICO ====================
       const diagnosis = getSectionContent("diagnosis");
       const diagnosisPicker = getSectionContent("diagnosis_picker");
-      const hasStandardDiagnosis = diagnosis?.items?.length > 0;
+      const hasStandardDiagnosis = diagnosis?.items?.some((i: any) => i?.tag || i?.context);
       const hasPickerDiagnosis = diagnosisPicker?.selectedItems?.length > 0;
 
       if (hasStandardDiagnosis || hasPickerDiagnosis) {
-        addNewPageIfNeeded(30);
-        pdf.setFontSize(14);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("🔍 Diagnóstico", margin, y);
-        y += 10;
-
-        pdf.setFontSize(10);
+        drawSectionHeader("Diagnóstico", "🔍");
 
         if (hasPickerDiagnosis) {
           diagnosisPicker.selectedItems.forEach((item: any) => {
-            addNewPageIfNeeded(20);
+            addNewPageIfNeeded(25);
+            
+            // Tag badge
+            pdf.setFillColor(...accentColor);
+            const tagText = item.tag || item.label || 'Diagnóstico';
+            const tagWidth = pdf.getTextWidth(tagText) + 8;
+            pdf.roundedRect(margin, y, tagWidth, 6, 1, 1, 'F');
+            pdf.setFontSize(8);
             pdf.setFont("helvetica", "bold");
-            pdf.text(`[${item.tag || item.label || 'Diagnóstico'}]`, margin, y);
-            y += 5;
+            pdf.setTextColor(255, 255, 255);
+            pdf.text(tagText, margin + 4, y + 4);
+            y += 10;
+            
+            pdf.setFontSize(10);
             pdf.setFont("helvetica", "normal");
+            pdf.setTextColor(...primaryColor);
+            
             if (item.context) {
-              const lines = pdf.splitTextToSize(`Contexto: ${item.context}`, contentWidth - 5);
-              pdf.text(lines, margin + 3, y);
-              y += lines.length * 4 + 2;
+              pdf.setFont("helvetica", "bold");
+              pdf.text("Contexto: ", margin + 3, y);
+              pdf.setFont("helvetica", "normal");
+              const ctxLines = pdf.splitTextToSize(item.context, contentWidth - 25);
+              pdf.text(ctxLines[0], margin + 3 + pdf.getTextWidth("Contexto: "), y);
+              y += 5;
+              if (ctxLines.length > 1) {
+                for (let i = 1; i < ctxLines.length; i++) {
+                  addNewPageIfNeeded(5);
+                  pdf.text(ctxLines[i], margin + 3, y);
+                  y += 5;
+                }
+              }
             }
+            
             if (item.solution) {
-              const lines = pdf.splitTextToSize(`Solução: ${item.solution}`, contentWidth - 5);
-              pdf.text(lines, margin + 3, y);
-              y += lines.length * 4 + 2;
+              addNewPageIfNeeded(10);
+              pdf.setFont("helvetica", "bold");
+              pdf.text("Solução: ", margin + 3, y);
+              pdf.setFont("helvetica", "normal");
+              const solLines = pdf.splitTextToSize(item.solution, contentWidth - 22);
+              pdf.text(solLines[0], margin + 3 + pdf.getTextWidth("Solução: "), y);
+              y += 5;
+              if (solLines.length > 1) {
+                for (let i = 1; i < solLines.length; i++) {
+                  addNewPageIfNeeded(5);
+                  pdf.text(solLines[i], margin + 3, y);
+                  y += 5;
+                }
+              }
             }
-            y += 3;
+            y += 5;
           });
         }
 
         if (hasStandardDiagnosis) {
           diagnosis.items.forEach((item: any) => {
-            addNewPageIfNeeded(15);
-            pdf.setFont("helvetica", "bold");
-            pdf.text(`[${item.tag || 'Diagnóstico'}]`, margin, y);
-            y += 5;
-            pdf.setFont("helvetica", "normal");
-            if (item.context) {
-              const lines = pdf.splitTextToSize(item.context, contentWidth - 5);
-              pdf.text(lines, margin + 3, y);
-              y += lines.length * 4 + 3;
+            if (item?.tag || item?.context) {
+              addNewPageIfNeeded(20);
+              
+              // Tag badge
+              pdf.setFillColor(...accentColor);
+              const tagText = item.tag || 'Diagnóstico';
+              const tagWidth = pdf.getTextWidth(tagText) + 8;
+              pdf.roundedRect(margin, y, tagWidth, 6, 1, 1, 'F');
+              pdf.setFontSize(8);
+              pdf.setFont("helvetica", "bold");
+              pdf.setTextColor(255, 255, 255);
+              pdf.text(tagText, margin + 4, y + 4);
+              y += 10;
+              
+              if (item.context) {
+                pdf.setFontSize(10);
+                pdf.setFont("helvetica", "normal");
+                pdf.setTextColor(...primaryColor);
+                const lines = pdf.splitTextToSize(item.context, contentWidth - 5);
+                lines.forEach((line: string) => {
+                  addNewPageIfNeeded(5);
+                  pdf.text(line, margin + 3, y);
+                  y += 5;
+                });
+              }
+              y += 5;
             }
           });
         }
         y += 5;
       }
 
-      // Action Plan
+      // ==================== PLANO DE AÇÃO ====================
       const actionPlan = getSectionContent("action_plan");
-      const hasVivazTasks = actionPlan?.vivazTasks?.length > 0;
-      const hasClientTasks = actionPlan?.clientTasks?.length > 0;
-      const hasLegacyActions = actionPlan?.actions?.length > 0;
+      const hasVivazTasks = actionPlan?.vivazTasks?.some((t: any) => t?.title);
+      const hasClientTasks = actionPlan?.clientTasks?.some((t: any) => t?.title);
+      const hasLegacyActions = actionPlan?.actions?.some((a: any) => a?.title || a?.description);
 
       if (hasVivazTasks || hasClientTasks || hasLegacyActions) {
-        addNewPageIfNeeded(30);
-        pdf.setFontSize(14);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("🔧 Plano de Ação", margin, y);
-        y += 10;
+        drawSectionHeader("Plano de Ação", "🚀");
 
-        pdf.setFontSize(10);
-
-        if (hasVivazTasks) {
+        const renderTaskList = (tasks: any[], title: string, color: [number, number, number]) => {
+          if (!tasks?.length) return;
+          
           addNewPageIfNeeded(15);
+          pdf.setFontSize(10);
           pdf.setFont("helvetica", "bold");
-          pdf.text("Ações Vivaz:", margin, y);
-          y += 6;
-          pdf.setFont("helvetica", "normal");
-
-          actionPlan.vivazTasks.forEach((action: any) => {
-            addNewPageIfNeeded(12);
-            const status = action.status === 'completed' ? "✓" : "○";
-            const actionText = `${status} ${action.title || 'Ação'}`;
-            const lines = pdf.splitTextToSize(actionText, contentWidth - 10);
-            pdf.text(lines, margin + 3, y);
-            y += lines.length * 5 + 1;
-
-            if (action.responsible || action.deadline) {
-              pdf.setFontSize(9);
-              const meta = [];
-              if (action.responsible) meta.push(`Resp: ${action.responsible}`);
-              if (action.deadline) meta.push(`Prazo: ${new Date(action.deadline).toLocaleDateString("pt-BR")}`);
-              pdf.text(meta.join(" | "), margin + 6, y);
-              y += 5;
+          pdf.setTextColor(...color);
+          pdf.text(title, margin, y);
+          y += 7;
+          
+          tasks.forEach((task: any) => {
+            if (task?.title) {
+              addNewPageIfNeeded(15);
+              
+              const isCompleted = task.status === 'completed';
+              
+              // Checkbox
+              pdf.setDrawColor(...(isCompleted ? successColor : mutedColor));
+              pdf.setFillColor(...(isCompleted ? successColor : [255, 255, 255] as [number, number, number]));
+              pdf.roundedRect(margin + 2, y - 3, 4, 4, 0.5, 0.5, isCompleted ? 'F' : 'S');
+              
+              if (isCompleted) {
+                pdf.setTextColor(255, 255, 255);
+                pdf.setFontSize(7);
+                pdf.text("✓", margin + 3, y);
+              }
+              
               pdf.setFontSize(10);
+              pdf.setFont("helvetica", "normal");
+              pdf.setTextColor(...primaryColor);
+              const taskLines = pdf.splitTextToSize(task.title, contentWidth - 15);
+              pdf.text(taskLines[0], margin + 10, y);
+              y += 5;
+              
+              if (taskLines.length > 1) {
+                for (let i = 1; i < taskLines.length; i++) {
+                  addNewPageIfNeeded(5);
+                  pdf.text(taskLines[i], margin + 10, y);
+                  y += 5;
+                }
+              }
+              
+              // Meta info
+              const metaInfo = [];
+              if (task.responsible) metaInfo.push(`Resp: ${task.responsible}`);
+              if (task.deadline) metaInfo.push(`Prazo: ${new Date(task.deadline).toLocaleDateString("pt-BR")}`);
+              
+              if (metaInfo.length > 0) {
+                pdf.setFontSize(8);
+                pdf.setTextColor(...mutedColor);
+                pdf.text(metaInfo.join("  •  "), margin + 10, y);
+                y += 5;
+              }
+              
+              y += 2;
             }
           });
-          y += 3;
+          y += 5;
+        };
+
+        if (hasVivazTasks) {
+          renderTaskList(actionPlan.vivazTasks, "Ações Vivaz", accentColor);
         }
 
         if (hasClientTasks) {
-          addNewPageIfNeeded(15);
-          pdf.setFont("helvetica", "bold");
-          pdf.text("Ações Cliente:", margin, y);
-          y += 6;
-          pdf.setFont("helvetica", "normal");
-
-          actionPlan.clientTasks.forEach((action: any) => {
-            addNewPageIfNeeded(12);
-            const status = action.status === 'completed' ? "✓" : "○";
-            const actionText = `${status} ${action.title || 'Ação'}`;
-            const lines = pdf.splitTextToSize(actionText, contentWidth - 10);
-            pdf.text(lines, margin + 3, y);
-            y += lines.length * 5 + 1;
-
-            if (action.responsible || action.deadline) {
-              pdf.setFontSize(9);
-              const meta = [];
-              if (action.responsible) meta.push(`Resp: ${action.responsible}`);
-              if (action.deadline) meta.push(`Prazo: ${new Date(action.deadline).toLocaleDateString("pt-BR")}`);
-              pdf.text(meta.join(" | "), margin + 6, y);
-              y += 5;
-              pdf.setFontSize(10);
-            }
-          });
-          y += 3;
+          renderTaskList(actionPlan.clientTasks, "Ações Cliente", [59, 130, 246]);
         }
 
         if (hasLegacyActions && !hasVivazTasks && !hasClientTasks) {
-          actionPlan.actions.forEach((action: any, index: number) => {
-            addNewPageIfNeeded(12);
-            const status = action.completed ? "✓" : "○";
-            const actionText = `${status} ${action.title || action.description || `Ação ${index + 1}`}`;
-            const lines = pdf.splitTextToSize(actionText, contentWidth - 5);
-            pdf.text(lines, margin, y);
-            y += lines.length * 5 + 2;
-
-            if (action.responsible || action.deadline) {
-              pdf.setFontSize(9);
-              const meta = [];
-              if (action.responsible) meta.push(`Responsável: ${action.responsible}`);
-              if (action.deadline) meta.push(`Prazo: ${new Date(action.deadline).toLocaleDateString("pt-BR")}`);
-              pdf.text(meta.join(" | "), margin + 5, y);
-              y += 5;
-              pdf.setFontSize(10);
-            }
-          });
+          renderTaskList(actionPlan.actions, "Ações", primaryColor);
         }
-        y += 5;
       }
 
-      // Questions and Discussions
+      // ==================== DÚVIDAS E DISCUSSÕES ====================
       const questions = getSectionContent("questions_discussions");
       if (questions?.content && questions.content.trim()) {
-        addNewPageIfNeeded(30);
-        pdf.setFontSize(14);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("💬 Dúvidas e Discussões", margin, y);
-        y += 10;
-
+        drawSectionHeader("Dúvidas e Discussões", "💬");
+        
         pdf.setFontSize(10);
         pdf.setFont("helvetica", "normal");
-        const cleanContent = questions.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        pdf.setTextColor(...primaryColor);
+        
+        const cleanContent = questions.content
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<[^>]*>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
         const lines = pdf.splitTextToSize(cleanContent, contentWidth);
         lines.forEach((line: string) => {
           addNewPageIfNeeded(6);
           pdf.text(line, margin, y);
           y += 5;
         });
-        y += 5;
-      }
-
-      // Next Period Priority
-      const meetingFull = await supabase
-        .from("meeting_minutes")
-        .select("next_period_priority")
-        .eq("id", meeting.id)
-        .single();
-      
-      if (meetingFull.data?.next_period_priority) {
-        addNewPageIfNeeded(20);
-        pdf.setFontSize(14);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("🎯 Prioridade do Próximo Período", margin, y);
         y += 8;
-
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "normal");
-        const lines = pdf.splitTextToSize(meetingFull.data.next_period_priority, contentWidth);
-        pdf.text(lines, margin, y);
-        y += lines.length * 5 + 5;
       }
 
-      // Legacy content fallback
-      if (sections.length === 0 && meeting.content) {
-        addNewPageIfNeeded(20);
-        pdf.setFontSize(14);
+      // ==================== PRIORIDADE PRÓXIMO PERÍODO ====================
+      if (meetingFull?.next_period_priority) {
+        addNewPageIfNeeded(25);
+        
+        pdf.setFillColor(254, 243, 199); // Yellow light bg
+        const priorityLines = pdf.splitTextToSize(meetingFull.next_period_priority, contentWidth - 14);
+        const boxH = priorityLines.length * 5 + 14;
+        pdf.roundedRect(margin, y, contentWidth, boxH, 3, 3, 'F');
+        
+        pdf.setFontSize(11);
         pdf.setFont("helvetica", "bold");
-        pdf.text("📝 Conteúdo", margin, y);
-        y += 10;
-
+        pdf.setTextColor(...warningColor);
+        pdf.text("🎯 Prioridade do Próximo Período", margin + 7, y + 8);
+        
         pdf.setFontSize(10);
         pdf.setFont("helvetica", "normal");
-        const cleanContent = meeting.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        pdf.setTextColor(...primaryColor);
+        let tY = y + 15;
+        priorityLines.forEach((line: string) => {
+          pdf.text(line, margin + 7, tY);
+          tY += 5;
+        });
+        y += boxH + 10;
+      }
+
+      // ==================== LEGACY CONTENT FALLBACK ====================
+      if (sections.length === 0 && meeting.content) {
+        drawSectionHeader("Conteúdo", "📝");
+        
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(...primaryColor);
+        
+        const cleanContent = meeting.content
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<[^>]*>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
         const lines = pdf.splitTextToSize(cleanContent, contentWidth);
         lines.forEach((line: string) => {
           addNewPageIfNeeded(6);
@@ -756,25 +997,46 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
 
       // Legacy action items
       if (meeting.action_items && meeting.action_items.length > 0 && !hasVivazTasks && !hasClientTasks && !hasLegacyActions) {
-        addNewPageIfNeeded(30);
-        pdf.setFontSize(14);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("✅ Itens de Ação", margin, y);
-        y += 10;
-
+        drawSectionHeader("Itens de Ação", "✅");
+        
         pdf.setFontSize(10);
         pdf.setFont("helvetica", "normal");
         meeting.action_items.forEach((item, idx) => {
-          addNewPageIfNeeded(8);
-          const lines = pdf.splitTextToSize(`${idx + 1}. ${item}`, contentWidth - 5);
-          pdf.text(lines, margin, y);
-          y += lines.length * 5 + 2;
+          addNewPageIfNeeded(10);
+          pdf.setTextColor(...accentColor);
+          pdf.text(`${idx + 1}.`, margin, y);
+          pdf.setTextColor(...primaryColor);
+          const lines = pdf.splitTextToSize(item, contentWidth - 10);
+          pdf.text(lines[0], margin + 8, y);
+          y += 5;
+          if (lines.length > 1) {
+            for (let i = 1; i < lines.length; i++) {
+              addNewPageIfNeeded(5);
+              pdf.text(lines[i], margin + 8, y);
+              y += 5;
+            }
+          }
+          y += 2;
         });
+      }
+
+      // ==================== FOOTER ====================
+      const totalPages = pdf.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(...mutedColor);
+        pdf.text(
+          `Página ${i} de ${totalPages}  •  Gerado em ${new Date().toLocaleDateString("pt-BR")}  •  Vivaz Agência`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        );
       }
 
       const safeName = meeting.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-').substring(0, 50);
       pdf.save(`reuniao-${safeName}.pdf`);
-      toast.success("PDF baixado com sucesso!");
+      toast.success("PDF gerado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       toast.error("Erro ao gerar PDF");
