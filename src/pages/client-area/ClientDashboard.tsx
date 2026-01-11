@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, Calendar, FileText, CheckSquare, Clock, ArrowRight } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { format } from "date-fns";
+
 import { ptBR } from "date-fns/locale";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { safeFormatDate } from "@/lib/dateUtils";
 
 interface ClientData {
   id: string;
@@ -297,9 +297,7 @@ const ClientDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {clientData.contract_start
-                  ? format(parseLocalDate(clientData.contract_start), "MMM/yy", { locale: ptBR })
-                  : "—"}
+                {safeFormatDate(clientData.contract_start, "MMM/yy", { locale: ptBR })}
               </div>
               <p className="text-xs text-muted-foreground">{clientData.contact_name || ""}</p>
             </CardContent>
@@ -338,7 +336,7 @@ const ClientDashboard = () => {
                         <div>
                           <p className="text-sm font-medium line-clamp-1">{meeting.title}</p>
                           <p className="text-xs text-muted-foreground">
-                            {format(parseLocalDate(meeting.meeting_date), "dd 'de' MMMM", { locale: ptBR })}
+                            {safeFormatDate(meeting.meeting_date, "dd 'de' MMMM", { locale: ptBR })}
                           </p>
                         </div>
                       </div>
@@ -381,7 +379,7 @@ const ClientDashboard = () => {
                           {task.due_date && (
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              {format(parseLocalDate(task.due_date), "dd/MM", { locale: ptBR })}
+                              {safeFormatDate(task.due_date, "dd/MM", { locale: ptBR })}
                             </span>
                           )}
                         </div>
@@ -424,7 +422,7 @@ const ClientDashboard = () => {
                       <div>
                         <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {activity.date ? format(new Date(activity.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : "—"}
+                          {safeFormatDate(activity.date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                         </p>
                       </div>
                     </div>
