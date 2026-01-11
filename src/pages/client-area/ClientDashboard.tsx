@@ -145,16 +145,21 @@ const ClientDashboard = () => {
           id: m.id,
           type: 'meeting' as const,
           title: m.title,
-          date: m.meeting_date,
+          date: m.meeting_date || '',
         })),
         ...(recentTasks.data || []).map((t) => ({
           id: t.id,
           type: 'task' as const,
           title: t.title,
-          date: t.created_at,
+          date: t.created_at || '',
           status: t.status,
         })),
-      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+      ].filter(a => a.date).sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        if (isNaN(dateA) || isNaN(dateB)) return 0;
+        return dateB - dateA;
+      }).slice(0, 5);
 
       setRecentActivity(activities);
       setLoading(false);
