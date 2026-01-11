@@ -2,18 +2,20 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   CheckCircle2, 
   Clock, 
   Circle, 
-  ArchiveRestore,
   History,
-  RefreshCw
+  RefreshCw,
+  X,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, subDays } from "date-fns";
+import { format, subDays, isToday, isTomorrow, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
@@ -38,17 +40,19 @@ interface RetrovisorSectionProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; className: string }> = {
-  pending: { label: "Pendente", icon: Circle, className: "bg-amber-50 text-amber-700 border-amber-200" },
-  in_progress: { label: "Em andamento", icon: Clock, className: "bg-blue-50 text-blue-700 border-blue-200" },
-  completed: { label: "Concluída", icon: CheckCircle2, className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  backlog: { label: "Backlog", icon: ArchiveRestore, className: "bg-muted text-muted-foreground border-muted" },
+  pending: { label: "Pendente", icon: Circle, className: "text-amber-600" },
+  in_progress: { label: "Em andamento", icon: Clock, className: "text-blue-600" },
+  completed: { label: "Concluída", icon: CheckCircle2, className: "text-emerald-600" },
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: "bg-gray-100 text-gray-600",
   medium: "bg-yellow-100 text-yellow-700",
   high: "bg-red-100 text-red-700",
+  urgent: "bg-red-200 text-red-800",
 };
+
+const MAX_VISIBLE_ITEMS = 5;
 
 export function RetrovisorSection({ 
   clientId, 
@@ -56,16 +60,21 @@ export function RetrovisorSection({
   isEditing = false,
   onTasksUpdated 
 }: RetrovisorSectionProps) {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
+  const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
+  const [excludingIds, setExcludingIds] = useState<Set<string>>(new Set());
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
+  const [showAllPending, setShowAllPending] = useState(false);
+  const [completedExpanded, setCompletedExpanded] = useState(false);
 
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const sevenDaysAgo = subDays(new Date(), 7).toISOString();
+      const sevenDaysAgo = subDays(new Date(), 7);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
       
-      const { data, error } = await supabase
+      let query = supabase
         .from("tasks")
         .select(`
           id,
@@ -75,15 +84,30 @@ export function RetrovisorSection({
           due_date,
           category,
           assigned_to,
+          meeting_excluded_from,
           assigned_profile:profiles!tasks_assigned_to_fkey(full_name)
         `)
         .eq("client_id", clientId)
-        .gte("created_at", sevenDaysAgo)
-        .in("status", ["pending", "in_progress"])
+        .gte("created_at", sevenDaysAgo.toISOString())
+        .in("status", ["pending", "in_progress", "completed"])
         .order("due_date", { ascending: true, nullsFirst: false });
 
+      const { data, error } = await query;
+
       if (error) throw error;
-      setTasks(data || []);
+      
+      // Filter out tasks excluded from this meeting
+      const filteredData = (data || []).filter(task => {
+        const excludedFrom = task.meeting_excluded_from as string[] | null;
+        return !excludedFrom || !meetingId || !excludedFrom.includes(meetingId);
+      });
+
+      // Separate by status
+      const completed = filteredData.filter(t => t.status === "completed");
+      const pending = filteredData.filter(t => t.status !== "completed");
+      
+      setCompletedTasks(completed);
+      setPendingTasks(pending);
     } catch (error) {
       console.error("Error fetching tasks:", error);
       toast.error("Erro ao carregar tarefas");
@@ -96,43 +120,46 @@ export function RetrovisorSection({
     if (clientId) {
       fetchTasks();
     }
-  }, [clientId]);
+  }, [clientId, meetingId]);
 
-  const handleStatusChange = async (taskId: string, newStatus: string) => {
-    setUpdatingIds(prev => new Set(prev).add(taskId));
+  const handleExcludeFromRetrovisor = async (taskId: string) => {
+    if (!meetingId) {
+      toast.error("ID da reunião não disponível");
+      return;
+    }
+
+    setExcludingIds(prev => new Set(prev).add(taskId));
     try {
-      const updateData: Record<string, unknown> = { status: newStatus };
-      if (newStatus === "completed") {
-        updateData.completed_at = new Date().toISOString();
-      }
+      // Get current excluded meetings
+      const { data: task, error: fetchError } = await supabase
+        .from("tasks")
+        .select("meeting_excluded_from")
+        .eq("id", taskId)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      const currentExcluded = (task?.meeting_excluded_from as string[]) || [];
+      const newExcluded = [...currentExcluded, meetingId];
 
       const { error } = await supabase
         .from("tasks")
-        .update(updateData)
+        .update({ meeting_excluded_from: newExcluded })
         .eq("id", taskId);
 
       if (error) throw error;
 
-      // Update local state
-      setTasks(prev => 
-        prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t)
-          .filter(t => newStatus !== "completed" || t.id !== taskId)
-      );
+      // Remove from local state
+      setCompletedTasks(prev => prev.filter(t => t.id !== taskId));
+      setPendingTasks(prev => prev.filter(t => t.id !== taskId));
 
-      toast.success(
-        newStatus === "completed" 
-          ? "Tarefa concluída!" 
-          : newStatus === "backlog" 
-            ? "Movida para backlog" 
-            : "Status atualizado"
-      );
-      
+      toast.success("Removida do retrovisor");
       onTasksUpdated?.();
     } catch (error) {
-      console.error("Error updating task:", error);
-      toast.error("Erro ao atualizar tarefa");
+      console.error("Error excluding task:", error);
+      toast.error("Erro ao remover tarefa");
     } finally {
-      setUpdatingIds(prev => {
+      setExcludingIds(prev => {
         const next = new Set(prev);
         next.delete(taskId);
         return next;
@@ -140,25 +167,35 @@ export function RetrovisorSection({
     }
   };
 
-  const completedCount = tasks.filter(t => t.status === "completed").length;
-  const totalCount = tasks.length;
+  const formatDueDate = (dateString: string | null) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    if (isToday(date)) return "Hoje";
+    if (isTomorrow(date)) return "Amanhã";
+    if (isYesterday(date)) return "Ontem";
+    return format(date, "dd/MM", { locale: ptBR });
+  };
+
+  const totalCount = completedTasks.length + pendingTasks.length;
+  const today = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
 
   if (loading) {
     return (
       <div className="space-y-3">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
       </div>
     );
   }
 
-  if (tasks.length === 0) {
+  if (totalCount === 0) {
     return (
       <div className="text-center py-8 border rounded-lg bg-muted/30">
         <History className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
         <p className="text-sm text-muted-foreground">
-          Nenhum compromisso pendente dos últimos 7 dias
+          Nenhuma atividade nos últimos 7 dias
         </p>
         <Button 
           variant="ghost" 
@@ -173,13 +210,86 @@ export function RetrovisorSection({
     );
   }
 
+  const renderTaskItem = (task: Task, showExcludeButton: boolean = true) => {
+    const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
+    const StatusIcon = statusConfig.icon;
+    const isExcluding = excludingIds.has(task.id);
+    const isCompleted = task.status === "completed";
+    const dueDateFormatted = formatDueDate(task.due_date);
+    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !isCompleted;
+
+    return (
+      <div
+        key={task.id}
+        className={cn(
+          "flex items-center gap-2 py-2 px-3 rounded-md border bg-background transition-all group",
+          isCompleted && "bg-muted/30",
+          isExcluding && "opacity-50 pointer-events-none"
+        )}
+      >
+        <StatusIcon className={cn("h-4 w-4 flex-shrink-0", statusConfig.className)} />
+        
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <span className={cn(
+            "text-sm truncate",
+            isCompleted && "line-through text-muted-foreground"
+          )}>
+            {task.title}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {task.assigned_profile?.full_name && (
+            <span className="text-xs text-muted-foreground hidden sm:inline max-w-[80px] truncate">
+              {task.assigned_profile.full_name.split(" ")[0]}
+            </span>
+          )}
+          
+          {dueDateFormatted && (
+            <span className={cn(
+              "text-xs px-1.5 py-0.5 rounded",
+              isOverdue ? "bg-red-100 text-red-700" : "text-muted-foreground"
+            )}>
+              {dueDateFormatted}
+            </span>
+          )}
+          
+          <Badge 
+            variant="outline" 
+            className={cn("text-[10px] h-5 px-1.5", PRIORITY_COLORS[task.priority] || "")}
+          >
+            {task.priority === "urgent" ? "Urg" : task.priority === "high" ? "Alta" : task.priority === "medium" ? "Méd" : "Bx"}
+          </Badge>
+
+          {isEditing && showExcludeButton && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleExcludeFromRetrovisor(task.id)}
+              disabled={isExcluding}
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+              title="Remover do retrovisor"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const visiblePending = showAllPending ? pendingTasks : pendingTasks.slice(0, MAX_VISIBLE_ITEMS);
+  const visibleCompleted = showAllCompleted ? completedTasks : completedTasks.slice(0, MAX_VISIBLE_ITEMS);
+  const hiddenPendingCount = pendingTasks.length - MAX_VISIBLE_ITEMS;
+  const hiddenCompletedCount = completedTasks.length - MAX_VISIBLE_ITEMS;
+
   return (
     <div className="space-y-4">
-      {/* Header with progress */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <History className="h-4 w-4" />
-          <span>{tasks.length} compromissos pendentes</span>
+          <span>Últimos 7 dias (até {today})</span>
         </div>
         <Button 
           variant="ghost" 
@@ -192,94 +302,84 @@ export function RetrovisorSection({
         </Button>
       </div>
 
-      {/* Task List */}
-      <div className="space-y-2">
-        {tasks.map((task) => {
-          const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
-          const StatusIcon = statusConfig.icon;
-          const isUpdating = updatingIds.has(task.id);
+      {/* Pending Tasks */}
+      {pendingTasks.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-amber-600" />
+            <span className="text-sm font-medium">Pendentes ({pendingTasks.length})</span>
+          </div>
+          <div className="space-y-1.5">
+            {visiblePending.map(task => renderTaskItem(task))}
+            {hiddenPendingCount > 0 && !showAllPending && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAllPending(true)}
+                className="w-full text-xs h-8 text-muted-foreground"
+              >
+                Ver mais {hiddenPendingCount} pendentes
+              </Button>
+            )}
+            {showAllPending && pendingTasks.length > MAX_VISIBLE_ITEMS && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAllPending(false)}
+                className="w-full text-xs h-8 text-muted-foreground"
+              >
+                Mostrar menos
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
-          return (
-            <div
-              key={task.id}
-              className={cn(
-                "flex items-center gap-3 p-3 rounded-lg border transition-all",
-                task.status === "completed" && "bg-muted/50 opacity-70",
-                isUpdating && "opacity-50 pointer-events-none"
-              )}
+      {/* Completed Tasks */}
+      {completedTasks.length > 0 && (
+        <Collapsible open={completedExpanded} onOpenChange={setCompletedExpanded}>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-between h-9 px-2 hover:bg-muted/50"
             >
-              {/* Checkbox for marking complete */}
-              {isEditing && (
-                <Checkbox
-                  checked={task.status === "completed"}
-                  onCheckedChange={(checked) => {
-                    handleStatusChange(task.id, checked ? "completed" : "pending");
-                  }}
-                  disabled={isUpdating}
-                  className="flex-shrink-0"
-                />
-              )}
-
-              {/* Status icon (view mode) */}
-              {!isEditing && (
-                <StatusIcon className={cn(
-                  "h-4 w-4 flex-shrink-0",
-                  statusConfig.className.includes("text-") 
-                    ? statusConfig.className.split(" ").find(c => c.startsWith("text-"))
-                    : "text-muted-foreground"
-                )} />
-              )}
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <p className={cn(
-                  "text-sm font-medium truncate",
-                  task.status === "completed" && "line-through text-muted-foreground"
-                )}>
-                  {task.title}
-                </p>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  {task.assigned_profile?.full_name && (
-                    <span className="text-xs text-muted-foreground">
-                      {task.assigned_profile.full_name}
-                    </span>
-                  )}
-                  {task.due_date && (
-                    <span className={cn(
-                      "text-xs",
-                      new Date(task.due_date) < new Date() 
-                        ? "text-red-600" 
-                        : "text-muted-foreground"
-                    )}>
-                      {format(new Date(task.due_date), "dd/MM", { locale: ptBR })}
-                    </span>
-                  )}
-                  <Badge 
-                    variant="outline" 
-                    className={cn("text-xs h-5", PRIORITY_COLORS[task.priority] || "")}
-                  >
-                    {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Média" : "Baixa"}
-                  </Badge>
-                </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span className="text-sm font-medium">Concluídas ({completedTasks.length})</span>
               </div>
-
-              {/* Quick Actions */}
-              {isEditing && task.status !== "completed" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleStatusChange(task.id, "backlog")}
-                  disabled={isUpdating}
-                  className="h-7 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <ArchiveRestore className="h-3.5 w-3.5 mr-1" />
-                  Backlog
-                </Button>
+              {completedExpanded ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               )}
-            </div>
-          );
-        })}
-      </div>
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-1.5 mt-2">
+            {visibleCompleted.map(task => renderTaskItem(task))}
+            {hiddenCompletedCount > 0 && !showAllCompleted && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAllCompleted(true)}
+                className="w-full text-xs h-8 text-muted-foreground"
+              >
+                Ver mais {hiddenCompletedCount} concluídas
+              </Button>
+            )}
+            {showAllCompleted && completedTasks.length > MAX_VISIBLE_ITEMS && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAllCompleted(false)}
+                className="w-full text-xs h-8 text-muted-foreground"
+              >
+                Mostrar menos
+              </Button>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
+      )}
     </div>
   );
 }
