@@ -293,7 +293,7 @@ const ClientDashboard = () => {
             <CardContent>
               <div className="text-2xl font-bold">
                 {clientData.contract_start
-                  ? format(new Date(clientData.contract_start), "MMM/yy", { locale: ptBR })
+                  ? format(parseLocalDate(clientData.contract_start), "MMM/yy", { locale: ptBR })
                   : "—"}
               </div>
               <p className="text-xs text-muted-foreground">{clientData.contact_name || ""}</p>
@@ -419,7 +419,7 @@ const ClientDashboard = () => {
                       <div>
                         <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(activity.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          {activity.date ? format(new Date(activity.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : "—"}
                         </p>
                       </div>
                     </div>
