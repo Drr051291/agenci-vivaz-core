@@ -40,9 +40,10 @@ interface RetrovisorSectionProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; className: string }> = {
-  pending: { label: "Pendente", icon: Circle, className: "text-amber-600" },
-  in_progress: { label: "Em andamento", icon: Clock, className: "text-blue-600" },
-  completed: { label: "Concluída", icon: CheckCircle2, className: "text-emerald-600" },
+  pendente: { label: "Pendente", icon: Circle, className: "text-amber-600" },
+  em_andamento: { label: "Em andamento", icon: Clock, className: "text-blue-600" },
+  concluido: { label: "Concluída", icon: CheckCircle2, className: "text-emerald-600" },
+  solicitado: { label: "Solicitado", icon: Circle, className: "text-gray-600" },
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -89,7 +90,7 @@ export function RetrovisorSection({
         `)
         .eq("client_id", clientId)
         .gte("created_at", sevenDaysAgo.toISOString())
-        .in("status", ["pending", "in_progress", "completed"])
+        .in("status", ["pendente", "em_andamento", "concluido", "solicitado"])
         .order("due_date", { ascending: true, nullsFirst: false });
 
       const { data, error } = await query;
@@ -103,8 +104,8 @@ export function RetrovisorSection({
       });
 
       // Separate by status
-      const completed = filteredData.filter(t => t.status === "completed");
-      const pending = filteredData.filter(t => t.status !== "completed");
+      const completed = filteredData.filter(t => t.status === "concluido");
+      const pending = filteredData.filter(t => t.status !== "concluido");
       
       setCompletedTasks(completed);
       setPendingTasks(pending);
@@ -211,10 +212,10 @@ export function RetrovisorSection({
   }
 
   const renderTaskItem = (task: Task, showExcludeButton: boolean = true) => {
-    const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
+    const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.pendente;
     const StatusIcon = statusConfig.icon;
     const isExcluding = excludingIds.has(task.id);
-    const isCompleted = task.status === "completed";
+    const isCompleted = task.status === "concluido";
     const dueDateFormatted = formatDueDate(task.due_date);
     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !isCompleted;
 
