@@ -29,6 +29,7 @@ interface Task {
   priority: string;
   due_date?: string;
   category: string;
+  assigned_to?: string;
   assigned_profile?: {
     full_name: string;
   };
@@ -40,6 +41,7 @@ const ClientTasks = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar">("list");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -62,6 +64,8 @@ const ClientTasks = () => {
       navigate("/auth");
       return;
     }
+
+    setCurrentUserId(session.user.id);
 
     // Verificar se é cliente
     const { data: userRole } = await supabase
@@ -122,6 +126,9 @@ const ClientTasks = () => {
     ? tasks 
     : tasks.filter(task => task.category === categoryFilter);
 
+  // Check if user can edit the selected task (only if they are the assignee)
+  const canEditSelectedTask = selectedTask?.assigned_to === currentUserId;
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -139,7 +146,7 @@ const ClientTasks = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Atividades</h1>
             <p className="text-muted-foreground">
-              Acompanhe suas tarefas e atividades
+              Acompanhe suas tarefas e atividades. Você pode editar apenas as tarefas atribuídas a você.
             </p>
           </div>
 
@@ -209,7 +216,7 @@ const ClientTasks = () => {
           open={!!selectedTask}
           onOpenChange={(open) => !open && setSelectedTask(null)}
           task={selectedTask}
-          canEdit={true}
+          canEdit={canEditSelectedTask}
           onUpdate={checkAuthAndLoadTasks}
         />
       </div>

@@ -2230,6 +2230,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_client_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2238,6 +2239,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin_or_collaborator: { Args: { _user_id: string }; Returns: boolean }
+      is_task_assignee: {
+        Args: { _task_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "collaborator" | "client"
