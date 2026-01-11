@@ -18,6 +18,9 @@ import {
   FileDown,
   Loader2,
   Circle,
+  Sparkles,
+  RotateCcw,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +53,9 @@ import {
   formatCurrency,
   formatNumber,
   identifyBottleneck,
+  simulateFunnel,
+  SimulatedRates,
+  SimulationResult,
 } from "@/lib/performanceMatrixPro/calc";
 import { 
   generateInsights,
@@ -98,6 +104,15 @@ export default function MatrizPerformancePro() {
   const [clients, setClients] = useState<{ id: string; company_name: string }[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
 
+  // Simulator state
+  const [simulatorOpen, setSimulatorOpen] = useState(false);
+  const [simRates, setSimRates] = useState<SimulatedRates>({
+    lead_to_mql: 0,
+    mql_to_sql: 0,
+    sql_to_opp: 0,
+    opp_to_sale: 0,
+  });
+
   // Load clients when dialog opens
   useEffect(() => {
     if (saveDialogOpen && clients.length === 0) {
@@ -127,6 +142,33 @@ export default function MatrizPerformancePro() {
   const outputs = useMemo(() => calculateFunnel(inputs, setor), [inputs, setor]);
   const bottleneck = useMemo(() => identifyBottleneck(outputs.stages), [outputs.stages]);
   const insights = useMemo(() => generateInsights(outputs, setor, inputs), [outputs, setor, inputs]);
+
+  // Simulation results
+  const simulationResult = useMemo<SimulationResult | null>(() => {
+    if (!simulatorOpen || inputs.leads === 0) return null;
+    return simulateFunnel(inputs.leads, simRates, inputs.ticketMedio, inputs.investimento);
+  }, [simulatorOpen, inputs.leads, inputs.ticketMedio, inputs.investimento, simRates]);
+
+  // Initialize simulator rates from current data
+  const initializeSimulator = () => {
+    setSimRates({
+      lead_to_mql: outputs.stages[0]?.rate ?? benchmark.stages.lead_to_mql.avg,
+      mql_to_sql: outputs.stages[1]?.rate ?? benchmark.stages.mql_to_sql.avg,
+      sql_to_opp: outputs.stages[2]?.rate ?? benchmark.stages.sql_to_opp.avg,
+      opp_to_sale: outputs.stages[3]?.rate ?? benchmark.stages.opp_to_sale.avg,
+    });
+    setSimulatorOpen(true);
+  };
+
+  // Reset simulator to benchmark averages
+  const resetSimToAvg = () => {
+    setSimRates({
+      lead_to_mql: benchmark.stages.lead_to_mql.avg,
+      mql_to_sql: benchmark.stages.mql_to_sql.avg,
+      sql_to_opp: benchmark.stages.sql_to_opp.avg,
+      opp_to_sale: benchmark.stages.opp_to_sale.avg,
+    });
+  };
 
   // Helpers
   const updateInput = (key: keyof FunnelInputs, value: string) => {
@@ -367,6 +409,16 @@ export default function MatrizPerformancePro() {
             </div>
             <div className="flex items-center gap-2">
               <Button
+                variant={simulatorOpen ? "default" : "outline"}
+                size="sm"
+                onClick={() => simulatorOpen ? setSimulatorOpen(false) : initializeSimulator()}
+                disabled={inputs.leads === 0}
+                className={simulatorOpen ? "bg-gradient-to-r from-purple-500 to-indigo-500" : ""}
+              >
+                <Sparkles className="h-4 w-4 mr-1" />
+                E se?
+              </Button>
+              <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSaveDialogOpen(true)}
@@ -390,6 +442,168 @@ export default function MatrizPerformancePro() {
               </Button>
             </div>
           </div>
+
+          {/* Simulator Panel */}
+          {simulatorOpen && (
+            <Card className="border-2 border-purple-200 bg-gradient-to-r from-purple-50/50 to-indigo-50/50">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-purple-500" />
+                    Simulador "E se?"
+                    <Badge variant="secondary" className="text-[10px]">Ajuste as taxas e veja o impacto</Badge>
+                  </CardTitle>
+                  <Button variant="ghost" size="sm" onClick={resetSimToAvg} className="h-7 text-xs">
+                    <RotateCcw className="h-3 w-3 mr-1" />
+                    Usar média do setor
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Left: Rate Sliders */}
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground font-medium">Taxas de Conversão Simuladas</p>
+                    {[
+                      { key: 'lead_to_mql' as const, label: 'Lead → MQL', current: outputs.stages[0]?.rate },
+                      { key: 'mql_to_sql' as const, label: 'MQL → SQL', current: outputs.stages[1]?.rate },
+                      { key: 'sql_to_opp' as const, label: 'SQL → Opp', current: outputs.stages[2]?.rate },
+                      { key: 'opp_to_sale' as const, label: 'Opp → Venda', current: outputs.stages[3]?.rate },
+                    ].map(({ key, label, current }) => (
+                      <div key={key} className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">{label}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">Atual: {formatPercent(current)}</span>
+                            <span className="font-bold text-purple-600">{simRates[key].toFixed(1)}%</span>
+                          </div>
+                        </div>
+                        <Input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={0.5}
+                          value={simRates[key]}
+                          onChange={(e) => setSimRates(prev => ({ ...prev, [key]: parseFloat(e.target.value) }))}
+                          className="h-2 accent-purple-500"
+                        />
+                        <div className="flex justify-between text-[10px] text-muted-foreground">
+                          <span>0%</span>
+                          <span className="text-purple-400">Meta: {benchmark.stages[key].avg}%</span>
+                          <span>100%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Right: Results Comparison */}
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground font-medium">Impacto Projetado</p>
+                    {simulationResult && (
+                      <div className="space-y-2">
+                        {/* Contracts Comparison */}
+                        <div className="flex items-center gap-3 p-2 bg-white rounded-lg border">
+                          <div className="flex-1">
+                            <p className="text-[10px] text-muted-foreground">Contratos Atuais</p>
+                            <p className="text-lg font-bold">{formatNumber(inputs.contratos)}</p>
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-purple-400" />
+                          <div className="flex-1 text-right">
+                            <p className="text-[10px] text-muted-foreground">Contratos Simulados</p>
+                            <p className={cn(
+                              "text-lg font-bold",
+                              simulationResult.contratos > inputs.contratos ? "text-green-600" : 
+                              simulationResult.contratos < inputs.contratos ? "text-red-600" : ""
+                            )}>
+                              {formatNumber(simulationResult.contratos)}
+                              {simulationResult.contratos !== inputs.contratos && (
+                                <span className="text-xs ml-1">
+                                  ({simulationResult.contratos > inputs.contratos ? '+' : ''}{simulationResult.contratos - inputs.contratos})
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Revenue Comparison */}
+                        <div className="flex items-center gap-3 p-2 bg-white rounded-lg border">
+                          <div className="flex-1">
+                            <p className="text-[10px] text-muted-foreground">Faturamento Atual</p>
+                            <p className="text-lg font-bold">{formatCurrency(outputs.financial.revenue)}</p>
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-purple-400" />
+                          <div className="flex-1 text-right">
+                            <p className="text-[10px] text-muted-foreground">Faturamento Simulado</p>
+                            <p className={cn(
+                              "text-lg font-bold",
+                              (simulationResult.revenue ?? 0) > (outputs.financial.revenue ?? 0) ? "text-green-600" : 
+                              (simulationResult.revenue ?? 0) < (outputs.financial.revenue ?? 0) ? "text-red-600" : ""
+                            )}>
+                              {formatCurrency(simulationResult.revenue)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* ROI Comparison */}
+                        <div className="flex items-center gap-3 p-2 bg-white rounded-lg border">
+                          <div className="flex-1">
+                            <p className="text-[10px] text-muted-foreground">ROI Atual</p>
+                            <p className="text-lg font-bold">
+                              {outputs.financial.roi !== null ? `${outputs.financial.roi.toFixed(0)}%` : '—'}
+                            </p>
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-purple-400" />
+                          <div className="flex-1 text-right">
+                            <p className="text-[10px] text-muted-foreground">ROI Simulado</p>
+                            <p className={cn(
+                              "text-lg font-bold",
+                              (simulationResult.roi ?? 0) > (outputs.financial.roi ?? 0) ? "text-green-600" : 
+                              (simulationResult.roi ?? 0) < (outputs.financial.roi ?? 0) ? "text-red-600" : ""
+                            )}>
+                              {simulationResult.roi !== null ? `${simulationResult.roi.toFixed(0)}%` : '—'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Funnel Flow Preview */}
+                        <div className="p-2 bg-purple-50 rounded-lg border border-purple-100">
+                          <p className="text-[10px] text-purple-600 font-medium mb-1">Funil Simulado</p>
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span>{formatNumber(simulationResult.leads)} Leads</span>
+                            <span>→</span>
+                            <span>{formatNumber(simulationResult.mqls)} MQL</span>
+                            <span>→</span>
+                            <span>{formatNumber(simulationResult.sqls)} SQL</span>
+                            <span>→</span>
+                            <span>{formatNumber(simulationResult.oportunidades)} Opp</span>
+                            <span>→</span>
+                            <span className="font-bold text-purple-600">{formatNumber(simulationResult.contratos)} ✓</span>
+                          </div>
+                        </div>
+
+                        {/* Conversion Rate */}
+                        <div className="text-center p-2 bg-gradient-to-r from-purple-100 to-indigo-100 rounded-lg">
+                          <p className="text-[10px] text-muted-foreground">Conversão Geral Simulada</p>
+                          <p className="text-2xl font-bold text-purple-600">
+                            {formatPercent(simulationResult.globalConversion)}
+                          </p>
+                          {simulationResult.globalConversion !== null && outputs.globalConversion !== null && (
+                            <p className={cn(
+                              "text-xs",
+                              simulationResult.globalConversion > outputs.globalConversion ? "text-green-600" : "text-red-600"
+                            )}>
+                              {simulationResult.globalConversion > outputs.globalConversion ? '+' : ''}
+                              {(simulationResult.globalConversion - outputs.globalConversion).toFixed(2)}pp vs atual
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Main Grid: 3-5-4 layout */}
           <div className="grid grid-cols-12 gap-4">
