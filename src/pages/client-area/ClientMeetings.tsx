@@ -2,16 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Calendar, Users, CheckSquare, FileText, Download } from "lucide-react";
+import { Calendar, Users, CheckSquare, FileText, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { toast } from "sonner";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface MeetingMinute {
@@ -37,7 +34,6 @@ export default function ClientMeetings() {
   const [loading, setLoading] = useState(true);
   const [meetings, setMeetings] = useState<MeetingMinute[]>([]);
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   usePageMeta({
     title: "Minhas Reuniões - Área do Cliente",
@@ -114,72 +110,11 @@ export default function ClientMeetings() {
     navigate(`/area-cliente/reunioes/${meetingId}`);
   };
 
-  const handleDownloadPDF = async (meeting: MeetingMinute) => {
-    setDownloadingId(meeting.id);
-    try {
-      // Criar elemento temporário para renderizar o conteúdo
-      const tempDiv = document.createElement("div");
-      tempDiv.style.position = "absolute";
-      tempDiv.style.left = "-9999px";
-      tempDiv.style.width = "800px";
-      tempDiv.style.padding = "40px";
-      tempDiv.style.backgroundColor = "white";
-      tempDiv.style.color = "black";
-
-      tempDiv.innerHTML = `
-        <div style="font-family: Arial, sans-serif;">
-          <h1 style="margin-bottom: 20px; font-size: 24px;">${meeting.title}</h1>
-          <p style="margin-bottom: 10px;"><strong>Data:</strong> ${format(parseLocalDate(meeting.meeting_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
-          ${meeting.participants && meeting.participants.length > 0 ? `<p style="margin-bottom: 20px;"><strong>Participantes:</strong> ${meeting.participants.join(", ")}</p>` : ""}
-          <hr style="margin: 30px 0; border: none; border-top: 2px solid #ddd;" />
-          <div style="margin-bottom: 30px;">
-            ${meeting.content}
-          </div>
-          ${meeting.action_items && meeting.action_items.length > 0 ? `
-            <hr style="margin: 30px 0; border: none; border-top: 2px solid #ddd;" />
-            <h2 style="margin-bottom: 15px; font-size: 20px;">Itens de Ação</h2>
-            <ol style="padding-left: 20px;">
-              ${meeting.action_items.map(item => `<li style="margin-bottom: 10px;">${item}</li>`).join("")}
-            </ol>
-          ` : ""}
-        </div>
-      `;
-
-      document.body.appendChild(tempDiv);
-
-      const canvas = await html2canvas(tempDiv, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-      });
-
-      document.body.removeChild(tempDiv);
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      const imgY = 0;
-
-      pdf.addImage(imgData, "PNG", imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-      pdf.save(`${meeting.title}.pdf`);
-
-      toast.success("PDF baixado com sucesso!");
-    } catch (error) {
-      console.error("Erro ao gerar PDF:", error);
-      toast.error("Erro ao gerar PDF");
-    } finally {
-      setDownloadingId(null);
+  const handleOpenPublicLink = (meeting: MeetingMinute) => {
+    if (meeting.share_token) {
+      window.open(`/reunioes/${meeting.share_token}`, '_blank');
+    } else {
+      toast.error("Link público não disponível para esta reunião");
     }
   };
 
@@ -288,21 +223,18 @@ export default function ClientMeetings() {
                         >
                           Ver
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownloadPDF(meeting);
-                          }}
-                          disabled={downloadingId === meeting.id}
-                        >
-                          {downloadingId === meeting.id ? (
-                            <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-primary" />
-                          ) : (
-                            <Download className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
+                        {meeting.share_token && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenPublicLink(meeting);
+                            }}
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>

@@ -45,8 +45,8 @@ const clientMenuItems = [
   { title: "Visão Geral", url: "/area-cliente", icon: LayoutDashboard, adminOnly: false },
   { title: "Reuniões", url: "/area-cliente/atas", icon: FileText, adminOnly: false },
   { title: "Atividades", url: "/area-cliente/atividades", icon: CheckSquare, adminOnly: false },
+  { title: "Performance", url: "/area-cliente/performance", icon: BarChart3, adminOnly: false },
   { title: "Dashboards", url: "/area-cliente/dashboards", icon: BarChart3, adminOnly: false },
-  { title: "Financeiro", url: "/area-cliente/financeiro", icon: DollarSign, adminOnly: false },
 ];
 
 interface DashboardLayoutProps {

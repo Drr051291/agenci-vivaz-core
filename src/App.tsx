@@ -14,7 +14,7 @@ import ClientMeetings from "./pages/client-area/ClientMeetings";
 import ClientMeetingView from "./pages/client-area/ClientMeetingView";
 import ClientTasks from "./pages/client-area/ClientTasks";
 import ClientDashboards from "./pages/client-area/ClientDashboards";
-import ClientFinancial from "./pages/client-area/ClientFinancial";
+import ClientPerformance from "./pages/client-area/ClientPerformance";
 import Users from "./pages/Users";
 import SharedMeeting from "./pages/SharedMeeting";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
@@ -42,11 +42,12 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/area-cliente" element={<ClientDashboard />} />
+          <Route path="/area-cliente/atas" element={<ClientMeetings />} />
           <Route path="/area-cliente/reunioes" element={<ClientMeetings />} />
           <Route path="/area-cliente/reunioes/:meetingId" element={<ClientMeetingView />} />
           <Route path="/area-cliente/atividades" element={<ClientTasks />} />
+          <Route path="/area-cliente/performance" element={<ClientPerformance />} />
           <Route path="/area-cliente/dashboards" element={<ClientDashboards />} />
-          <Route path="/area-cliente/financeiro" element={<ClientFinancial />} />
           <Route path="/clientes" element={<Clients />} />
           <Route path="/clientes/:id" element={<ClientDetails />} />
           <Route path="/clientes/:clientId/reunioes/:meetingId" element={<MeetingEditor />} />
