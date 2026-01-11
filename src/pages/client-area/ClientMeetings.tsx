@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Calendar, Users, CheckSquare, FileText, ExternalLink } from "lucide-react";
-import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { safeFormatDate } from "@/lib/dateUtils";
 import { toast } from "sonner";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
@@ -112,7 +111,7 @@ export default function ClientMeetings() {
 
   const handleOpenPublicLink = (meeting: MeetingMinute) => {
     if (meeting.share_token) {
-      window.open(`/reunioes/${meeting.share_token}`, '_blank');
+      window.open(`https://hub.vivazagencia.com.br/reunioes/${meeting.share_token}`, '_blank');
     } else {
       toast.error("Link público não disponível para esta reunião");
     }
@@ -174,7 +173,7 @@ export default function ClientMeetings() {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                           <div className="flex items-center gap-1.5">
                             <Calendar className="h-3.5 w-3.5" />
-                            <span>{format(parseLocalDate(meeting.meeting_date), "dd MMM yyyy", { locale: ptBR })}</span>
+                            <span>{safeFormatDate(meeting.meeting_date, "dd MMM yyyy", { locale: ptBR })}</span>
                           </div>
 
                           {linkedDashboardNames.length > 0 && (
