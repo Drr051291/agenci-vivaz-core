@@ -3,6 +3,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Metric {
   id?: string;
@@ -18,6 +25,16 @@ interface MetricsSectionProps {
   onChange: (metrics: Metric[]) => void;
   isEditing?: boolean;
 }
+
+const UNIT_OPTIONS = [
+  { value: "", label: "Número" },
+  { value: "R$", label: "R$ (Moeda)" },
+  { value: "%", label: "% (Percentual)" },
+  { value: "x", label: "x (Multiplicador)" },
+  { value: "un", label: "un (Unidades)" },
+  { value: "h", label: "h (Horas)" },
+  { value: "dias", label: "dias" },
+];
 
 const DEFAULT_METRICS = [
   { metric_key: "investimento", metric_label: "Investimento", unit: "R$" },
@@ -59,7 +76,7 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
   const addMetric = () => {
     const newMetric: Metric = {
       metric_key: `custom_${Date.now()}`,
-      metric_label: "Nova métrica",
+      metric_label: "Novo KPI",
       target_value: null,
       actual_value: null,
       unit: "",
@@ -83,7 +100,7 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
   if (!isEditing && localMetrics.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        <p className="text-sm">Nenhuma métrica definida</p>
+        <p className="text-sm">Nenhum KPI definido</p>
       </div>
     );
   }
@@ -91,12 +108,16 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
   return (
     <div className="space-y-3">
       {/* Header */}
-      <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground px-2">
-        <div className="col-span-4">Métrica</div>
-        <div className="col-span-2 text-right">Meta</div>
-        <div className="col-span-2 text-right">Realizado</div>
-        <div className="col-span-2 text-right">Variação</div>
-        {isEditing && <div className="col-span-2"></div>}
+      <div className={cn(
+        "grid gap-2 text-xs font-medium text-muted-foreground px-2",
+        isEditing ? "grid-cols-[1fr_80px_100px_100px_80px_40px]" : "grid-cols-12"
+      )}>
+        <div className={isEditing ? "" : "col-span-4"}>KPI</div>
+        {isEditing && <div className="text-center">Unidade</div>}
+        <div className={isEditing ? "text-right" : "col-span-2 text-right"}>Meta</div>
+        <div className={isEditing ? "text-right" : "col-span-2 text-right"}>Realizado</div>
+        <div className={isEditing ? "text-right" : "col-span-2 text-right"}>Variação</div>
+        {isEditing && <div></div>}
       </div>
 
       {/* Rows */}
@@ -105,13 +126,26 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
         const isPositive = variation !== null && parseFloat(variation) > 0;
         const isNegative = variation !== null && parseFloat(variation) < 0;
 
+        const formatValue = (value: number | null) => {
+          if (value === null) return "—";
+          const formatted = value.toLocaleString('pt-BR');
+          if (metric.unit === "R$") return `R$ ${formatted}`;
+          if (metric.unit === "%") return `${formatted}%`;
+          if (metric.unit === "x") return `${formatted}x`;
+          if (metric.unit) return `${formatted} ${metric.unit}`;
+          return formatted;
+        };
+
         return (
           <div 
             key={metric.metric_key} 
-            className="grid grid-cols-12 gap-2 items-center p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+            className={cn(
+              "grid gap-2 items-center p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors",
+              isEditing ? "grid-cols-[1fr_80px_100px_100px_80px_40px]" : "grid-cols-12"
+            )}
           >
             {/* Label */}
-            <div className="col-span-4">
+            <div className={isEditing ? "" : "col-span-4"}>
               {isEditing ? (
                 <Input
                   value={metric.metric_label}
@@ -123,8 +157,29 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
               )}
             </div>
 
+            {/* Unit Selector - only in edit mode */}
+            {isEditing && (
+              <div>
+                <Select
+                  value={metric.unit}
+                  onValueChange={(value) => handleChange(index, "unit", value)}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Un." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNIT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value || "none"}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Target */}
-            <div className="col-span-2">
+            <div className={isEditing ? "" : "col-span-2"}>
               {isEditing ? (
                 <Input
                   type="number"
@@ -135,16 +190,13 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
                 />
               ) : (
                 <span className="text-sm text-right block text-muted-foreground">
-                  {metric.target_value !== null 
-                    ? `${metric.unit}${metric.target_value.toLocaleString('pt-BR')}`
-                    : "—"
-                  }
+                  {formatValue(metric.target_value)}
                 </span>
               )}
             </div>
 
             {/* Actual */}
-            <div className="col-span-2">
+            <div className={isEditing ? "" : "col-span-2"}>
               {isEditing ? (
                 <Input
                   type="number"
@@ -155,16 +207,16 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
                 />
               ) : (
                 <span className="text-sm text-right block font-medium">
-                  {metric.actual_value !== null 
-                    ? `${metric.unit}${metric.actual_value.toLocaleString('pt-BR')}`
-                    : "—"
-                  }
+                  {formatValue(metric.actual_value)}
                 </span>
               )}
             </div>
 
             {/* Variation */}
-            <div className="col-span-2 flex items-center justify-end gap-1">
+            <div className={cn(
+              "flex items-center justify-end gap-1",
+              !isEditing && "col-span-2"
+            )}>
               {variation !== null ? (
                 <span className={cn(
                   "text-sm font-medium flex items-center gap-1",
@@ -184,7 +236,7 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
 
             {/* Actions */}
             {isEditing && (
-              <div className="col-span-2 flex justify-end">
+              <div className="flex justify-end">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -208,7 +260,7 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
           className="w-full mt-2"
         >
           <Plus className="h-4 w-4 mr-1.5" />
-          Adicionar métrica
+          Adicionar KPI
         </Button>
       )}
     </div>
