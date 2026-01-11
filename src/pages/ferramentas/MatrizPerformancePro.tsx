@@ -17,6 +17,7 @@ import {
   Save,
   FileDown,
   Loader2,
+  Circle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,9 +40,11 @@ import {
   SetorAtuacao, 
   SETORES_LIST, 
   getBenchmarkForSetor,
+  StageStatus,
 } from "@/lib/performanceMatrixPro/benchmarks";
 import { 
   FunnelInputs, 
+  FunnelStage,
   calculateFunnel, 
   formatPercent, 
   formatCurrency,
@@ -61,6 +64,14 @@ const STAGE_COLORS = [
   'bg-purple-500',
   'bg-fuchsia-500',
 ];
+
+// Status colors and indicators
+const STATUS_CONFIG: Record<StageStatus, { color: string; bg: string; icon: string; label: string }> = {
+  ok: { color: 'text-green-600', bg: 'bg-green-50', icon: '🟢', label: 'OK' },
+  warning: { color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '🟡', label: 'Atenção' },
+  critical: { color: 'text-red-600', bg: 'bg-red-50', icon: '🔴', label: 'Crítico' },
+  no_data: { color: 'text-muted-foreground', bg: 'bg-muted/30', icon: '⚪', label: 'Sem dados' },
+};
 
 export default function MatrizPerformancePro() {
   usePageMeta({ title: "Matriz de Performance Pro | Ferramentas" });
@@ -111,9 +122,9 @@ export default function MatrizPerformancePro() {
     }
   }, [saveDialogOpen, clients.length]);
 
-  // Calculations
+  // Calculations with sector benchmarks
   const benchmark = useMemo(() => getBenchmarkForSetor(setor), [setor]);
-  const outputs = useMemo(() => calculateFunnel(inputs), [inputs]);
+  const outputs = useMemo(() => calculateFunnel(inputs, setor), [inputs, setor]);
   const bottleneck = useMemo(() => identifyBottleneck(outputs.stages), [outputs.stages]);
   const insights = useMemo(() => generateInsights(outputs, setor, inputs), [outputs, setor, inputs]);
 
@@ -207,20 +218,22 @@ export default function MatrizPerformancePro() {
       });
       y += 5;
 
-      // Conversion Rates
+      // Conversion Rates with Benchmarks
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text("Taxas de Conversão", 14, y);
+      doc.text("Taxas de Conversão (vs Benchmark)", 14, y);
       y += 8;
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(`Conversão Geral: ${formatPercent(outputs.globalConversion)} (Benchmark: ${formatPercent(benchmark.conversionRate)})`, 14, y);
+      doc.text(`Conversão Geral: ${formatPercent(outputs.globalConversion)} (Meta: ${benchmark.conversionRange.min}-${benchmark.conversionRange.max}%)`, 14, y);
       y += 6;
 
       outputs.stages.forEach(stage => {
         const isBottleneck = bottleneck?.key === stage.key;
-        doc.text(`${stage.labelShort}: ${formatPercent(stage.rate)}${isBottleneck ? ' ⚠️ GARGALO' : ''}`, 14, y);
+        const statusIcon = STATUS_CONFIG[stage.status].icon;
+        const benchmarkText = stage.benchmark ? `Meta: ${stage.benchmark.min}-${stage.benchmark.max}%` : '';
+        doc.text(`${statusIcon} ${stage.labelShort}: ${formatPercent(stage.rate)} | ${benchmarkText}${isBottleneck ? ' ⚠️ GARGALO' : ''}`, 14, y);
         y += 6;
       });
       y += 5;
@@ -318,6 +331,21 @@ export default function MatrizPerformancePro() {
       case 'critical': return 'border-l-4 border-l-red-500';
       default: return 'border-l-4 border-l-blue-500';
     }
+  };
+
+  // Render status indicator
+  const renderStatusIndicator = (status: StageStatus) => {
+    const config = STATUS_CONFIG[status];
+    return (
+      <Tooltip>
+        <TooltipTrigger>
+          <span className="text-sm">{config.icon}</span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">{config.label}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
   };
 
   return (
@@ -523,7 +551,7 @@ export default function MatrizPerformancePro() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-3 pb-3 space-y-3">
-                {/* Global KPI - Compact */}
+                {/* Global KPI - Compact with benchmark range */}
                 <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
                   <div>
                     <p className="text-xs text-muted-foreground">Conversão Geral</p>
@@ -532,8 +560,10 @@ export default function MatrizPerformancePro() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Benchmark</p>
-                    <p className="text-sm font-medium">{formatPercent(benchmark.conversionRate)}</p>
+                    <p className="text-xs text-muted-foreground">Meta ({benchmark.label})</p>
+                    <p className="text-sm font-medium">
+                      {benchmark.conversionRange.min}-{benchmark.conversionRange.max}%
+                    </p>
                   </div>
                 </div>
 
@@ -574,33 +604,62 @@ export default function MatrizPerformancePro() {
                   })}
                 </div>
 
-                {/* Stage Conversions - Compact Table */}
+                {/* Stage Conversions - Compact Table with Status */}
                 <div className="space-y-1">
                   {outputs.stages.map((stage, idx) => (
-                    <div 
-                      key={stage.key}
-                      className={cn(
-                        "flex items-center justify-between py-1 px-2 rounded text-xs",
-                        bottleneck?.key === stage.key && "bg-red-50 border border-red-200"
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className={cn("w-2 h-2 rounded-full shrink-0", STAGE_COLORS[idx])} />
-                        <span className="truncate">{stage.labelShort}</span>
-                        {bottleneck?.key === stage.key && (
-                          <Badge variant="destructive" className="text-[10px] h-4 px-1">
-                            Gargalo
-                          </Badge>
-                        )}
-                      </div>
-                      <span className={cn(
-                        "font-medium",
-                        !stage.eligible && "text-muted-foreground"
-                      )}>
-                        {formatPercent(stage.rate)}
-                      </span>
-                    </div>
+                    <Tooltip key={stage.key}>
+                      <TooltipTrigger asChild>
+                        <div 
+                          className={cn(
+                            "flex items-center justify-between py-1 px-2 rounded text-xs cursor-help",
+                            bottleneck?.key === stage.key 
+                              ? "bg-red-50 border border-red-200" 
+                              : STATUS_CONFIG[stage.status].bg
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={cn("w-2 h-2 rounded-full shrink-0", STAGE_COLORS[idx])} />
+                            {renderStatusIndicator(stage.status)}
+                            <span className="truncate">{stage.labelShort}</span>
+                            {bottleneck?.key === stage.key && (
+                              <Badge variant="destructive" className="text-[10px] h-4 px-1">
+                                Gargalo
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "font-medium",
+                              STATUS_CONFIG[stage.status].color
+                            )}>
+                              {formatPercent(stage.rate)}
+                            </span>
+                          </div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-xs">
+                        <div className="space-y-1">
+                          <p className="font-medium">{stage.label}</p>
+                          {stage.benchmark && (
+                            <p className="text-xs text-muted-foreground">
+                              Meta: {stage.benchmark.min}-{stage.benchmark.max}% (média: {stage.benchmark.avg}%)
+                            </p>
+                          )}
+                          <p className="text-xs">
+                            {stage.from} → {stage.to}
+                          </p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
                   ))}
+                </div>
+
+                {/* Status Legend */}
+                <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground pt-1">
+                  <span>🟢 OK</span>
+                  <span>🟡 Atenção</span>
+                  <span>🔴 Crítico</span>
+                  <span>⚪ S/ dados</span>
                 </div>
 
                 <Separator className="my-2" />
