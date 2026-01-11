@@ -2020,6 +2020,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          meeting_excluded_from: string[] | null
           owner_type: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
@@ -2039,6 +2040,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          meeting_excluded_from?: string[] | null
           owner_type?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
@@ -2058,6 +2060,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          meeting_excluded_from?: string[] | null
           owner_type?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
