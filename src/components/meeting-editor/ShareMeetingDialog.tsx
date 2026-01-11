@@ -27,7 +27,7 @@ export function ShareMeetingDialog({
 }: ShareMeetingDialogProps) {
   const [copied, setCopied] = useState(false);
 
-  const shareUrl = `${window.location.origin}/atas/${shareToken}`;
+  const shareUrl = `${window.location.origin}/reunioes/${shareToken}`;
 
   const handleCopy = async () => {
     try {
@@ -45,10 +45,10 @@ export function ShareMeetingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Compartilhar Ata</DialogTitle>
+          <DialogTitle>Compartilhar Reunião</DialogTitle>
           <DialogDescription>
-            Compartilhe esta ata "{meetingTitle}" através do link público abaixo.
-            Qualquer pessoa com este link poderá visualizar a ata sem precisar fazer login.
+            Compartilhe esta reunião "{meetingTitle}" através do link público abaixo.
+            Qualquer pessoa com este link poderá visualizar a reunião sem precisar fazer login.
           </DialogDescription>
         </DialogHeader>
 
@@ -81,8 +81,8 @@ export function ShareMeetingDialog({
             <p className="font-semibold mb-1">ℹ️ Sobre o compartilhamento:</p>
             <ul className="list-disc list-inside space-y-1">
               <li>O link é permanente e público</li>
-              <li>Qualquer pessoa com o link pode visualizar a ata</li>
-              <li>A ata pode ser baixada em PDF através do link</li>
+              <li>Qualquer pessoa com o link pode visualizar a reunião</li>
+              <li>A reunião pode ser baixada em PDF através do link</li>
             </ul>
           </div>
         </div>
