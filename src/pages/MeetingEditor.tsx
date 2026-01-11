@@ -517,23 +517,36 @@ export default function MeetingEditor() {
   const getPresentationSections = () => {
     const presentationSections = [];
     
+    // 1. Abertura e Alinhamento
     if (sections.objective || sections.context) {
       presentationSections.push({ id: 'opening', title: 'Abertura e Alinhamento' });
     }
+    // 2. Resumo Executivo
     if (sections.executiveSummary.length > 0) {
       presentationSections.push({ id: 'summary', title: 'Resumo Executivo' });
     }
-    if (sections.metrics.some(m => m.actual_value !== null)) {
+    // 3. Retrovisor - sempre mostra pois busca tarefas dinamicamente
+    presentationSections.push({ id: 'retrovisor', title: 'Retrovisor' });
+    
+    // 4. Análise de KPIs
+    if (sections.metrics.some(m => m.actual_value !== null || m.target_value !== null)) {
       presentationSections.push({ id: 'metrics', title: 'Análise de KPIs' });
     }
+    // 5. Desempenho por Canal
     if (sections.channels.length > 0) {
       presentationSections.push({ id: 'channels', title: 'Desempenho por Canal' });
     }
+    // 6. Diagnóstico
     if (sections.diagnosisItems.length > 0) {
       presentationSections.push({ id: 'diagnosis', title: 'Diagnóstico' });
     }
-    if (sections.actionPlan.length > 0 || meetingData.action_items.length > 0) {
+    // 7. Plano de Ação
+    if (sections.actionPlan.length > 0) {
       presentationSections.push({ id: 'actions', title: 'Plano de Ação' });
+    }
+    // 8. Dúvidas e Discussões
+    if (sections.questionsAndDiscussions && sections.questionsAndDiscussions.trim() !== '' && sections.questionsAndDiscussions !== '<p></p>') {
+      presentationSections.push({ id: 'questions', title: 'Dúvidas e Discussões' });
     }
     
     return presentationSections;
@@ -626,7 +639,7 @@ export default function MeetingEditor() {
           <div className="mb-8">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium mb-3">
               <FileText className="h-4 w-4" />
-              Ata de Reunião
+              Reunião
             </div>
             <h1 className="text-3xl lg:text-4xl font-bold mb-3">{meetingData.title}</h1>
             <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
@@ -735,14 +748,53 @@ export default function MeetingEditor() {
                     Plano de Ação
                   </h2>
                   <div className="space-y-3">
-                    {meetingData.action_items.map((item, idx) => (
+                    {sections.actionPlan.map((item, idx) => (
                       <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
                         <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <span className="text-sm font-bold text-primary">{idx + 1}</span>
                         </div>
-                        <span className="flex-1 pt-0.5">{item}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {item.category && (
+                              <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+                            )}
+                            {item.status && (
+                              <Badge variant={item.status === 'completed' ? 'default' : 'outline'} className="text-xs">
+                                {item.status === 'completed' ? 'Concluído' : item.status === 'in_progress' ? 'Em andamento' : 'Pendente'}
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="pt-0.5">{item.title}</span>
+                        </div>
                       </div>
                     ))}
+                  </div>
+                </>
+              )}
+
+              {section.id === 'retrovisor' && (
+                <>
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <History className="h-5 w-5 text-primary" />
+                    Retrovisor
+                  </h2>
+                  <RetrovisorSection
+                    clientId={clientId || ""}
+                    meetingId={meetingId}
+                    isEditing={false}
+                    onTasksUpdated={() => {}}
+                  />
+                </>
+              )}
+
+              {section.id === 'questions' && (
+                <>
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    Dúvidas e Discussões
+                  </h2>
+                  <div className="prose prose-sm max-w-none">
+                    <MeetingViewer content={sections.questionsAndDiscussions} />
                   </div>
                 </>
               )}
