@@ -42,7 +42,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/area-cliente" element={<ClientDashboard />} />
-          <Route path="/area-cliente/atas" element={<ClientMeetings />} />
+          <Route path="/area-cliente/reunioes" element={<ClientMeetings />} />
           <Route path="/area-cliente/reunioes/:meetingId" element={<ClientMeetingView />} />
           <Route path="/area-cliente/atividades" element={<ClientTasks />} />
           <Route path="/area-cliente/dashboards" element={<ClientDashboards />} />
@@ -60,7 +60,7 @@ const App = () => (
           <Route path="/ferramentas/precificacao-mercado-livre" element={<PrecificacaoMercadoLivre />} />
           <Route path="/ferramentas/precificacao-produto" element={<PrecificacaoProduto />} />
           <Route path="/ferramentas/dre-projetado" element={<DREProjetado />} />
-          <Route path="/atas/:token" element={<SharedMeeting />} />
+          <Route path="/reunioes/:token" element={<SharedMeeting />} />
           <Route path="/google-calendar/callback" element={<GoogleCalendarCallback />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
