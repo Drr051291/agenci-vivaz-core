@@ -1,5 +1,7 @@
 // Calculation logic for Performance Matrix Pro
 
+import { SetorAtuacao, getBenchmarkForSetor, getStageStatus, StageStatus, StageBenchmark } from './benchmarks';
+
 export interface FunnelInputs {
   leads: number;
   mqls: number;
@@ -12,7 +14,7 @@ export interface FunnelInputs {
 }
 
 export interface FunnelStage {
-  key: string;
+  key: 'lead_to_mql' | 'mql_to_sql' | 'sql_to_opp' | 'opp_to_sale';
   label: string;
   labelShort: string;
   fromLabel: string;
@@ -22,6 +24,9 @@ export interface FunnelStage {
   rate: number | null; // null when denominator is 0
   eligible: boolean;
   minSampleSize: number;
+  // New: benchmark comparison
+  benchmark?: StageBenchmark;
+  status: StageStatus;
 }
 
 export interface FinancialMetrics {
@@ -98,64 +103,52 @@ function calculateFinancialMetrics(inputs: FunnelInputs): FinancialMetrics {
 }
 
 /**
- * Calculate all funnel metrics
+ * Calculate all funnel metrics with benchmark comparison
  */
-export function calculateFunnel(inputs: FunnelInputs): FunnelOutputs {
+export function calculateFunnel(inputs: FunnelInputs, setor: SetorAtuacao = 'geral_b2b'): FunnelOutputs {
   const { leads, mqls, sqls, oportunidades, contratos, cicloVendas, ticketMedio } = inputs;
+  const benchmark = getBenchmarkForSetor(setor);
   
   // Global conversion: Contracts / Leads
   const globalConversion = safeDivide(contratos, leads);
   
-  // Define stages
+  // Helper to create stage with benchmark
+  const createStage = (
+    key: FunnelStage['key'],
+    label: string,
+    labelShort: string,
+    fromLabel: string,
+    toLabel: string,
+    from: number,
+    to: number,
+    minSampleKey: keyof typeof MIN_SAMPLE_SIZES
+  ): FunnelStage => {
+    const rate = safeDivide(to, from);
+    const stageBenchmark = benchmark.stages[key];
+    const eligible = isEligible(from, MIN_SAMPLE_SIZES[minSampleKey]);
+    
+    return {
+      key,
+      label,
+      labelShort,
+      fromLabel,
+      toLabel,
+      from,
+      to,
+      rate,
+      eligible,
+      minSampleSize: MIN_SAMPLE_SIZES[minSampleKey],
+      benchmark: stageBenchmark,
+      status: eligible ? getStageStatus(rate, stageBenchmark) : 'no_data',
+    };
+  };
+  
+  // Define stages with benchmarks
   const stages: FunnelStage[] = [
-    {
-      key: 'lead_to_mql',
-      label: 'Lead → MQL',
-      labelShort: 'L→MQL',
-      fromLabel: 'Leads',
-      toLabel: 'MQL',
-      from: leads,
-      to: mqls,
-      rate: safeDivide(mqls, leads),
-      eligible: isEligible(leads, MIN_SAMPLE_SIZES.leads),
-      minSampleSize: MIN_SAMPLE_SIZES.leads,
-    },
-    {
-      key: 'mql_to_sql',
-      label: 'MQL → SQL',
-      labelShort: 'MQL→SQL',
-      fromLabel: 'MQL',
-      toLabel: 'SQL',
-      from: mqls,
-      to: sqls,
-      rate: safeDivide(sqls, mqls),
-      eligible: isEligible(mqls, MIN_SAMPLE_SIZES.mqls),
-      minSampleSize: MIN_SAMPLE_SIZES.mqls,
-    },
-    {
-      key: 'sql_to_opp',
-      label: 'SQL → Oportunidade',
-      labelShort: 'SQL→Opp',
-      fromLabel: 'SQL',
-      toLabel: 'Oportunidade',
-      from: sqls,
-      to: oportunidades,
-      rate: safeDivide(oportunidades, sqls),
-      eligible: isEligible(sqls, MIN_SAMPLE_SIZES.sqls),
-      minSampleSize: MIN_SAMPLE_SIZES.sqls,
-    },
-    {
-      key: 'opp_to_sale',
-      label: 'Oportunidade → Venda',
-      labelShort: 'Opp→Venda',
-      fromLabel: 'Oportunidade',
-      toLabel: 'Contrato',
-      from: oportunidades,
-      to: contratos,
-      rate: safeDivide(contratos, oportunidades),
-      eligible: isEligible(oportunidades, MIN_SAMPLE_SIZES.oportunidades),
-      minSampleSize: MIN_SAMPLE_SIZES.oportunidades,
-    },
+    createStage('lead_to_mql', 'Lead → MQL', 'L→MQL', 'Leads', 'MQL', leads, mqls, 'leads'),
+    createStage('mql_to_sql', 'MQL → SQL', 'MQL→SQL', 'MQL', 'SQL', mqls, sqls, 'mqls'),
+    createStage('sql_to_opp', 'SQL → Oportunidade', 'SQL→Opp', 'SQL', 'Oportunidade', sqls, oportunidades, 'sqls'),
+    createStage('opp_to_sale', 'Oportunidade → Venda', 'Opp→Venda', 'Oportunidade', 'Contrato', oportunidades, contratos, 'oportunidades'),
   ];
   
   // Sales Velocity: (Opportunities × Deal Size × Win Rate) / Cycle Length
