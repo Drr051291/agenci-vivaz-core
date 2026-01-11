@@ -286,75 +286,494 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
   const handleDownloadPDF = async (meeting: MeetingMinute) => {
     setDownloadingId(meeting.id);
     try {
-      const tempDiv = document.createElement('div');
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.width = '800px';
-      tempDiv.style.padding = '40px';
-      tempDiv.style.background = 'white';
-      
-      tempDiv.innerHTML = `
-        <div style="font-family: 'Montserrat', sans-serif;">
-          <h1 style="font-size: 28px; font-weight: bold; margin-bottom: 20px; color: #1F1821;">${meeting.title}</h1>
-          <div style="margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #efefef;">
-            <p style="color: #666; margin: 10px 0;">
-              <strong>Data:</strong> ${new Date(meeting.meeting_date).toLocaleDateString("pt-BR", { dateStyle: "long" })}
-            </p>
-            ${meeting.participants && meeting.participants.length > 0 ? `
-              <p style="color: #666; margin: 10px 0;">
-                <strong>Participantes:</strong> ${meeting.participants.join(", ")}
-              </p>
-            ` : ''}
-          </div>
-          <div style="line-height: 1.8; color: #1F1821;">
-            ${meeting.content}
-          </div>
-          ${meeting.action_items && meeting.action_items.length > 0 ? `
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #efefef;">
-              <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 15px;">Itens de Ação</h3>
-              <ul style="line-height: 2;">
-                ${meeting.action_items.map(item => `<li style="color: #666;">${item}</li>`).join('')}
-              </ul>
-            </div>
-          ` : ''}
-        </div>
-      `;
-      
-      document.body.appendChild(tempDiv);
+      // Fetch all meeting data for complete PDF
+      const [sectionsRes, metricsRes, channelsRes] = await Promise.all([
+        supabase
+          .from("meeting_sections")
+          .select("*")
+          .eq("meeting_id", meeting.id)
+          .order("sort_order"),
+        supabase
+          .from("meeting_metrics")
+          .select("*")
+          .eq("meeting_id", meeting.id)
+          .order("sort_order"),
+        supabase
+          .from("meeting_channels")
+          .select("*")
+          .eq("meeting_id", meeting.id),
+      ]);
 
-      const canvas = await html2canvas(tempDiv, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-      });
+      const sections = sectionsRes.data || [];
+      const metrics = metricsRes.data || [];
+      const channels = channelsRes.data || [];
 
-      document.body.removeChild(tempDiv);
+      const getSectionContent = (key: string): any => {
+        const section = sections.find((s: any) => s.section_key === key);
+        return section?.content_json;
+      };
 
-      const imgData = canvas.toDataURL('image/png');
+      const formatValue = (value: number | null, unit: string | null): string => {
+        if (value === null) return "-";
+        const u = unit || "";
+        if (u.includes("R$") || u.includes("Moeda")) {
+          return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        }
+        if (u.includes("%")) {
+          return `${value.toLocaleString("pt-BR")}%`;
+        }
+        if (u.includes("x")) {
+          return `${value.toLocaleString("pt-BR")}x`;
+        }
+        return value.toLocaleString("pt-BR");
+      };
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
       });
 
-      const imgWidth = 210;
+      const pageWidth = 210;
       const pageHeight = 297;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      const margin = 15;
+      const contentWidth = pageWidth - (margin * 2);
+      let y = margin;
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      const addNewPageIfNeeded = (requiredHeight: number) => {
+        if (y + requiredHeight > pageHeight - margin) {
+          pdf.addPage();
+          y = margin;
+        }
+      };
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      // Header
+      pdf.setFontSize(18);
+      pdf.setFont("helvetica", "bold");
+      const titleLines = pdf.splitTextToSize(meeting.title, contentWidth);
+      pdf.text(titleLines, margin, y);
+      y += titleLines.length * 7 + 5;
+
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(100);
+      pdf.text(`Data: ${new Date(meeting.meeting_date).toLocaleDateString("pt-BR", { dateStyle: "long" })}`, margin, y);
+      y += 5;
+
+      if (meeting.participants && meeting.participants.length > 0) {
+        const participantsText = pdf.splitTextToSize(`Participantes: ${meeting.participants.join(", ")}`, contentWidth);
+        pdf.text(participantsText, margin, y);
+        y += participantsText.length * 4 + 2;
       }
 
-      pdf.save(`reuniao-${meeting.title}.pdf`);
+      pdf.setDrawColor(200);
+      pdf.line(margin, y + 3, pageWidth - margin, y + 3);
+      y += 10;
+      pdf.setTextColor(0);
+
+      // Objective & Context
+      const objective = getSectionContent("objective");
+      const context = getSectionContent("context");
+      if (objective?.content || context?.content) {
+        addNewPageIfNeeded(30);
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("🎯 Abertura e Alinhamento", margin, y);
+        y += 8;
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+
+        if (objective?.content) {
+          const objLines = pdf.splitTextToSize(`Objetivo: ${objective.content}`, contentWidth);
+          pdf.text(objLines, margin, y);
+          y += objLines.length * 5 + 3;
+        }
+        if (context?.content) {
+          const ctxLines = pdf.splitTextToSize(`Contexto: ${context.content}`, contentWidth);
+          pdf.text(ctxLines, margin, y);
+          y += ctxLines.length * 5 + 3;
+        }
+        y += 5;
+      }
+
+      // Executive Summary
+      const executiveSummary = getSectionContent("executive_summary");
+      if (executiveSummary) {
+        const hasBullets = executiveSummary.bullets?.length > 0;
+        const hasHighlights = executiveSummary.periodHighlights;
+        const hasWins = executiveSummary.mainWins?.length > 0;
+        const hasRisks = executiveSummary.mainRisks?.length > 0;
+        
+        if (hasBullets || hasHighlights || hasWins || hasRisks) {
+          addNewPageIfNeeded(30);
+          pdf.setFontSize(14);
+          pdf.setFont("helvetica", "bold");
+          pdf.text("📋 Resumo Executivo", margin, y);
+          y += 8;
+          pdf.setFontSize(10);
+          pdf.setFont("helvetica", "normal");
+
+          if (hasHighlights) {
+            const lines = pdf.splitTextToSize(`Destaques: ${executiveSummary.periodHighlights}`, contentWidth);
+            pdf.text(lines, margin, y);
+            y += lines.length * 5 + 3;
+          }
+
+          if (hasWins) {
+            addNewPageIfNeeded(15);
+            pdf.setFont("helvetica", "bold");
+            pdf.text("Principais Conquistas:", margin, y);
+            y += 5;
+            pdf.setFont("helvetica", "normal");
+            executiveSummary.mainWins.forEach((win: string) => {
+              if (win) {
+                addNewPageIfNeeded(8);
+                const lines = pdf.splitTextToSize(`✓ ${win}`, contentWidth - 5);
+                pdf.text(lines, margin + 3, y);
+                y += lines.length * 5 + 2;
+              }
+            });
+          }
+
+          if (hasRisks) {
+            addNewPageIfNeeded(15);
+            pdf.setFont("helvetica", "bold");
+            pdf.text("Riscos e Alertas:", margin, y);
+            y += 5;
+            pdf.setFont("helvetica", "normal");
+            executiveSummary.mainRisks.forEach((risk: string) => {
+              if (risk) {
+                addNewPageIfNeeded(8);
+                const lines = pdf.splitTextToSize(`⚠ ${risk}`, contentWidth - 5);
+                pdf.text(lines, margin + 3, y);
+                y += lines.length * 5 + 2;
+              }
+            });
+          }
+
+          if (hasBullets) {
+            executiveSummary.bullets.forEach((bullet: string) => {
+              if (bullet) {
+                addNewPageIfNeeded(8);
+                const lines = pdf.splitTextToSize(`• ${bullet}`, contentWidth - 5);
+                pdf.text(lines, margin + 3, y);
+                y += lines.length * 5 + 2;
+              }
+            });
+          }
+          y += 5;
+        }
+      }
+
+      // KPIs
+      if (metrics.length > 0) {
+        addNewPageIfNeeded(40);
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("📊 Análise de KPIs", margin, y);
+        y += 10;
+
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("KPI", margin, y);
+        pdf.text("Meta", margin + 55, y);
+        pdf.text("Real", margin + 85, y);
+        pdf.text("Var.", margin + 115, y);
+        pdf.text("Notas", margin + 135, y);
+        y += 5;
+        pdf.line(margin, y, pageWidth - margin, y);
+        y += 3;
+
+        pdf.setFont("helvetica", "normal");
+        metrics.forEach((metric: any) => {
+          addNewPageIfNeeded(10);
+          const label = metric.metric_label?.substring(0, 20) || "-";
+          pdf.text(label, margin, y);
+          pdf.text(formatValue(metric.target_value, metric.unit), margin + 55, y);
+          pdf.text(formatValue(metric.actual_value, metric.unit), margin + 85, y);
+          const variation = metric.variation_pct !== null ? `${metric.variation_pct > 0 ? '+' : ''}${metric.variation_pct.toFixed(1)}%` : "-";
+          pdf.text(variation, margin + 115, y);
+          if (metric.quick_note) {
+            const noteText = metric.quick_note.substring(0, 25);
+            pdf.text(noteText, margin + 135, y);
+          }
+          y += 6;
+        });
+        y += 5;
+      }
+
+      // Channels
+      if (channels.length > 0) {
+        addNewPageIfNeeded(40);
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("📈 Desempenho por Canal", margin, y);
+        y += 10;
+
+        channels.forEach((channel: any) => {
+          addNewPageIfNeeded(30);
+          pdf.setFontSize(11);
+          pdf.setFont("helvetica", "bold");
+          pdf.text(channel.channel, margin, y);
+          y += 6;
+
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(9);
+          const info = [];
+          if (channel.investment) info.push(`Investimento: R$ ${channel.investment.toLocaleString("pt-BR")}`);
+          if (channel.leads) info.push(`Leads: ${channel.leads}`);
+          if (channel.cpl) info.push(`CPL: R$ ${channel.cpl.toLocaleString("pt-BR")}`);
+          if (channel.roas) info.push(`ROAS: ${channel.roas.toFixed(2)}x`);
+          if (info.length > 0) {
+            pdf.text(info.join(" | "), margin + 3, y);
+            y += 5;
+          }
+
+          if (channel.what_worked) {
+            addNewPageIfNeeded(10);
+            const lines = pdf.splitTextToSize(`✓ O que funcionou: ${channel.what_worked}`, contentWidth - 5);
+            pdf.text(lines, margin + 3, y);
+            y += lines.length * 4 + 2;
+          }
+          if (channel.what_to_adjust) {
+            addNewPageIfNeeded(10);
+            const lines = pdf.splitTextToSize(`→ O que ajustar: ${channel.what_to_adjust}`, contentWidth - 5);
+            pdf.text(lines, margin + 3, y);
+            y += lines.length * 4 + 2;
+          }
+          y += 4;
+        });
+        y += 5;
+      }
+
+      // Diagnosis
+      const diagnosis = getSectionContent("diagnosis");
+      const diagnosisPicker = getSectionContent("diagnosis_picker");
+      const hasStandardDiagnosis = diagnosis?.items?.length > 0;
+      const hasPickerDiagnosis = diagnosisPicker?.selectedItems?.length > 0;
+
+      if (hasStandardDiagnosis || hasPickerDiagnosis) {
+        addNewPageIfNeeded(30);
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("🔍 Diagnóstico", margin, y);
+        y += 10;
+
+        pdf.setFontSize(10);
+
+        if (hasPickerDiagnosis) {
+          diagnosisPicker.selectedItems.forEach((item: any) => {
+            addNewPageIfNeeded(20);
+            pdf.setFont("helvetica", "bold");
+            pdf.text(`[${item.tag || item.label || 'Diagnóstico'}]`, margin, y);
+            y += 5;
+            pdf.setFont("helvetica", "normal");
+            if (item.context) {
+              const lines = pdf.splitTextToSize(`Contexto: ${item.context}`, contentWidth - 5);
+              pdf.text(lines, margin + 3, y);
+              y += lines.length * 4 + 2;
+            }
+            if (item.solution) {
+              const lines = pdf.splitTextToSize(`Solução: ${item.solution}`, contentWidth - 5);
+              pdf.text(lines, margin + 3, y);
+              y += lines.length * 4 + 2;
+            }
+            y += 3;
+          });
+        }
+
+        if (hasStandardDiagnosis) {
+          diagnosis.items.forEach((item: any) => {
+            addNewPageIfNeeded(15);
+            pdf.setFont("helvetica", "bold");
+            pdf.text(`[${item.tag || 'Diagnóstico'}]`, margin, y);
+            y += 5;
+            pdf.setFont("helvetica", "normal");
+            if (item.context) {
+              const lines = pdf.splitTextToSize(item.context, contentWidth - 5);
+              pdf.text(lines, margin + 3, y);
+              y += lines.length * 4 + 3;
+            }
+          });
+        }
+        y += 5;
+      }
+
+      // Action Plan
+      const actionPlan = getSectionContent("action_plan");
+      const hasVivazTasks = actionPlan?.vivazTasks?.length > 0;
+      const hasClientTasks = actionPlan?.clientTasks?.length > 0;
+      const hasLegacyActions = actionPlan?.actions?.length > 0;
+
+      if (hasVivazTasks || hasClientTasks || hasLegacyActions) {
+        addNewPageIfNeeded(30);
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("🔧 Plano de Ação", margin, y);
+        y += 10;
+
+        pdf.setFontSize(10);
+
+        if (hasVivazTasks) {
+          addNewPageIfNeeded(15);
+          pdf.setFont("helvetica", "bold");
+          pdf.text("Ações Vivaz:", margin, y);
+          y += 6;
+          pdf.setFont("helvetica", "normal");
+
+          actionPlan.vivazTasks.forEach((action: any) => {
+            addNewPageIfNeeded(12);
+            const status = action.status === 'completed' ? "✓" : "○";
+            const actionText = `${status} ${action.title || 'Ação'}`;
+            const lines = pdf.splitTextToSize(actionText, contentWidth - 10);
+            pdf.text(lines, margin + 3, y);
+            y += lines.length * 5 + 1;
+
+            if (action.responsible || action.deadline) {
+              pdf.setFontSize(9);
+              const meta = [];
+              if (action.responsible) meta.push(`Resp: ${action.responsible}`);
+              if (action.deadline) meta.push(`Prazo: ${new Date(action.deadline).toLocaleDateString("pt-BR")}`);
+              pdf.text(meta.join(" | "), margin + 6, y);
+              y += 5;
+              pdf.setFontSize(10);
+            }
+          });
+          y += 3;
+        }
+
+        if (hasClientTasks) {
+          addNewPageIfNeeded(15);
+          pdf.setFont("helvetica", "bold");
+          pdf.text("Ações Cliente:", margin, y);
+          y += 6;
+          pdf.setFont("helvetica", "normal");
+
+          actionPlan.clientTasks.forEach((action: any) => {
+            addNewPageIfNeeded(12);
+            const status = action.status === 'completed' ? "✓" : "○";
+            const actionText = `${status} ${action.title || 'Ação'}`;
+            const lines = pdf.splitTextToSize(actionText, contentWidth - 10);
+            pdf.text(lines, margin + 3, y);
+            y += lines.length * 5 + 1;
+
+            if (action.responsible || action.deadline) {
+              pdf.setFontSize(9);
+              const meta = [];
+              if (action.responsible) meta.push(`Resp: ${action.responsible}`);
+              if (action.deadline) meta.push(`Prazo: ${new Date(action.deadline).toLocaleDateString("pt-BR")}`);
+              pdf.text(meta.join(" | "), margin + 6, y);
+              y += 5;
+              pdf.setFontSize(10);
+            }
+          });
+          y += 3;
+        }
+
+        if (hasLegacyActions && !hasVivazTasks && !hasClientTasks) {
+          actionPlan.actions.forEach((action: any, index: number) => {
+            addNewPageIfNeeded(12);
+            const status = action.completed ? "✓" : "○";
+            const actionText = `${status} ${action.title || action.description || `Ação ${index + 1}`}`;
+            const lines = pdf.splitTextToSize(actionText, contentWidth - 5);
+            pdf.text(lines, margin, y);
+            y += lines.length * 5 + 2;
+
+            if (action.responsible || action.deadline) {
+              pdf.setFontSize(9);
+              const meta = [];
+              if (action.responsible) meta.push(`Responsável: ${action.responsible}`);
+              if (action.deadline) meta.push(`Prazo: ${new Date(action.deadline).toLocaleDateString("pt-BR")}`);
+              pdf.text(meta.join(" | "), margin + 5, y);
+              y += 5;
+              pdf.setFontSize(10);
+            }
+          });
+        }
+        y += 5;
+      }
+
+      // Questions and Discussions
+      const questions = getSectionContent("questions_discussions");
+      if (questions?.content && questions.content.trim()) {
+        addNewPageIfNeeded(30);
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("💬 Dúvidas e Discussões", margin, y);
+        y += 10;
+
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        const cleanContent = questions.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        const lines = pdf.splitTextToSize(cleanContent, contentWidth);
+        lines.forEach((line: string) => {
+          addNewPageIfNeeded(6);
+          pdf.text(line, margin, y);
+          y += 5;
+        });
+        y += 5;
+      }
+
+      // Next Period Priority
+      const meetingFull = await supabase
+        .from("meeting_minutes")
+        .select("next_period_priority")
+        .eq("id", meeting.id)
+        .single();
+      
+      if (meetingFull.data?.next_period_priority) {
+        addNewPageIfNeeded(20);
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("🎯 Prioridade do Próximo Período", margin, y);
+        y += 8;
+
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        const lines = pdf.splitTextToSize(meetingFull.data.next_period_priority, contentWidth);
+        pdf.text(lines, margin, y);
+        y += lines.length * 5 + 5;
+      }
+
+      // Legacy content fallback
+      if (sections.length === 0 && meeting.content) {
+        addNewPageIfNeeded(20);
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("📝 Conteúdo", margin, y);
+        y += 10;
+
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        const cleanContent = meeting.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        const lines = pdf.splitTextToSize(cleanContent, contentWidth);
+        lines.forEach((line: string) => {
+          addNewPageIfNeeded(6);
+          pdf.text(line, margin, y);
+          y += 5;
+        });
+      }
+
+      // Legacy action items
+      if (meeting.action_items && meeting.action_items.length > 0 && !hasVivazTasks && !hasClientTasks && !hasLegacyActions) {
+        addNewPageIfNeeded(30);
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("✅ Itens de Ação", margin, y);
+        y += 10;
+
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        meeting.action_items.forEach((item, idx) => {
+          addNewPageIfNeeded(8);
+          const lines = pdf.splitTextToSize(`${idx + 1}. ${item}`, contentWidth - 5);
+          pdf.text(lines, margin, y);
+          y += lines.length * 5 + 2;
+        });
+      }
+
+      const safeName = meeting.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-').substring(0, 50);
+      pdf.save(`reuniao-${safeName}.pdf`);
       toast.success("PDF baixado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
