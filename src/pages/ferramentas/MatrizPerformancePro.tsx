@@ -552,16 +552,23 @@ export default function MatrizPerformancePro() {
               </CardHeader>
               <CardContent className="px-3 pb-3 space-y-3">
                 {/* Global KPI - Compact with benchmark range */}
-                <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
                   <div>
                     <p className="text-xs text-muted-foreground">Conversão Geral</p>
-                    <p className="text-xl font-bold">
+                    <p className={cn(
+                      "text-2xl font-bold",
+                      outputs.globalConversion !== null && outputs.globalConversion >= benchmark.conversionRange.min
+                        ? "text-green-600"
+                        : outputs.globalConversion !== null && outputs.globalConversion < benchmark.conversionRange.min
+                          ? "text-red-600"
+                          : ""
+                    )}>
                       {formatPercent(outputs.globalConversion)}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-muted-foreground">Meta ({benchmark.label})</p>
-                    <p className="text-sm font-medium">
+                    <p className="text-lg font-semibold text-primary">
                       {benchmark.conversionRange.min}-{benchmark.conversionRange.max}%
                     </p>
                   </div>
@@ -604,78 +611,132 @@ export default function MatrizPerformancePro() {
                   })}
                 </div>
 
-                {/* Stage Conversions - Compact Table with Status */}
-                <div className="space-y-1">
-                  {outputs.stages.map((stage, idx) => (
-                    <Tooltip key={stage.key}>
-                      <TooltipTrigger asChild>
-                        <div 
-                          className={cn(
-                            "flex items-center justify-between py-1 px-2 rounded text-xs cursor-help",
-                            bottleneck?.key === stage.key 
-                              ? "bg-red-50 border border-red-200" 
-                              : STATUS_CONFIG[stage.status].bg
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className={cn("w-2 h-2 rounded-full shrink-0", STAGE_COLORS[idx])} />
-                            {renderStatusIndicator(stage.status)}
-                            <span className="truncate">{stage.labelShort}</span>
-                            {bottleneck?.key === stage.key && (
-                              <Badge variant="destructive" className="text-[10px] h-4 px-1">
-                                Gargalo
-                              </Badge>
+                {/* Stage Conversions - Enhanced Meta vs Realizado Table */}
+                <div className="rounded-lg border overflow-hidden">
+                  {/* Table Header */}
+                  <div className="grid grid-cols-12 gap-1 bg-muted/50 px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase">
+                    <div className="col-span-4">Etapa</div>
+                    <div className="col-span-3 text-center">Realizado</div>
+                    <div className="col-span-3 text-center">Meta</div>
+                    <div className="col-span-2 text-center">Status</div>
+                  </div>
+                  
+                  {/* Table Body */}
+                  {outputs.stages.map((stage, idx) => {
+                    const isBottleneck = bottleneck?.key === stage.key;
+                    const config = STATUS_CONFIG[stage.status];
+                    const gap = stage.rate !== null && stage.benchmark 
+                      ? stage.rate - stage.benchmark.avg 
+                      : null;
+                    
+                    return (
+                      <Tooltip key={stage.key}>
+                        <TooltipTrigger asChild>
+                          <div 
+                            className={cn(
+                              "grid grid-cols-12 gap-1 items-center px-2 py-2 cursor-help border-t transition-colors hover:bg-muted/30",
+                              isBottleneck && "bg-red-50/50 border-l-2 border-l-red-500"
                             )}
+                          >
+                            {/* Etapa */}
+                            <div className="col-span-4 flex items-center gap-1.5">
+                              <div className={cn("w-2 h-2 rounded-full shrink-0", STAGE_COLORS[idx])} />
+                              <span className="text-xs font-medium truncate">{stage.labelShort}</span>
+                              {isBottleneck && (
+                                <Badge variant="destructive" className="text-[8px] h-3 px-1 ml-auto">
+                                  Gargalo
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {/* Realizado */}
+                            <div className="col-span-3 text-center">
+                              <span className={cn(
+                                "text-sm font-bold",
+                                config.color
+                              )}>
+                                {formatPercent(stage.rate)}
+                              </span>
+                            </div>
+                            
+                            {/* Meta */}
+                            <div className="col-span-3 text-center">
+                              {stage.benchmark ? (
+                                <div className="text-xs">
+                                  <span className="text-muted-foreground">
+                                    {stage.benchmark.min}-{stage.benchmark.max}%
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </div>
+                            
+                            {/* Status + Gap */}
+                            <div className="col-span-2 flex flex-col items-center gap-0.5">
+                              <span className="text-sm">{config.icon}</span>
+                              {gap !== null && stage.rate !== null && (
+                                <span className={cn(
+                                  "text-[9px] font-medium",
+                                  gap >= 0 ? "text-green-600" : "text-red-600"
+                                )}>
+                                  {gap >= 0 ? '+' : ''}{gap.toFixed(1)}pp
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className={cn(
-                              "font-medium",
-                              STATUS_CONFIG[stage.status].color
-                            )}>
-                              {formatPercent(stage.rate)}
-                            </span>
-                          </div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-xs">
-                        <div className="space-y-1">
-                          <p className="font-medium">{stage.label}</p>
-                          {stage.benchmark && (
-                            <p className="text-xs text-muted-foreground">
-                              Meta: {stage.benchmark.min}-{stage.benchmark.max}% (média: {stage.benchmark.avg}%)
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs">
+                          <div className="space-y-1.5">
+                            <p className="font-medium text-sm">{stage.label}</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <p className="text-muted-foreground">Realizado</p>
+                                <p className="font-bold">{formatPercent(stage.rate)}</p>
+                              </div>
+                              {stage.benchmark && (
+                                <div>
+                                  <p className="text-muted-foreground">Meta (média)</p>
+                                  <p className="font-bold">{stage.benchmark.avg}%</p>
+                                </div>
+                              )}
+                            </div>
+                            {stage.benchmark && (
+                              <p className="text-[10px] text-muted-foreground">
+                                Faixa esperada: {stage.benchmark.min}% - {stage.benchmark.max}%
+                              </p>
+                            )}
+                            <p className="text-[10px] text-muted-foreground border-t pt-1">
+                              {stage.from} → {stage.to}
                             </p>
-                          )}
-                          <p className="text-xs">
-                            {stage.from} → {stage.to}
-                          </p>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
                 </div>
 
                 {/* Status Legend */}
-                <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground pt-1">
-                  <span>🟢 OK</span>
-                  <span>🟡 Atenção</span>
-                  <span>🔴 Crítico</span>
-                  <span>⚪ S/ dados</span>
+                <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
+                  <span>🟢 ≥ Média</span>
+                  <span>🟡 Entre mín. e média</span>
+                  <span>🔴 {'<'} Mínimo</span>
                 </div>
 
                 <Separator className="my-2" />
 
                 {/* Financial Metrics - Grid */}
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="text-center p-2 bg-muted/30 rounded">
+                  <div className="text-center p-2 bg-muted/30 rounded-lg">
                     <p className="text-[10px] text-muted-foreground mb-0.5">CPL</p>
                     <p className="text-sm font-bold">{formatCurrency(outputs.financial.cpl)}</p>
                   </div>
-                  <div className="text-center p-2 bg-muted/30 rounded">
+                  <div className="text-center p-2 bg-muted/30 rounded-lg">
                     <p className="text-[10px] text-muted-foreground mb-0.5">CAC</p>
                     <p className="text-sm font-bold">{formatCurrency(outputs.financial.cac)}</p>
                   </div>
                   <div className={cn(
-                    "text-center p-2 rounded",
+                    "text-center p-2 rounded-lg",
                     outputs.financial.roi !== null && outputs.financial.roi < 0 
                       ? "bg-red-50" 
                       : outputs.financial.roi !== null && outputs.financial.roi > 100
@@ -695,10 +756,10 @@ export default function MatrizPerformancePro() {
 
                 {/* Sales Velocity */}
                 {outputs.salesVelocity !== null && (
-                  <div className="flex items-center justify-between p-2 bg-amber-50 rounded">
+                  <div className="flex items-center justify-between p-2 bg-amber-50 rounded-lg border border-amber-200">
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-amber-500" />
-                      <span className="text-xs font-medium">Velocidade</span>
+                      <span className="text-xs font-medium">Velocidade de Vendas</span>
                     </div>
                     <span className="font-bold text-sm">
                       {formatCurrency(outputs.salesVelocity)}/dia
