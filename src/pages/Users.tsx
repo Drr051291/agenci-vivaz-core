@@ -485,9 +485,12 @@ const Users = () => {
     return userRole === roleFilter;
   });
 
-  // Clientes disponíveis para vinculação (sem user_id ou é o cliente atual sendo editado)
-  const getAvailableClients = (currentClientId?: string) => {
-    return clients.filter(c => !c.user_id || c.id === currentClientId);
+  // Todos os clientes para vinculação (mostrar quais já estão vinculados)
+  const getAllClientsForLinking = (currentClientId?: string) => {
+    return clients.map(c => ({
+      ...c,
+      isAvailable: !c.user_id || c.id === currentClientId,
+    }));
   };
 
   if (!isAdmin) {
@@ -615,16 +618,21 @@ const Users = () => {
                             <SelectValue placeholder="Selecione um cliente" />
                           </SelectTrigger>
                           <SelectContent>
-                            {getAvailableClients().map((client) => (
+                            {getAllClientsForLinking().map((client) => (
                               <SelectItem key={client.id} value={client.id}>
-                                {client.company_name}
+                                <span className="flex items-center gap-2">
+                                  {client.company_name}
+                                  {!client.isAvailable && (
+                                    <span className="text-xs text-muted-foreground">(já vinculado)</span>
+                                  )}
+                                </span>
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        {getAvailableClients().length === 0 && (
+                        {clients.length === 0 && (
                           <p className="text-sm text-muted-foreground">
-                            Todos os clientes já possuem usuários vinculados.
+                            Nenhum cliente cadastrado.
                           </p>
                         )}
                       </div>
@@ -793,9 +801,14 @@ const Users = () => {
                       <SelectValue placeholder="Selecione um cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      {getAvailableClients(userToEdit?.linked_client?.id).map((client) => (
+                      {getAllClientsForLinking(userToEdit?.linked_client?.id).map((client) => (
                         <SelectItem key={client.id} value={client.id}>
-                          {client.company_name}
+                          <span className="flex items-center gap-2">
+                            {client.company_name}
+                            {!client.isAvailable && (
+                              <span className="text-xs text-muted-foreground">(já vinculado)</span>
+                            )}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
