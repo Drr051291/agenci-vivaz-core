@@ -21,7 +21,17 @@ interface GoogleCalendarEvent {
 export const useGoogleCalendar = () => {
   const queryClient = useQueryClient();
 
-  // Check if user is connected to Google Calendar
+  // Check if user is authenticated first
+  const { data: session } = useQuery({
+    queryKey: ["auth-session"],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      return session;
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Check if user is connected to Google Calendar - only if authenticated
   const { data: isConnected, isLoading: isCheckingConnection } = useQuery({
     queryKey: ["google-calendar-connection"],
     queryFn: async () => {
@@ -47,6 +57,7 @@ export const useGoogleCalendar = () => {
         return false;
       }
     },
+    enabled: !!session, // Only run if user is authenticated
   });
 
   // Get authorization URL
@@ -133,7 +144,7 @@ export const useGoogleCalendar = () => {
         throw error;
       }
     },
-    enabled: !!isConnected,
+    enabled: !!session && !!isConnected,
     retry: false,
   });
 
