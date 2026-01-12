@@ -6,8 +6,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart3, ChevronDown, TrendingUp, TrendingDown, Minus, Sparkles, ArrowRight } from "lucide-react";
+import { 
+  BarChart3, 
+  ChevronDown, 
+  TrendingUp, 
+  TrendingDown, 
+  Minus, 
+  Sparkles, 
+  ArrowRight,
+  ShoppingCart,
+  Users,
+  Target,
+  FileText,
+  Calendar
+} from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -28,13 +42,17 @@ interface PerformanceEntry {
   created_at: string;
 }
 
-interface InsideSalesDiagnostic {
+interface DiagnosticEntry {
   id: string;
-  period_label: string | null;
-  channel: string | null;
+  name: string;
+  tool_type: string;
+  setor: string;
   inputs: Record<string, unknown>;
   outputs: Record<string, unknown>;
-  stage_status: Record<string, unknown>;
+  insights: unknown[];
+  simulation_data: Record<string, unknown> | null;
+  period_label: string | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -72,6 +90,12 @@ interface SimulationScenario {
   created_at: string;
 }
 
+const TOOL_LABELS: Record<string, { name: string; icon: React.ElementType; color: string }> = {
+  performance_pro: { name: 'Performance Pro', icon: TrendingUp, color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  ecommerce: { name: 'E-commerce', icon: ShoppingCart, color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  inside_sales: { name: 'Inside Sales', icon: Users, color: 'bg-green-100 text-green-700 border-green-200' },
+};
+
 const entryTypeLabels: Record<string, string> = {
   inside_sales_matrix: "Inside Sales",
   ecommerce_matrix: "E-commerce",
@@ -81,7 +105,19 @@ const channelLabels: Record<string, string> = {
   landing_page: "Landing Page",
   lead_nativo: "Lead Nativo",
   whatsapp: "WhatsApp",
+  meta_ads: "Meta Ads",
+  google_ads: "Google Ads",
 };
+
+interface InsideSalesDiagnostic {
+  id: string;
+  period_label: string | null;
+  channel: string | null;
+  inputs: Record<string, unknown>;
+  outputs: Record<string, unknown>;
+  stage_status: Record<string, unknown>;
+  created_at: string;
+}
 
 const formatNumber = (n?: number | null): string => {
   if (n === undefined || n === null) return "—";
@@ -103,9 +139,11 @@ const ClientPerformance = () => {
   const [clientId, setClientId] = useState<string | null>(null);
   const [performanceEntries, setPerformanceEntries] = useState<PerformanceEntry[]>([]);
   const [diagnostics, setDiagnostics] = useState<InsideSalesDiagnostic[]>([]);
+  const [matrixDiagnostics, setMatrixDiagnostics] = useState<DiagnosticEntry[]>([]);
   const [scenarios, setScenarios] = useState<SimulationScenario[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedScenarioId, setExpandedScenarioId] = useState<string | null>(null);
+  const [expandedDiagId, setExpandedDiagId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -158,7 +196,7 @@ const ClientPerformance = () => {
       setClientId(client.id);
 
       // Buscar dados em paralelo
-      const [entriesRes, diagsRes, scenariosRes] = await Promise.all([
+      const [entriesRes, diagsRes, scenariosRes, matrixDiagsRes] = await Promise.all([
         supabase
           .from("client_performance_entries")
           .select("*")
@@ -174,11 +212,18 @@ const ClientPerformance = () => {
           .select("*")
           .eq("client_id", client.id)
           .order("created_at", { ascending: false }),
+        supabase
+          .from("performance_matrix_diagnostics" as never)
+          .select("*")
+          .eq("client_id", client.id)
+          .eq("status", "published")
+          .order("created_at", { ascending: false }),
       ]);
 
       setPerformanceEntries((entriesRes.data || []) as PerformanceEntry[]);
       setDiagnostics((diagsRes.data || []) as InsideSalesDiagnostic[]);
       setScenarios((scenariosRes.data || []) as SimulationScenario[]);
+      setMatrixDiagnostics((matrixDiagsRes.data || []) as DiagnosticEntry[]);
       setLoading(false);
     };
 
@@ -215,7 +260,7 @@ const ClientPerformance = () => {
     );
   }
 
-  const hasData = performanceEntries.length > 0 || diagnostics.length > 0 || scenarios.length > 0;
+  const hasData = performanceEntries.length > 0 || diagnostics.length > 0 || scenarios.length > 0 || matrixDiagnostics.length > 0;
 
   return (
     <DashboardLayout>
@@ -237,6 +282,155 @@ const ClientPerformance = () => {
               <p className="text-sm text-muted-foreground text-center max-w-sm">
                 As análises de performance serão exibidas aqui quando disponíveis.
               </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Matrix Diagnostics - All Tool Types */}
+        {matrixDiagnostics.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" />
+                Diagnósticos de Performance
+              </CardTitle>
+              <CardDescription>
+                Análises completas de funil geradas pela equipe
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {matrixDiagnostics.map((diag) => {
+                const toolInfo = TOOL_LABELS[diag.tool_type] || TOOL_LABELS.performance_pro;
+                const Icon = toolInfo.icon;
+                const outputs = diag.outputs as Record<string, unknown>;
+                const globalConv = outputs?.globalConversion as number | undefined;
+                const stages = outputs?.stages as Array<{ label: string; rate: number; status: string }> | undefined;
+                
+                return (
+                  <div key={diag.id} className="border rounded-lg overflow-hidden">
+                    <div
+                      className={cn(
+                        "flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors",
+                        expandedDiagId === diag.id && "bg-muted/30"
+                      )}
+                      onClick={() => setExpandedDiagId(expandedDiagId === diag.id ? null : diag.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn("h-8 w-8 rounded-full flex items-center justify-center", toolInfo.color)}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{diag.name}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant="outline" className={cn("text-[10px]", toolInfo.color)}>
+                              {toolInfo.name}
+                            </Badge>
+                            {diag.period_label && (
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {diag.period_label}
+                              </span>
+                            )}
+                            <span>
+                              {format(new Date(diag.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {globalConv !== undefined && (
+                          <Badge variant="secondary" className="text-xs">
+                            {formatPercent(globalConv)} conversão
+                          </Badge>
+                        )}
+                        <ChevronDown className={cn(
+                          "h-4 w-4 text-muted-foreground transition-transform",
+                          expandedDiagId === diag.id && "rotate-180"
+                        )} />
+                      </div>
+                    </div>
+
+                    {expandedDiagId === diag.id && (
+                      <div className="px-4 pb-4 pt-2 border-t bg-muted/20">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Stage Rates */}
+                          {stages && stages.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-muted-foreground">Taxas por Etapa</p>
+                              <div className="space-y-1">
+                                {stages.map((stage, idx) => (
+                                  <div key={idx} className="flex justify-between items-center p-2 bg-background rounded border text-xs">
+                                    <span className="text-muted-foreground">{stage.label}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className={cn(
+                                        "font-medium",
+                                        stage.status === 'ok' && "text-green-600",
+                                        stage.status === 'warning' && "text-yellow-600",
+                                        stage.status === 'critical' && "text-red-600"
+                                      )}>
+                                        {formatPercent(stage.rate)}
+                                      </span>
+                                      <span>
+                                        {stage.status === 'ok' && '🟢'}
+                                        {stage.status === 'warning' && '🟡'}
+                                        {stage.status === 'critical' && '🔴'}
+                                        {stage.status === 'no_data' && '⚪'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Summary & Notes */}
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium text-muted-foreground">Resumo</p>
+                            <div className="p-3 bg-background rounded border">
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="text-muted-foreground">Setor:</span>
+                                  <span className="ml-1 font-medium">{diag.setor}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Conversão:</span>
+                                  <span className="ml-1 font-medium">{formatPercent(globalConv)}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {diag.notes && (
+                              <div className="p-2 bg-amber-50 border border-amber-200 rounded">
+                                <p className="text-xs text-amber-800">
+                                  <strong>Obs:</strong> {diag.notes}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Insights Preview */}
+                            {diag.insights && Array.isArray(diag.insights) && diag.insights.length > 0 && (
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground">Principais Insights</p>
+                                {(diag.insights as Array<{ title?: string; type?: string }>).slice(0, 3).map((insight, idx) => (
+                                  <div key={idx} className="flex items-start gap-2 p-2 bg-background rounded border text-xs">
+                                    <span>
+                                      {insight.type === 'success' && '✅'}
+                                      {insight.type === 'warning' && '⚠️'}
+                                      {insight.type === 'critical' && '❌'}
+                                      {insight.type === 'info' && 'ℹ️'}
+                                    </span>
+                                    <span>{insight.title}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         )}
