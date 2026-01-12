@@ -215,8 +215,8 @@ export default function SharedMeeting() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-8 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-background">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <MeetingPresentationView
           meeting={meeting}
           sections={sections}
@@ -224,6 +224,7 @@ export default function SharedMeeting() {
           channels={channels}
           recentTasks={recentTasks}
           actionPlanItems={actionPlanItems}
+          className="w-full"
         />
       </div>
     </div>
