@@ -184,67 +184,120 @@ const Users = () => {
       return;
     }
 
-    // Criar usuário no Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-      options: {
-        data: {
-          full_name: formData.full_name,
-          role: formData.role,
+    try {
+      // Criar usuário no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.full_name,
+            role: formData.role,
+          },
+          emailRedirectTo: `${window.location.origin}/dashboard`,
         },
-        emailRedirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
+      });
 
-    if (authError) {
+      if (authError) {
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error("Erro ao criar usuário - ID não retornado");
+      }
+
+      const userId = authData.user.id;
+
+      // Aguardar trigger criar o perfil (polling com timeout)
+      let profileCreated = false;
+      for (let i = 0; i < 10; i++) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", userId)
+          .maybeSingle();
+        
+        if (profile) {
+          profileCreated = true;
+          break;
+        }
+      }
+
+      if (!profileCreated) {
+        // Se o trigger não criou, criar manualmente
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert({
+            id: userId,
+            email: formData.email,
+            full_name: formData.full_name,
+            role: formData.role,
+          });
+        
+        if (profileError && !profileError.message.includes("duplicate")) {
+          console.error("Erro ao criar perfil:", profileError);
+        }
+      }
+
+      // Verificar/criar role
+      const { data: existingRole } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (!existingRole) {
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ 
+            user_id: userId, 
+            role: formData.role as "admin" | "collaborator" | "client"
+          });
+        
+        if (roleError && !roleError.message.includes("duplicate")) {
+          console.error("Erro ao criar role:", roleError);
+        }
+      }
+
+      // Se for cliente, vincular user_id ao cliente
+      if (formData.role === "client" && formData.client_id) {
+        const { error: clientError } = await supabase
+          .from("clients")
+          .update({ user_id: userId })
+          .eq("id", formData.client_id);
+
+        if (clientError) {
+          throw clientError;
+        }
+      }
+
+      toast({
+        title: "Usuário criado!",
+        description: "O usuário foi cadastrado com sucesso.",
+      });
+      
+      setDialogOpen(false);
+      setFormData({
+        full_name: "",
+        email: "",
+        password: "",
+        role: "client",
+        client_id: "",
+      });
+      
+      // Atualizar listas
+      await fetchUsers();
+      await fetchClients();
+    } catch (error: any) {
       toast({
         title: "Erro ao criar usuário",
-        description: authError.message,
+        description: error.message,
         variant: "destructive",
       });
+    } finally {
       setSaving(false);
-      return;
     }
-
-    // Se for cliente, vincular user_id ao cliente
-    if (formData.role === "client" && formData.client_id && authData.user) {
-      const { error: clientError } = await supabase
-        .from("clients")
-        .update({ user_id: authData.user.id })
-        .eq("id", formData.client_id);
-
-      if (clientError) {
-        toast({
-          title: "Erro ao vincular cliente",
-          description: clientError.message,
-          variant: "destructive",
-        });
-        setSaving(false);
-        return;
-      }
-    }
-
-    toast({
-      title: "Usuário criado!",
-      description: "O usuário foi cadastrado com sucesso.",
-    });
-    
-    setDialogOpen(false);
-    setFormData({
-      full_name: "",
-      email: "",
-      password: "",
-      role: "client",
-      client_id: "",
-    });
-    setSaving(false);
-    
-    // Aguardar um pouco para o trigger criar o perfil
-    setTimeout(() => {
-      fetchUsers();
-      fetchClients();
-    }, 1000);
   };
 
   const openEditDialog = (user: UserWithRole) => {
