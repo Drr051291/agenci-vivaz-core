@@ -3,14 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { CheckSquare } from "lucide-react";
+import { CheckSquare, User, Calendar, Clock, Filter } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
-import { TaskKanbanView } from "@/components/tasks/TaskKanbanView";
-import { TaskListView } from "@/components/tasks/TaskListView";
-import { TaskCalendarView } from "@/components/tasks/TaskCalendarView";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { LayoutGrid, List, Calendar } from "lucide-react";
+import { LayoutGrid, List, Calendar as CalendarIcon } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -18,8 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TASK_CATEGORIES, TaskCategory } from "@/lib/taskCategories";
-import { Card, CardContent } from "@/components/ui/card";
+import { TASK_CATEGORIES, TaskCategory, getStatusLabel, getStatusColor, getPriorityColor, getPriorityLabel } from "@/lib/taskCategories";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { TaskKanbanView } from "@/components/tasks/TaskKanbanView";
+import { TaskCalendarView } from "@/components/tasks/TaskCalendarView";
 
 interface Task {
   id: string;
@@ -41,6 +42,7 @@ const ClientTasks = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar">("list");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [assignmentFilter, setAssignmentFilter] = useState<string>("all");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -122,12 +124,30 @@ const ClientTasks = () => {
     setLoading(false);
   };
 
-  const filteredTasks = categoryFilter === "all" 
-    ? tasks 
-    : tasks.filter(task => task.category === categoryFilter);
+  // Aplicar filtros
+  const filteredTasks = tasks.filter(task => {
+    const categoryMatch = categoryFilter === "all" || task.category === categoryFilter;
+    const assignmentMatch = 
+      assignmentFilter === "all" ||
+      (assignmentFilter === "mine" && task.assigned_to === currentUserId) ||
+      (assignmentFilter === "others" && task.assigned_to !== currentUserId);
+    return categoryMatch && assignmentMatch;
+  });
+
+  // Separar tarefas por atribuição
+  const myTasks = filteredTasks.filter(t => t.assigned_to === currentUserId);
+  const otherTasks = filteredTasks.filter(t => t.assigned_to !== currentUserId);
 
   // Check if user can edit the selected task (only if they are the assignee)
   const canEditSelectedTask = selectedTask?.assigned_to === currentUserId;
+
+  // Estatísticas
+  const stats = {
+    total: tasks.length,
+    myTasks: tasks.filter(t => t.assigned_to === currentUserId).length,
+    pending: tasks.filter(t => t.status === "pendente" || t.status === "em_andamento").length,
+    completed: tasks.filter(t => t.status === "concluido").length,
+  };
 
   if (loading) {
     return (
@@ -139,21 +159,162 @@ const ClientTasks = () => {
     );
   }
 
+  const renderTaskCard = (task: Task, isMyTask: boolean) => {
+    const category = task.category as TaskCategory;
+    
+    return (
+      <Card 
+        key={task.id} 
+        className={cn(
+          "cursor-pointer transition-all hover:shadow-md",
+          isMyTask && "ring-2 ring-primary/30 bg-primary/5"
+        )}
+        onClick={() => setSelectedTask(task)}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                {isMyTask && (
+                  <Badge variant="default" className="bg-primary text-primary-foreground text-xs">
+                    Minha tarefa
+                  </Badge>
+                )}
+                <Badge variant="outline" className="text-xs">
+                  {TASK_CATEGORIES[category] || category}
+                </Badge>
+              </div>
+              
+              <h3 className="font-medium text-sm line-clamp-2 mb-2">{task.title}</h3>
+              
+              {task.description && (
+                <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                  {task.description}
+                </p>
+              )}
+              
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className={cn("text-xs", getStatusColor(task.status))} variant="outline">
+                  {getStatusLabel(category, task.status)}
+                </Badge>
+                <Badge className={cn("text-xs", getPriorityColor(task.priority))} variant="outline">
+                  {getPriorityLabel(task.priority)}
+                </Badge>
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-end gap-2 text-xs text-muted-foreground">
+              {task.due_date && (
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>{new Date(task.due_date).toLocaleDateString("pt-BR")}</span>
+                </div>
+              )}
+              {task.assigned_profile && (
+                <div className="flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  <span className="truncate max-w-[100px]">{task.assigned_profile.full_name}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Atividades</h1>
-            <p className="text-muted-foreground">
-              Acompanhe suas tarefas e atividades. Você pode editar apenas as tarefas atribuídas a você.
-            </p>
-          </div>
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Atividades</h1>
+          <p className="text-muted-foreground">
+            Acompanhe as tarefas do seu projeto. Você pode alterar o status apenas das tarefas atribuídas a você.
+          </p>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-muted">
+                  <CheckSquare className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="ring-2 ring-primary/20 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/20">
+                  <User className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-primary">{stats.myTasks}</p>
+                  <p className="text-xs text-muted-foreground">Minhas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                  <Clock className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.pending}</p>
+                  <p className="text-xs text-muted-foreground">Pendentes</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                  <CheckSquare className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.completed}</p>
+                  <p className="text-xs text-muted-foreground">Concluídas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/50 p-4 rounded-lg">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Filter className="h-4 w-4" />
+            <span>Filtros:</span>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Atribuição" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as tarefas</SelectItem>
+                <SelectItem value="mine">Minhas tarefas</SelectItem>
+                <SelectItem value="others">Da agência</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrar categoria" />
+                <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as categorias</SelectItem>
@@ -173,12 +334,13 @@ const ClientTasks = () => {
                 <LayoutGrid className="h-4 w-4" />
               </ToggleGroupItem>
               <ToggleGroupItem value="calendar" aria-label="Visualização em calendário">
-                <Calendar className="h-4 w-4" />
+                <CalendarIcon className="h-4 w-4" />
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
         </div>
 
+        {/* Tasks Content */}
         {tasks.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -188,28 +350,56 @@ const ClientTasks = () => {
               </p>
             </CardContent>
           </Card>
+        ) : viewMode === "list" ? (
+          <div className="space-y-6">
+            {/* My Tasks Section */}
+            {myTasks.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-primary">Minhas Tarefas</h2>
+                  <Badge variant="default" className="bg-primary">{myTasks.length}</Badge>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {myTasks.map(task => renderTaskCard(task, true))}
+                </div>
+              </div>
+            )}
+
+            {/* Other Tasks Section */}
+            {otherTasks.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold">Tarefas da Agência</h2>
+                  <Badge variant="secondary">{otherTasks.length}</Badge>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {otherTasks.map(task => renderTaskCard(task, false))}
+                </div>
+              </div>
+            )}
+
+            {filteredTasks.length === 0 && (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Filter className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground text-center">
+                    Nenhuma atividade encontrada com os filtros selecionados.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        ) : viewMode === "kanban" ? (
+          <TaskKanbanView
+            tasks={filteredTasks}
+            category={(categoryFilter === "all" ? "outros" : categoryFilter) as TaskCategory}
+            onTaskClick={(task) => setSelectedTask(task)}
+          />
         ) : (
-          <>
-            {viewMode === "list" && (
-              <TaskListView
-                tasks={filteredTasks}
-                onTaskClick={(task) => setSelectedTask(task)}
-              />
-            )}
-            {viewMode === "kanban" && (
-              <TaskKanbanView
-                tasks={filteredTasks}
-                category={(categoryFilter === "all" ? "outros" : categoryFilter) as TaskCategory}
-                onTaskClick={(task) => setSelectedTask(task)}
-              />
-            )}
-            {viewMode === "calendar" && (
-              <TaskCalendarView
-                tasks={filteredTasks}
-                onTaskClick={(task) => setSelectedTask(task)}
-              />
-            )}
-          </>
+          <TaskCalendarView
+            tasks={filteredTasks}
+            onTaskClick={(task) => setSelectedTask(task)}
+          />
         )}
 
         <TaskDetailDialog
