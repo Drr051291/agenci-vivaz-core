@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Pencil, Share2, Trash2, CheckSquare, RefreshCw, Calendar, Check, FileText, Rocket, ClipboardList } from "lucide-react";
+import { Plus, Users, Pencil, Share2, Trash2, CheckSquare, RefreshCw, Calendar, Check, FileText, Rocket, ClipboardList, Copy } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -279,6 +279,99 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
     }
   };
 
+  const handleDuplicateMeeting = async (meeting: MeetingMinute, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Fetch all related data
+      const [sectionsRes, metricsRes, channelsRes] = await Promise.all([
+        supabase.from("meeting_sections").select("*").eq("meeting_id", meeting.id),
+        supabase.from("meeting_metrics").select("*").eq("meeting_id", meeting.id),
+        supabase.from("meeting_channels").select("*").eq("meeting_id", meeting.id),
+      ]);
+
+      // Create new meeting with same content
+      const now = new Date();
+      const localDateTime = format(now, "yyyy-MM-dd'T'HH:mm");
+      
+      const { data: newMeeting, error } = await supabase
+        .from("meeting_minutes")
+        .insert({
+          client_id: clientId,
+          title: `${meeting.title} (cópia)`,
+          meeting_date: localDateTime,
+          content: meeting.content,
+          participants: meeting.participants,
+          action_items: meeting.action_items,
+          linked_dashboards: meeting.linked_dashboards,
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Duplicate sections
+      if (sectionsRes.data && sectionsRes.data.length > 0) {
+        const newSections = sectionsRes.data.map(s => ({
+          meeting_id: newMeeting.id,
+          section_key: s.section_key,
+          title: s.title,
+          content_json: s.content_json,
+          sort_order: s.sort_order,
+          is_collapsed: s.is_collapsed,
+          metadata: s.metadata,
+        }));
+        await supabase.from("meeting_sections").insert(newSections);
+      }
+
+      // Duplicate metrics
+      if (metricsRes.data && metricsRes.data.length > 0) {
+        const newMetrics = metricsRes.data.map(m => ({
+          meeting_id: newMeeting.id,
+          metric_key: m.metric_key,
+          metric_label: m.metric_label,
+          target_value: m.target_value,
+          actual_value: m.actual_value,
+          unit: m.unit,
+          variation_pct: m.variation_pct,
+          sort_order: m.sort_order,
+          quick_note: m.quick_note,
+        }));
+        await supabase.from("meeting_metrics").insert(newMetrics);
+      }
+
+      // Duplicate channels
+      if (channelsRes.data && channelsRes.data.length > 0) {
+        const newChannels = channelsRes.data.map(c => ({
+          meeting_id: newMeeting.id,
+          channel: c.channel,
+          investment: c.investment,
+          leads: c.leads,
+          conversions: c.conversions,
+          revenue: c.revenue,
+          cpl: c.cpl,
+          cpa: c.cpa,
+          roas: c.roas,
+          what_worked: c.what_worked,
+          what_to_adjust: c.what_to_adjust,
+          impressions: c.impressions,
+          clicks: c.clicks,
+          notes: c.notes,
+        }));
+        await supabase.from("meeting_channels").insert(newChannels);
+      }
+
+      toast.success("Reunião duplicada com sucesso!");
+      fetchMeetings();
+      navigate(`/clientes/${clientId}/reunioes/${newMeeting.id}?mode=edit`);
+    } catch (error) {
+      console.error("Erro ao duplicar reunião:", error);
+      toast.error("Erro ao duplicar reunião");
+    }
+  };
+
 
   if (loading) {
     return (
@@ -372,6 +465,14 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
                   >
                     <Pencil className="h-3 w-3 mr-1" />
                     Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => handleDuplicateMeeting(meeting, e)}
+                    title="Duplicar"
+                  >
+                    <Copy className="h-3 w-3" />
                   </Button>
                   <Button
                     variant="ghost"
