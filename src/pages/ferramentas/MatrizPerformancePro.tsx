@@ -187,7 +187,7 @@ export default function MatrizPerformancePro() {
     setInputs(prev => ({ ...prev, [key]: parsed }));
   };
 
-  // Save diagnostic to database
+  // Save diagnostic to database - Updated to include new fields
   const handleSave = async () => {
     if (!diagnosticName.trim()) {
       toast({ title: "Digite um nome para o diagnóstico", variant: "destructive" });
@@ -206,15 +206,30 @@ export default function MatrizPerformancePro() {
         user_id: user.id,
         client_id: selectedClientId || null,
         name: diagnosticName.trim(),
+        tool_type: 'performance_pro',
         setor,
         inputs: inputs as unknown as Record<string, unknown>,
-        outputs: outputs as unknown as Record<string, unknown>,
+        outputs: {
+          ...outputs,
+          stages: outputs.stages.map(s => ({
+            key: s.key,
+            label: s.label,
+            labelShort: s.labelShort,
+            rate: s.rate,
+            status: s.status,
+            benchmark: s.benchmark,
+          })),
+        } as unknown as Record<string, unknown>,
         insights: insights as unknown as Record<string, unknown>[],
+        status: 'published',
       } as never);
 
       if (error) throw error;
 
-      toast({ title: "Diagnóstico salvo com sucesso!" });
+      toast({ 
+        title: "Diagnóstico salvo com sucesso!",
+        description: selectedClientId ? "O cliente poderá visualizar na área de performance." : undefined,
+      });
       setSaveDialogOpen(false);
       setDiagnosticName('');
       setSelectedClientId(null);

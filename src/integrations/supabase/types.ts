@@ -1665,8 +1665,13 @@ export type Database = {
           inputs: Json
           insights: Json
           name: string
+          notes: string | null
           outputs: Json
+          period_label: string | null
           setor: string
+          simulation_data: Json | null
+          status: string | null
+          tool_type: string
           updated_at: string
           user_id: string | null
         }
@@ -1677,8 +1682,13 @@ export type Database = {
           inputs?: Json
           insights?: Json
           name: string
+          notes?: string | null
           outputs?: Json
+          period_label?: string | null
           setor: string
+          simulation_data?: Json | null
+          status?: string | null
+          tool_type?: string
           updated_at?: string
           user_id?: string | null
         }
@@ -1689,8 +1699,13 @@ export type Database = {
           inputs?: Json
           insights?: Json
           name?: string
+          notes?: string | null
           outputs?: Json
+          period_label?: string | null
           setor?: string
+          simulation_data?: Json | null
+          status?: string | null
+          tool_type?: string
           updated_at?: string
           user_id?: string | null
         }
