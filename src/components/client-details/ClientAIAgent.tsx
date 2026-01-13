@@ -270,36 +270,68 @@ Instruções Customizadas: ${agentContext.customInstructions || 'Nenhuma'}
     try {
       // Upload to storage
       const fileExt = file.name.split('.').pop();
-      const fileName = `${clientId}/${crypto.randomUUID()}.${fileExt}`;
+      const storagePath = `${clientId}/${crypto.randomUUID()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from("ai-knowledge-files")
-        .upload(fileName, file);
+        .upload(storagePath, file);
 
       if (uploadError) throw uploadError;
 
       // Get public URL
       const { data: urlData } = supabase.storage
         .from("ai-knowledge-files")
-        .getPublicUrl(fileName);
+        .getPublicUrl(storagePath);
 
-      // Save to knowledge base
-      const { error: dbError } = await supabase.from("ai_knowledge_base").insert({
-        client_id: clientId,
-        source_type: "file",
-        source_name: file.name,
-        source_reference: fileName,
-        file_url: urlData.publicUrl,
-        file_type: file.type,
-        file_size: file.size,
-        content_text: `Arquivo: ${file.name}\nTipo: ${file.type}\nTamanho: ${(file.size / 1024).toFixed(1)}KB`,
-      });
+      // Save to knowledge base with temporary content
+      const { data: kbEntry, error: dbError } = await supabase
+        .from("ai_knowledge_base")
+        .insert({
+          client_id: clientId,
+          source_type: "file",
+          source_name: file.name,
+          source_reference: storagePath,
+          file_url: urlData.publicUrl,
+          file_type: file.type,
+          file_size: file.size,
+          content_text: `Processando arquivo: ${file.name}...`,
+        })
+        .select("id")
+        .single();
 
       if (dbError) throw dbError;
 
-      toast.success("Arquivo adicionado à base de conhecimento");
+      toast.success("Arquivo enviado! Processando conteúdo...");
       loadKnowledgeBase();
       setUploadFileOpen(false);
+
+      // Process file content in background
+      const { data: session } = await supabase.auth.getSession();
+      if (session?.session?.access_token && kbEntry?.id) {
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-document`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({
+            fileUrl: urlData.publicUrl,
+            fileName: file.name,
+            fileType: file.type,
+            knowledgeBaseId: kbEntry.id,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success) {
+              toast.success(`Conteúdo do arquivo extraído (${data.textLength} caracteres)`);
+              loadKnowledgeBase();
+            }
+          })
+          .catch((err) => {
+            console.error("Error processing file:", err);
+          });
+      }
     } catch (error) {
       console.error("Error uploading file:", error);
       toast.error("Erro ao fazer upload do arquivo");
