@@ -184,17 +184,26 @@ const handler = async (req: Request): Promise<Response> => {
     const emailData = await emailResponse.json();
 
     if (!emailResponse.ok) {
-      console.error("Error sending email:", emailData);
+      // Log the error but don't fail the notification - email is optional enhancement
+      console.warn("Email sending failed (domain not verified or other issue):", emailData);
+      console.warn("To fix: Verify your domain at https://resend.com/domains");
+      
+      // Return success with warning - notification was still created in DB
       return new Response(
-        JSON.stringify({ error: emailData.message || "Failed to send email" }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ 
+          success: true, 
+          emailSent: false, 
+          emailError: emailData.message || "Email sending failed - domain not verified",
+          hint: "Verify your domain at https://resend.com/domains to enable email notifications"
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     console.log("Email sent successfully:", emailData);
 
     return new Response(
-      JSON.stringify({ success: true, emailId: emailData?.id }),
+      JSON.stringify({ success: true, emailSent: true, emailId: emailData?.id }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
