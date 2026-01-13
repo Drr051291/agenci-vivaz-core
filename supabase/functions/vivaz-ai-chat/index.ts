@@ -147,8 +147,17 @@ ${meetingsSummary}`);
       .order('created_at', { ascending: false })
       .limit(10);
 
+    // Extract agent context if exists
+    let agentContextData: Record<string, string> | null = null;
+    
     if (kbEntries && kbEntries.length > 0) {
       for (const entry of kbEntries) {
+        // Check if this is the agent context entry
+        if (entry.source_type === 'agent_context') {
+          agentContextData = entry.metadata as Record<string, string>;
+          continue; // Don't add to regular context parts
+        }
+        
         // Truncate content to avoid token limits
         const content = entry.content_text.length > 2000 
           ? entry.content_text.substring(0, 2000) + '...'
@@ -199,13 +208,60 @@ Use formatação Markdown com tabelas quando apropriado.`;
 4. Ações de curto prazo (próximos 30 dias)`;
     }
 
-    const systemPrompt = `Você é o Vivaz AI, um consultor sênior de marketing e vendas especializado em Inside Sales, E-commerce e Performance Digital.
+    // Build agent personality based on context
+    let agentPersonality = `Você é o Vivaz AI, um consultor sênior de marketing e vendas especializado em Inside Sales, E-commerce e Performance Digital.
 
 PERSONALIDADE:
 - Direto e prático, focado em ações concretas
 - Usa dados para embasar recomendações
 - Menciona fontes quando possível (ex: "Com base na reunião de 12/01...")
-- Estrutura respostas com Markdown (títulos, bullets, tabelas)
+- Estrutura respostas com Markdown (títulos, bullets, tabelas)`;
+
+    // Customize based on agent context
+    if (agentContextData) {
+      const businessStage = agentContextData.businessStage || 'growing';
+      const agentTone = agentContextData.agentTone || 'strategic';
+      const mainGoals = agentContextData.mainGoals;
+      const challenges = agentContextData.challenges;
+      const customInstructions = agentContextData.customInstructions;
+      
+      const stageDescriptions: Record<string, string> = {
+        'validating': 'A empresa está em fase de validação, testando product-market fit. Foque em aprendizado rápido e iterações.',
+        'growing': 'A empresa está em crescimento, buscando escalar aquisição. Foque em otimização de canais e escalabilidade.',
+        'scaling': 'A empresa está em fase de escala, otimizando operações. Foque em eficiência, automação e processos.',
+        'mature': 'A empresa está madura, focando em retenção e LTV. Priorize estratégias de fidelização e upsell.',
+      };
+      
+      const toneDescriptions: Record<string, string> = {
+        'strategic': 'Tenha uma abordagem estratégica e de longo prazo. Conecte recomendações a objetivos maiores.',
+        'tactical': 'Seja tático e prático. Foque em ações imediatas e resultados de curto prazo.',
+        'analytical': 'Seja altamente analítico. Use números, tabelas e comparações sempre que possível.',
+        'creative': 'Seja criativo e inovador. Sugira abordagens não convencionais e experimentos.',
+      };
+      
+      agentPersonality += `
+
+CONTEXTO ESTRATÉGICO DO CLIENTE:
+- Estágio do Negócio: ${stageDescriptions[businessStage] || stageDescriptions['growing']}
+- Tom das Respostas: ${toneDescriptions[agentTone] || toneDescriptions['strategic']}`;
+
+      if (mainGoals) {
+        agentPersonality += `
+- Objetivos Principais: ${mainGoals}`;
+      }
+      if (challenges) {
+        agentPersonality += `
+- Desafios Atuais: ${challenges}`;
+      }
+      if (customInstructions) {
+        agentPersonality += `
+
+INSTRUÇÕES ADICIONAIS:
+${customInstructions}`;
+      }
+    }
+
+    const systemPrompt = `${agentPersonality}
 
 CONTEXTO DO CLIENTE:
 ${contextParts.join('\n\n')}

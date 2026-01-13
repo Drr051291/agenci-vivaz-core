@@ -25,6 +25,10 @@ import {
   Link as LinkIcon,
   X,
   Trash2,
+  Settings2,
+  Building2,
+  Target,
+  Zap,
 } from "lucide-react";
 import {
   Dialog,
@@ -35,6 +39,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import ReactMarkdown from "react-markdown";
 
 interface ClientAIAgentProps {
@@ -82,6 +93,20 @@ const QUICK_ACTIONS = [
   },
 ];
 
+const BUSINESS_STAGES = [
+  { value: "validating", label: "Validação", description: "Testando product-market fit" },
+  { value: "growing", label: "Crescimento", description: "Escalando aquisição" },
+  { value: "scaling", label: "Escala", description: "Otimizando operações" },
+  { value: "mature", label: "Maturidade", description: "Foco em retenção e LTV" },
+];
+
+const AGENT_TONES = [
+  { value: "strategic", label: "Estratégico", description: "Foco em visão de longo prazo" },
+  { value: "tactical", label: "Tático", description: "Foco em ações práticas" },
+  { value: "analytical", label: "Analítico", description: "Foco em dados e métricas" },
+  { value: "creative", label: "Criativo", description: "Foco em ideias inovadoras" },
+];
+
 export function ClientAIAgent({ clientId, clientName }: ClientAIAgentProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -94,18 +119,32 @@ export function ClientAIAgent({ clientId, clientName }: ClientAIAgentProps) {
     meetingCount: 5,
   });
   
+  // Agent context settings
+  const [agentContext, setAgentContext] = useState({
+    businessStage: "growing",
+    agentTone: "strategic",
+    customInstructions: "",
+    mainGoals: "",
+    challenges: "",
+  });
+  
   // Dialog states
   const [addLinkOpen, setAddLinkOpen] = useState(false);
+  const [contextSettingsOpen, setContextSettingsOpen] = useState(false);
+  const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [newLinkUrl, setNewLinkUrl] = useState("");
   const [newLinkName, setNewLinkName] = useState("");
   const [isAddingLink, setIsAddingLink] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load knowledge base entries
   useEffect(() => {
     loadKnowledgeBase();
+    loadAgentContext();
   }, [clientId]);
 
   // Auto-scroll to bottom
@@ -130,6 +169,145 @@ export function ClientAIAgent({ clientId, clientName }: ClientAIAgentProps) {
       console.error("Error loading knowledge base:", error);
     } finally {
       setIsLoadingKB(false);
+    }
+  };
+
+  const loadAgentContext = async () => {
+    try {
+      // Load context from a special knowledge base entry
+      const { data } = await supabase
+        .from("ai_knowledge_base")
+        .select("content_text, metadata")
+        .eq("client_id", clientId)
+        .eq("source_type", "agent_context")
+        .single();
+
+      if (data?.metadata) {
+        const meta = data.metadata as Record<string, any>;
+        setAgentContext({
+          businessStage: meta.businessStage || "growing",
+          agentTone: meta.agentTone || "strategic",
+          customInstructions: meta.customInstructions || "",
+          mainGoals: meta.mainGoals || "",
+          challenges: meta.challenges || "",
+        });
+      }
+    } catch (error) {
+      // No context saved yet, use defaults
+      console.log("No agent context found, using defaults");
+    }
+  };
+
+  const saveAgentContext = async () => {
+    try {
+      // Check if context entry exists
+      const { data: existing } = await supabase
+        .from("ai_knowledge_base")
+        .select("id")
+        .eq("client_id", clientId)
+        .eq("source_type", "agent_context")
+        .single();
+
+      const contextText = `
+Estágio do Negócio: ${BUSINESS_STAGES.find(s => s.value === agentContext.businessStage)?.label || agentContext.businessStage}
+Tom do Agente: ${AGENT_TONES.find(t => t.value === agentContext.agentTone)?.label || agentContext.agentTone}
+Objetivos Principais: ${agentContext.mainGoals || 'Não definido'}
+Desafios Atuais: ${agentContext.challenges || 'Não definido'}
+Instruções Customizadas: ${agentContext.customInstructions || 'Nenhuma'}
+      `.trim();
+
+      if (existing) {
+        await supabase
+          .from("ai_knowledge_base")
+          .update({
+            content_text: contextText,
+            metadata: agentContext,
+          })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("ai_knowledge_base").insert({
+          client_id: clientId,
+          source_type: "agent_context",
+          source_name: "Contexto do Agente",
+          content_text: contextText,
+          metadata: agentContext,
+        });
+      }
+
+      toast.success("Contexto do agente salvo");
+      setContextSettingsOpen(false);
+    } catch (error) {
+      console.error("Error saving agent context:", error);
+      toast.error("Erro ao salvar contexto");
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/csv',
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Tipo de arquivo não suportado. Use PDF, DOCX, XLSX, PPTX ou CSV.");
+      return;
+    }
+
+    // Max 50MB
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Máximo 50MB.");
+      return;
+    }
+
+    setIsUploadingFile(true);
+    try {
+      // Upload to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${clientId}/${crypto.randomUUID()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from("ai-knowledge-files")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("ai-knowledge-files")
+        .getPublicUrl(fileName);
+
+      // Save to knowledge base
+      const { error: dbError } = await supabase.from("ai_knowledge_base").insert({
+        client_id: clientId,
+        source_type: "file",
+        source_name: file.name,
+        source_reference: fileName,
+        file_url: urlData.publicUrl,
+        file_type: file.type,
+        file_size: file.size,
+        content_text: `Arquivo: ${file.name}\nTipo: ${file.type}\nTamanho: ${(file.size / 1024).toFixed(1)}KB`,
+      });
+
+      if (dbError) throw dbError;
+
+      toast.success("Arquivo adicionado à base de conhecimento");
+      loadKnowledgeBase();
+      setUploadFileOpen(false);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast.error("Erro ao fazer upload do arquivo");
+    } finally {
+      setIsUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -325,10 +503,145 @@ export function ClientAIAgent({ clientId, clientName }: ClientAIAgentProps) {
       {/* Left Panel - Knowledge Base Manager */}
       <Card className="lg:col-span-1 flex flex-col">
         <CardHeader className="py-3 px-4">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            Base de Conhecimento
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Base de Conhecimento
+            </CardTitle>
+            <Dialog open={contextSettingsOpen} onOpenChange={setContextSettingsOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Settings2 className="h-5 w-5" />
+                    Configurar Agente
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  {/* Business Stage */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Estágio do Negócio
+                    </Label>
+                    <Select
+                      value={agentContext.businessStage}
+                      onValueChange={(value) =>
+                        setAgentContext((prev) => ({ ...prev, businessStage: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BUSINESS_STAGES.map((stage) => (
+                          <SelectItem key={stage.value} value={stage.value}>
+                            <div>
+                              <span className="font-medium">{stage.label}</span>
+                              <span className="text-muted-foreground ml-2 text-xs">
+                                - {stage.description}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Agent Tone */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      Tom do Agente
+                    </Label>
+                    <Select
+                      value={agentContext.agentTone}
+                      onValueChange={(value) =>
+                        setAgentContext((prev) => ({ ...prev, agentTone: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AGENT_TONES.map((tone) => (
+                          <SelectItem key={tone.value} value={tone.value}>
+                            <div>
+                              <span className="font-medium">{tone.label}</span>
+                              <span className="text-muted-foreground ml-2 text-xs">
+                                - {tone.description}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Main Goals */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Target className="h-4 w-4" />
+                      Objetivos Principais
+                    </Label>
+                    <Textarea
+                      placeholder="Ex: Aumentar taxa de conversão, reduzir CAC, escalar faturamento..."
+                      value={agentContext.mainGoals}
+                      onChange={(e) =>
+                        setAgentContext((prev) => ({ ...prev, mainGoals: e.target.value }))
+                      }
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* Challenges */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      Desafios Atuais
+                    </Label>
+                    <Textarea
+                      placeholder="Ex: Baixo volume de leads qualificados, alto churn, time comercial pequeno..."
+                      value={agentContext.challenges}
+                      onChange={(e) =>
+                        setAgentContext((prev) => ({ ...prev, challenges: e.target.value }))
+                      }
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* Custom Instructions */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Lightbulb className="h-4 w-4" />
+                      Instruções Customizadas
+                    </Label>
+                    <Textarea
+                      placeholder="Ex: Sempre mencionar benchmarks do setor, focar em métricas de funil, usar linguagem técnica..."
+                      value={agentContext.customInstructions}
+                      onChange={(e) =>
+                        setAgentContext((prev) => ({
+                          ...prev,
+                          customInstructions: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setContextSettingsOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={saveAgentContext}>Salvar Contexto</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardHeader>
         <Separator />
         <CardContent className="flex-1 p-3 overflow-hidden flex flex-col">
@@ -377,33 +690,35 @@ export function ClientAIAgent({ clientId, clientName }: ClientAIAgentProps) {
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
-              ) : knowledgeBase.length === 0 ? (
+              ) : knowledgeBase.filter(e => e.source_type !== "agent_context").length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-4">
                   Nenhuma fonte adicional
                 </p>
               ) : (
-                knowledgeBase.map((entry) => {
-                  const Icon = getSourceIcon(entry.source_type);
-                  return (
-                    <div
-                      key={entry.id}
-                      className="flex items-center justify-between p-2 rounded-md bg-muted/50 text-xs group"
-                    >
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />
-                        <span className="truncate">{entry.source_name}</span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => removeFromKnowledgeBase(entry.id)}
+                knowledgeBase
+                  .filter(e => e.source_type !== "agent_context")
+                  .map((entry) => {
+                    const Icon = getSourceIcon(entry.source_type);
+                    return (
+                      <div
+                        key={entry.id}
+                        className="flex items-center justify-between p-2 rounded-md bg-muted/50 text-xs group"
                       >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  );
-                })
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{entry.source_name}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeFromKnowledgeBase(entry.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    );
+                  })
               )}
             </div>
           </ScrollArea>
@@ -452,10 +767,51 @@ export function ClientAIAgent({ clientId, clientName }: ClientAIAgentProps) {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button variant="outline" size="sm" className="flex-1 text-xs" disabled>
-              <Upload className="h-3 w-3 mr-1" />
-              Arquivo
-            </Button>
+            
+            {/* File Upload */}
+            <Dialog open={uploadFileOpen} onOpenChange={setUploadFileOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="flex-1 text-xs">
+                  <Upload className="h-3 w-3 mr-1" />
+                  Arquivo
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Upload de Arquivo</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                    <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      PDF, DOCX, XLSX, PPTX ou CSV
+                    </p>
+                    <p className="text-xs text-muted-foreground mb-4">Máximo 50MB</p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.docx,.xlsx,.pptx,.csv"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingFile}
+                    >
+                      {isUploadingFile ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        "Selecionar Arquivo"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardContent>
       </Card>
