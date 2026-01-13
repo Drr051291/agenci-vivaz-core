@@ -52,25 +52,34 @@ export type Database = {
       ai_chat_sessions: {
         Row: {
           client_id: string
+          context_summary: string | null
           created_at: string
           created_by: string | null
           id: string
+          last_message_at: string | null
+          message_count: number | null
           title: string | null
           updated_at: string
         }
         Insert: {
           client_id: string
+          context_summary?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          last_message_at?: string | null
+          message_count?: number | null
           title?: string | null
           updated_at?: string
         }
         Update: {
           client_id?: string
+          context_summary?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          last_message_at?: string | null
+          message_count?: number | null
           title?: string | null
           updated_at?: string
         }
@@ -93,10 +102,14 @@ export type Database = {
       }
       ai_knowledge_base: {
         Row: {
+          added_by: string | null
           client_id: string
           content_text: string
           created_at: string
           embedding: string | null
+          file_size: number | null
+          file_type: string | null
+          file_url: string | null
           id: string
           is_active: boolean | null
           metadata: Json | null
@@ -106,10 +119,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          added_by?: string | null
           client_id: string
           content_text: string
           created_at?: string
           embedding?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
           id?: string
           is_active?: boolean | null
           metadata?: Json | null
@@ -119,10 +136,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          added_by?: string | null
           client_id?: string
           content_text?: string
           created_at?: string
           embedding?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
           id?: string
           is_active?: boolean | null
           metadata?: Json | null
@@ -132,6 +153,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_knowledge_base_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ai_knowledge_base_client_id_fkey"
             columns: ["client_id"]
