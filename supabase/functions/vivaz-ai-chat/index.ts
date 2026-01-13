@@ -163,7 +163,11 @@ ${meetingsSummary}`);
           ? entry.content_text.substring(0, 2000) + '...'
           : entry.content_text;
         
-        contextParts.push(`## ${entry.source_name} (${entry.source_type})
+        // Mark clearly as reference material, NOT information about the client
+        contextParts.push(`## [Material de Referência] ${entry.source_name}
+Tipo: ${entry.source_type === 'file' ? 'Documento enviado pela agência' : entry.source_type === 'url' ? 'Conteúdo de link' : entry.source_type}
+IMPORTANTE: Este é um material/documento que a agência enviou para referência, NÃO são informações sobre o que o cliente faz ou vende.
+
 ${content}`);
         sources.push({ type: entry.source_type, name: entry.source_name, reference: entry.source_reference || undefined });
       }
@@ -272,14 +276,19 @@ ${customInstructions}`;
 
     const systemPrompt = `${agentPersonality}
 
-CONTEXTO DISPONÍVEL (use apenas quando relevante):
-${contextParts.join('\n\n')}
+DADOS DO CLIENTE (informações reais sobre ${client.company_name}):
+${contextParts[0]}
+${contextParts.slice(1, 3).filter(p => p.includes('Matriz de Performance') || p.includes('Últimas Reuniões')).join('\n\n')}
 
-REGRAS IMPORTANTES:
-1. Perguntas simples = respostas simples. Não complique.
-2. Cite fontes apenas em análises detalhadas, não em conversas casuais.
-3. Se precisar de mais informações para uma análise, pergunte de forma direta.
-4. Tabelas e formatação avançada apenas para relatórios e análises.
+MATERIAIS DE REFERÊNCIA (documentos enviados pela agência para você consultar, mas NÃO são informações sobre o que o cliente faz):
+${contextParts.filter(p => p.includes('[Material de Referência]')).join('\n\n') || 'Nenhum material disponível.'}
+
+REGRAS CRÍTICAS:
+1. DIFERENCIE: "Dados do Cliente" são informações SOBRE a empresa. "Materiais de Referência" são documentos/conteúdos que a agência enviou.
+2. Se perguntarem "o que o cliente faz/vende", use APENAS os "Dados do Cliente" (segmento, canais, notas).
+3. Se os dados não tiverem a informação, diga que não tem essa informação e pergunte se a agência pode adicioná-la.
+4. Perguntas simples = respostas simples.
+5. Nunca confunda conteúdo de arquivos/PDFs com informações sobre o negócio do cliente.
 
 ${actionPrompt}`;
 
