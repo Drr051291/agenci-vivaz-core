@@ -8,6 +8,7 @@ import { MessageSquare, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { createNotification } from "@/lib/notifications";
 
 interface Comment {
   id: string;
@@ -78,6 +79,31 @@ export function TaskComments({ taskId, canComment = true }: TaskCommentsProps) {
       });
 
       if (error) throw error;
+
+      // Notify task creator and assignee
+      const { data: task } = await supabase
+        .from("tasks")
+        .select("title, created_by, assigned_to")
+        .eq("id", taskId)
+        .single();
+
+      if (task) {
+        const usersToNotify = new Set<string>();
+        if (task.created_by && task.created_by !== user?.id) usersToNotify.add(task.created_by);
+        if (task.assigned_to && task.assigned_to !== user?.id) usersToNotify.add(task.assigned_to);
+
+        for (const userId of usersToNotify) {
+          await createNotification({
+            userId,
+            title: "Novo comentário em tarefa",
+            message: `Novo comentário na tarefa: ${task.title}`,
+            category: "comment",
+            referenceId: taskId,
+            referenceType: "task",
+            sendEmail: true,
+          });
+        }
+      }
 
       toast.success("Comentário adicionado!");
       setNewComment("");
