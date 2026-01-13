@@ -302,9 +302,20 @@ const ClientPerformance = () => {
               {matrixDiagnostics.map((diag) => {
                 const toolInfo = TOOL_LABELS[diag.tool_type] || TOOL_LABELS.performance_pro;
                 const Icon = toolInfo.icon;
+                const inputs = diag.inputs as Record<string, unknown>;
                 const outputs = diag.outputs as Record<string, unknown>;
                 const globalConv = outputs?.globalConversion as number | undefined;
-                const stages = outputs?.stages as Array<{ label: string; rate: number; status: string }> | undefined;
+                const stages = outputs?.stages as Array<{ label: string; rate: number; status: string; count?: number }> | undefined;
+                const financialMetrics = outputs?.financialMetrics as { cpl?: number; cac?: number; roi?: number; estimatedRevenue?: number } | undefined;
+                
+                // Extração de números absolutos
+                const leads = inputs?.leads as number | undefined;
+                const mql = inputs?.mql as number | undefined;
+                const sql = inputs?.sql as number | undefined;
+                const opp = inputs?.oportunidades as number | undefined;
+                const contratos = inputs?.contratos as number | undefined;
+                const ticketMedio = inputs?.ticketMedio as number | undefined;
+                const investimento = inputs?.investimento as number | undefined;
                 
                 return (
                   <div key={diag.id} className="border rounded-lg overflow-hidden">
@@ -319,9 +330,9 @@ const ClientPerformance = () => {
                         <div className={cn("h-8 w-8 rounded-full flex items-center justify-center", toolInfo.color)}>
                           <Icon className="h-4 w-4" />
                         </div>
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="font-medium text-sm">{diag.name}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                             <Badge variant="outline" className={cn("text-[10px]", toolInfo.color)}>
                               {toolInfo.name}
                             </Badge>
@@ -335,14 +346,45 @@ const ClientPerformance = () => {
                               {format(new Date(diag.created_at), "dd/MM/yyyy", { locale: ptBR })}
                             </span>
                           </div>
+                          {/* Resumo numérico inline */}
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted-foreground">
+                            {leads !== undefined && leads > 0 && (
+                              <span><strong className="text-foreground">{leads.toLocaleString('pt-BR')}</strong> leads</span>
+                            )}
+                            {mql !== undefined && mql > 0 && (
+                              <span><strong className="text-foreground">{mql.toLocaleString('pt-BR')}</strong> MQLs</span>
+                            )}
+                            {contratos !== undefined && contratos > 0 && (
+                              <span><strong className="text-foreground">{contratos.toLocaleString('pt-BR')}</strong> contratos</span>
+                            )}
+                            {ticketMedio !== undefined && ticketMedio > 0 && (
+                              <span>Ticket: <strong className="text-foreground">{formatCurrency(ticketMedio)}</strong></span>
+                            )}
+                            {investimento !== undefined && investimento > 0 && (
+                              <span>Invest: <strong className="text-foreground">{formatCurrency(investimento)}</strong></span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {globalConv !== undefined && (
-                          <Badge variant="secondary" className="text-xs">
-                            {formatPercent(globalConv)} conversão
-                          </Badge>
-                        )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Métricas resumidas */}
+                        <div className="hidden sm:flex items-center gap-2">
+                          {globalConv !== undefined && (
+                            <Badge variant="secondary" className="text-xs">
+                              {formatPercent(globalConv)} conv.
+                            </Badge>
+                          )}
+                          {financialMetrics?.roi !== undefined && financialMetrics.roi > 0 && (
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                              ROI {formatPercent(financialMetrics.roi)}
+                            </Badge>
+                          )}
+                          {financialMetrics?.cac !== undefined && financialMetrics.cac > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              CAC {formatCurrency(financialMetrics.cac)}
+                            </Badge>
+                          )}
+                        </div>
                         <ChevronDown className={cn(
                           "h-4 w-4 text-muted-foreground transition-transform",
                           expandedDiagId === diag.id && "rotate-180"
@@ -448,133 +490,176 @@ const ClientPerformance = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {scenarios.map((scenario) => (
-                <div key={scenario.id} className="border rounded-lg overflow-hidden">
-                  <div
-                    className={cn(
-                      "flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors",
-                      expandedScenarioId === scenario.id && "bg-purple-50"
-                    )}
-                    onClick={() => setExpandedScenarioId(expandedScenarioId === scenario.id ? null : scenario.id)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center">
-                        <Sparkles className="h-4 w-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{scenario.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {scenario.benchmark_data?.label || scenario.setor} •{" "}
-                          {format(new Date(scenario.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                        +{formatNumber((scenario.simulated_results?.contratos ?? 0) - (scenario.current_results?.contratos ?? 0))} contratos
-                      </Badge>
-                      <ChevronDown className={cn(
-                        "h-4 w-4 text-muted-foreground transition-transform",
-                        expandedScenarioId === scenario.id && "rotate-180"
-                      )} />
-                    </div>
-                  </div>
-
-                  {expandedScenarioId === scenario.id && (
-                    <div className="px-4 pb-4 pt-2 border-t bg-gradient-to-r from-purple-50/50 to-indigo-50/50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Current vs Simulated */}
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-muted-foreground">Comparativo</p>
-                          
-                          {/* Contracts */}
-                          <div className="flex items-center gap-2 p-2 bg-white rounded border">
-                            <div className="flex-1">
-                              <p className="text-[10px] text-muted-foreground">Contratos atuais</p>
-                              <p className="font-bold">{formatNumber(scenario.current_results?.contratos)}</p>
-                            </div>
-                            <ArrowRight className="h-4 w-4 text-purple-400" />
-                            <div className="flex-1 text-right">
-                              <p className="text-[10px] text-muted-foreground">Contratos simulados</p>
-                              <p className="font-bold text-purple-600">
-                                {formatNumber(scenario.simulated_results?.contratos)}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Revenue */}
-                          <div className="flex items-center gap-2 p-2 bg-white rounded border">
-                            <div className="flex-1">
-                              <p className="text-[10px] text-muted-foreground">Faturamento atual</p>
-                              <p className="font-bold">{formatCurrency(scenario.current_results?.revenue)}</p>
-                            </div>
-                            <ArrowRight className="h-4 w-4 text-purple-400" />
-                            <div className="flex-1 text-right">
-                              <p className="text-[10px] text-muted-foreground">Faturamento simulado</p>
-                              <p className="font-bold text-purple-600">
-                                {formatCurrency(scenario.simulated_results?.revenue)}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* ROI */}
-                          <div className="flex items-center gap-2 p-2 bg-white rounded border">
-                            <div className="flex-1">
-                              <p className="text-[10px] text-muted-foreground">ROI atual</p>
-                              <p className="font-bold">
-                                {scenario.current_results?.roi != null ? `${scenario.current_results.roi.toFixed(0)}%` : "—"}
-                              </p>
-                            </div>
-                            <ArrowRight className="h-4 w-4 text-purple-400" />
-                            <div className="flex-1 text-right">
-                              <p className="text-[10px] text-muted-foreground">ROI simulado</p>
-                              <p className="font-bold text-purple-600">
-                                {scenario.simulated_results?.roi != null ? `${scenario.simulated_results.roi.toFixed(0)}%` : "—"}
-                              </p>
-                            </div>
+              {scenarios.map((scenario) => {
+                const simulatedContracts = scenario.simulated_results?.contratos;
+                const currentContracts = scenario.current_results?.contratos;
+                const simulatedRevenue = scenario.simulated_results?.revenue;
+                const currentRevenue = scenario.current_results?.revenue;
+                const baseLeads = scenario.inputs?.leads;
+                const ticketMedio = scenario.inputs?.ticketMedio;
+                
+                const contractDiff = simulatedContracts !== undefined && currentContracts !== undefined
+                  ? simulatedContracts - currentContracts
+                  : undefined;
+                const revenueDiff = simulatedRevenue !== undefined && currentRevenue !== undefined
+                  ? simulatedRevenue - currentRevenue
+                  : undefined;
+                  
+                return (
+                  <div key={scenario.id} className="border rounded-lg overflow-hidden">
+                    <div
+                      className={cn(
+                        "flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors",
+                        expandedScenarioId === scenario.id && "bg-purple-50"
+                      )}
+                      onClick={() => setExpandedScenarioId(expandedScenarioId === scenario.id ? null : scenario.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center">
+                          <Sparkles className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm">{scenario.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {scenario.benchmark_data?.label || scenario.setor} •{" "}
+                            {format(new Date(scenario.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                          </p>
+                          {/* Resumo numérico inline */}
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted-foreground">
+                            {baseLeads !== undefined && baseLeads > 0 && (
+                              <span>Base: <strong className="text-foreground">{baseLeads.toLocaleString('pt-BR')}</strong> leads</span>
+                            )}
+                            {currentContracts !== undefined && (
+                              <span><strong className="text-foreground">{currentContracts.toLocaleString('pt-BR')}</strong> → <strong className="text-purple-600">{simulatedContracts?.toLocaleString('pt-BR')}</strong> contratos</span>
+                            )}
+                            {ticketMedio !== undefined && ticketMedio > 0 && (
+                              <span>Ticket: <strong className="text-foreground">{formatCurrency(ticketMedio)}</strong></span>
+                            )}
                           </div>
                         </div>
-
-                        {/* Simulated Rates */}
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-muted-foreground">Taxas Simuladas</p>
-                          <div className="space-y-1">
-                            {[
-                              { key: "lead_to_mql", label: "Lead → MQL" },
-                              { key: "mql_to_sql", label: "MQL → SQL" },
-                              { key: "sql_to_opp", label: "SQL → Oportunidade" },
-                              { key: "opp_to_sale", label: "Oportunidade → Venda" },
-                            ].map(({ key, label }) => (
-                              <div key={key} className="flex justify-between items-center p-2 bg-white rounded border text-xs">
-                                <span className="text-muted-foreground">{label}</span>
-                                <span className="font-medium text-purple-600">
-                                  {formatPercent((scenario.simulated_rates as Record<string, number>)?.[key])}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Conversion Summary */}
-                          <div className="p-2 bg-gradient-to-r from-purple-100 to-indigo-100 rounded text-center">
-                            <p className="text-[10px] text-muted-foreground">Conversão Geral Projetada</p>
-                            <p className="text-xl font-bold text-purple-600">
-                              {formatPercent(scenario.simulated_results?.globalConversion)}
-                            </p>
-                          </div>
-
-                          {scenario.notes && (
-                            <div className="p-2 bg-amber-50 border border-amber-200 rounded">
-                              <p className="text-xs text-amber-800">
-                                <strong>Obs:</strong> {scenario.notes}
-                              </p>
-                            </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="hidden sm:flex items-center gap-2">
+                          {contractDiff !== undefined && (
+                            <Badge 
+                              variant="outline" 
+                              className={cn(
+                                "text-xs",
+                                contractDiff > 0 ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-muted"
+                              )}
+                            >
+                              {contractDiff > 0 ? '+' : ''}{contractDiff} contratos
+                            </Badge>
+                          )}
+                          {revenueDiff !== undefined && revenueDiff > 0 && (
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                              +{formatCurrency(revenueDiff)}
+                            </Badge>
                           )}
                         </div>
+                        <ChevronDown className={cn(
+                          "h-4 w-4 text-muted-foreground transition-transform",
+                          expandedScenarioId === scenario.id && "rotate-180"
+                        )} />
                       </div>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {expandedScenarioId === scenario.id && (
+                      <div className="px-4 pb-4 pt-2 border-t bg-gradient-to-r from-purple-50/50 to-indigo-50/50">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Current vs Simulated */}
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium text-muted-foreground">Comparativo</p>
+                            
+                            {/* Contracts */}
+                            <div className="flex items-center gap-2 p-2 bg-white rounded border">
+                              <div className="flex-1">
+                                <p className="text-[10px] text-muted-foreground">Contratos atuais</p>
+                                <p className="font-bold">{formatNumber(scenario.current_results?.contratos)}</p>
+                              </div>
+                              <ArrowRight className="h-4 w-4 text-purple-400" />
+                              <div className="flex-1 text-right">
+                                <p className="text-[10px] text-muted-foreground">Contratos simulados</p>
+                                <p className="font-bold text-purple-600">
+                                  {formatNumber(scenario.simulated_results?.contratos)}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Revenue */}
+                            <div className="flex items-center gap-2 p-2 bg-white rounded border">
+                              <div className="flex-1">
+                                <p className="text-[10px] text-muted-foreground">Faturamento atual</p>
+                                <p className="font-bold">{formatCurrency(scenario.current_results?.revenue)}</p>
+                              </div>
+                              <ArrowRight className="h-4 w-4 text-purple-400" />
+                              <div className="flex-1 text-right">
+                                <p className="text-[10px] text-muted-foreground">Faturamento simulado</p>
+                                <p className="font-bold text-purple-600">
+                                  {formatCurrency(scenario.simulated_results?.revenue)}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* ROI */}
+                            <div className="flex items-center gap-2 p-2 bg-white rounded border">
+                              <div className="flex-1">
+                                <p className="text-[10px] text-muted-foreground">ROI atual</p>
+                                <p className="font-bold">
+                                  {scenario.current_results?.roi != null ? `${scenario.current_results.roi.toFixed(0)}%` : "—"}
+                                </p>
+                              </div>
+                              <ArrowRight className="h-4 w-4 text-purple-400" />
+                              <div className="flex-1 text-right">
+                                <p className="text-[10px] text-muted-foreground">ROI simulado</p>
+                                <p className="font-bold text-purple-600">
+                                  {scenario.simulated_results?.roi != null ? `${scenario.simulated_results.roi.toFixed(0)}%` : "—"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Simulated Rates */}
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium text-muted-foreground">Taxas Simuladas</p>
+                            <div className="space-y-1">
+                              {[
+                                { key: "lead_to_mql", label: "Lead → MQL" },
+                                { key: "mql_to_sql", label: "MQL → SQL" },
+                                { key: "sql_to_opp", label: "SQL → Oportunidade" },
+                                { key: "opp_to_sale", label: "Oportunidade → Venda" },
+                              ].map(({ key, label }) => (
+                                <div key={key} className="flex justify-between items-center p-2 bg-white rounded border text-xs">
+                                  <span className="text-muted-foreground">{label}</span>
+                                  <span className="font-medium text-purple-600">
+                                    {formatPercent((scenario.simulated_rates as Record<string, number>)?.[key])}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Conversion Summary */}
+                            <div className="p-2 bg-gradient-to-r from-purple-100 to-indigo-100 rounded text-center">
+                              <p className="text-[10px] text-muted-foreground">Conversão Geral Projetada</p>
+                              <p className="text-xl font-bold text-purple-600">
+                                {formatPercent(scenario.simulated_results?.globalConversion)}
+                              </p>
+                            </div>
+
+                            {scenario.notes && (
+                              <div className="p-2 bg-amber-50 border border-amber-200 rounded">
+                                <p className="text-xs text-amber-800">
+                                  <strong>Obs:</strong> {scenario.notes}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         )}

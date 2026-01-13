@@ -333,9 +333,20 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
             {matrixDiagnostics.map((diag) => {
               const toolInfo = TOOL_LABELS[diag.tool_type] || TOOL_LABELS.performance_pro;
               const Icon = toolInfo.icon;
+              const inputs = diag.inputs as Record<string, unknown>;
               const outputs = diag.outputs as Record<string, unknown>;
               const globalConv = outputs?.globalConversion as number | undefined;
-              const stages = outputs?.stages as Array<{ label: string; rate: number; status: string }> | undefined;
+              const stages = outputs?.stages as Array<{ label: string; rate: number; status: string; count?: number }> | undefined;
+              const financialMetrics = outputs?.financialMetrics as { cpl?: number; cac?: number; roi?: number; estimatedRevenue?: number } | undefined;
+              
+              // Extração de números absolutos
+              const leads = inputs?.leads as number | undefined;
+              const mql = inputs?.mql as number | undefined;
+              const sql = inputs?.sql as number | undefined;
+              const opp = inputs?.oportunidades as number | undefined;
+              const contratos = inputs?.contratos as number | undefined;
+              const ticketMedio = inputs?.ticketMedio as number | undefined;
+              const investimento = inputs?.investimento as number | undefined;
               
               return (
                 <div key={diag.id} className="border rounded-lg overflow-hidden">
@@ -350,9 +361,9 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
                       <div className={cn("h-8 w-8 rounded-full flex items-center justify-center", toolInfo.color)}>
                         <Icon className="h-4 w-4" />
                       </div>
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm">{diag.name}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                           <Badge variant="outline" className={cn("text-[10px]", toolInfo.color)}>
                             {toolInfo.name}
                           </Badge>
@@ -378,14 +389,45 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
                             {format(new Date(diag.created_at), "dd/MM/yyyy", { locale: ptBR })}
                           </span>
                         </div>
+                        {/* Resumo numérico inline */}
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted-foreground">
+                          {leads !== undefined && leads > 0 && (
+                            <span><strong className="text-foreground">{leads.toLocaleString('pt-BR')}</strong> leads</span>
+                          )}
+                          {mql !== undefined && mql > 0 && (
+                            <span><strong className="text-foreground">{mql.toLocaleString('pt-BR')}</strong> MQLs</span>
+                          )}
+                          {contratos !== undefined && contratos > 0 && (
+                            <span><strong className="text-foreground">{contratos.toLocaleString('pt-BR')}</strong> contratos</span>
+                          )}
+                          {ticketMedio !== undefined && ticketMedio > 0 && (
+                            <span>Ticket: <strong className="text-foreground">{formatCurrency(ticketMedio)}</strong></span>
+                          )}
+                          {investimento !== undefined && investimento > 0 && (
+                            <span>Invest: <strong className="text-foreground">{formatCurrency(investimento)}</strong></span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {globalConv !== undefined && (
-                        <Badge variant="secondary" className="text-xs">
-                          {formatPercent(globalConv)} conversão
-                        </Badge>
-                      )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Métricas resumidas */}
+                      <div className="hidden sm:flex items-center gap-2">
+                        {globalConv !== undefined && (
+                          <Badge variant="secondary" className="text-xs">
+                            {formatPercent(globalConv)} conv.
+                          </Badge>
+                        )}
+                        {financialMetrics?.roi !== undefined && financialMetrics.roi > 0 && (
+                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                            ROI {formatPercent(financialMetrics.roi)}
+                          </Badge>
+                        )}
+                        {financialMetrics?.cac !== undefined && financialMetrics.cac > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            CAC {formatCurrency(financialMetrics.cac)}
+                          </Badge>
+                        )}
+                      </div>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -556,8 +598,18 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
             {scenarios.map((scenario) => {
               const simulatedContracts = scenario.simulated_results?.contratos;
               const currentContracts = scenario.current_results?.contratos;
+              const simulatedRevenue = scenario.simulated_results?.revenue;
+              const currentRevenue = scenario.current_results?.revenue;
+              const simulatedRoi = scenario.simulated_results?.roi;
+              const currentRoi = scenario.current_results?.roi;
+              const baseLeads = scenario.inputs?.leads;
+              const ticketMedio = scenario.inputs?.ticketMedio;
+              
               const contractDiff = simulatedContracts !== undefined && currentContracts !== undefined
                 ? simulatedContracts - currentContracts
+                : undefined;
+              const revenueDiff = simulatedRevenue !== undefined && currentRevenue !== undefined
+                ? simulatedRevenue - currentRevenue
                 : undefined;
 
               return (
@@ -573,7 +625,7 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
                       <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
                         <Sparkles className="h-4 w-4 text-purple-600" />
                       </div>
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm">{scenario.name}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <span>{scenario.setor}</span>
@@ -582,20 +634,39 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
                             {format(new Date(scenario.created_at), "dd/MM/yyyy", { locale: ptBR })}
                           </span>
                         </div>
+                        {/* Resumo numérico inline */}
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted-foreground">
+                          {baseLeads !== undefined && baseLeads > 0 && (
+                            <span>Base: <strong className="text-foreground">{baseLeads.toLocaleString('pt-BR')}</strong> leads</span>
+                          )}
+                          {currentContracts !== undefined && (
+                            <span><strong className="text-foreground">{currentContracts.toLocaleString('pt-BR')}</strong> → <strong className="text-purple-600">{simulatedContracts?.toLocaleString('pt-BR')}</strong> contratos</span>
+                          )}
+                          {ticketMedio !== undefined && ticketMedio > 0 && (
+                            <span>Ticket: <strong className="text-foreground">{formatCurrency(ticketMedio)}</strong></span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {contractDiff !== undefined && (
-                        <Badge 
-                          variant="secondary" 
-                          className={cn(
-                            "text-xs",
-                            contractDiff > 0 ? "bg-green-100 text-green-700" : "bg-muted"
-                          )}
-                        >
-                          {contractDiff > 0 ? '+' : ''}{contractDiff} contratos
-                        </Badge>
-                      )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="hidden sm:flex items-center gap-2">
+                        {contractDiff !== undefined && (
+                          <Badge 
+                            variant="secondary" 
+                            className={cn(
+                              "text-xs",
+                              contractDiff > 0 ? "bg-green-100 text-green-700" : "bg-muted"
+                            )}
+                          >
+                            {contractDiff > 0 ? '+' : ''}{contractDiff} contratos
+                          </Badge>
+                        )}
+                        {revenueDiff !== undefined && revenueDiff > 0 && (
+                          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                            +{formatCurrency(revenueDiff)}
+                          </Badge>
+                        )}
+                      </div>
                       <Button
                         variant="ghost"
                         size="icon"
