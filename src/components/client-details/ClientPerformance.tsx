@@ -386,6 +386,29 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
                           {formatPercent(globalConv)} conversão
                         </Badge>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditDiagnostic(diag);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEntryToDelete({ id: diag.id, type: 'diagnostic' });
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                       <ChevronDown className={cn(
                         "h-4 w-4 text-muted-foreground transition-transform",
                         expandedDiagId === diag.id && "rotate-180"
@@ -573,6 +596,29 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
                           {contractDiff > 0 ? '+' : ''}{contractDiff} contratos
                         </Badge>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditScenario(scenario);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEntryToDelete({ id: scenario.id, type: 'scenario' });
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                       <ChevronDown className={cn(
                         "h-4 w-4 text-muted-foreground transition-transform",
                         expandedScenarioId === scenario.id && "rotate-180"
