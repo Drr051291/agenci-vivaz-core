@@ -174,7 +174,7 @@ const handler = async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Vivaz Agência <notificacoes@vivazagencia.com.br>",
+        from: "Vivaz Agência <onboarding@resend.dev>",
         to: [profile.email],
         subject: `${config.icon} ${title}`,
         html: emailHtml,
