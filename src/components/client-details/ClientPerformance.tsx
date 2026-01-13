@@ -5,11 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart3, ExternalLink, Copy, ListTodo, ChevronDown, Plus } from "lucide-react";
+import { BarChart3, ExternalLink, Trash2, Pencil, ChevronDown, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ClientPerformanceProps {
   clientId: string;
@@ -47,6 +57,8 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
   const [entries, setEntries] = useState<PerformanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     loadEntries();
@@ -81,6 +93,44 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
     if (score >= 80) return 'bg-green-500/10 text-green-600 border-green-500/20';
     if (score >= 50) return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
     return 'bg-red-500/10 text-red-600 border-red-500/20';
+  }
+
+  async function handleDeleteEntry() {
+    if (!entryToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from('client_performance_entries')
+        .delete()
+        .eq('id', entryToDelete);
+
+      if (error) throw error;
+
+      setEntries(entries.filter(e => e.id !== entryToDelete));
+      toast.success('Análise excluída com sucesso');
+    } catch (error: any) {
+      toast.error('Erro ao excluir análise');
+    } finally {
+      setEntryToDelete(null);
+      setDeleteDialogOpen(false);
+    }
+  }
+
+  function handleOpenAnalysis(entry: PerformanceEntry) {
+    if (entry.diagnostic_id) {
+      // Navigate to the analysis tool with the diagnostic ID to load it
+      navigate(`/ferramentas/matriz-inside-sales?diagnostic=${entry.diagnostic_id}`);
+    } else {
+      toast.error('Diagnóstico não encontrado');
+    }
+  }
+
+  function handleEditAnalysis(entry: PerformanceEntry) {
+    if (entry.diagnostic_id) {
+      navigate(`/ferramentas/matriz-inside-sales?diagnostic=${entry.diagnostic_id}&edit=true`);
+    } else {
+      toast.error('Diagnóstico não encontrado');
+    }
   }
 
   if (loading) {
@@ -188,9 +238,31 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
                           variant="ghost" 
                           size="sm" 
                           className="h-7 text-xs"
-                          onClick={() => toast.info('Duplicar análise em breve')}
+                          onClick={() => handleOpenAnalysis(entry)}
+                          title="Abrir análise"
                         >
-                          <Copy className="h-3 w-3" />
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 text-xs"
+                          onClick={() => handleEditAnalysis(entry)}
+                          title="Editar análise"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 text-xs text-destructive hover:text-destructive"
+                          onClick={() => {
+                            setEntryToDelete(entry.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                          title="Excluir análise"
+                        >
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </TableCell>
@@ -254,7 +326,7 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => navigate('/ferramentas/matriz-inside-sales')}
+                      onClick={() => handleOpenAnalysis(entry)}
                     >
                       <ExternalLink className="h-3 w-3 mr-1" />
                       Abrir análise
@@ -262,10 +334,22 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => toast.info('Plano de ação em breve')}
+                      onClick={() => handleEditAnalysis(entry)}
                     >
-                      <ListTodo className="h-3 w-3 mr-1" />
-                      Ver plano
+                      <Pencil className="h-3 w-3 mr-1" />
+                      Editar
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => {
+                        setEntryToDelete(entry.id);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Excluir
                     </Button>
                   </div>
                 </div>
@@ -274,6 +358,29 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir análise</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta análise? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEntryToDelete(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteEntry}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
