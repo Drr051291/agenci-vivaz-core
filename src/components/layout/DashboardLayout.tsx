@@ -14,6 +14,7 @@ import {
   BarChart3,
   DollarSign,
   Wrench,
+  Sparkles,
 } from "lucide-react";
 import logoVivaz from "@/assets/logo-vivaz.png";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ const clientMenuItems = [
   { title: "Atividades", url: "/area-cliente/atividades", icon: CheckSquare, adminOnly: false },
   { title: "Performance", url: "/area-cliente/performance", icon: BarChart3, adminOnly: false },
   { title: "Dashboards", url: "/area-cliente/dashboards", icon: BarChart3, adminOnly: false },
+  { title: "Vivaz AI", url: "/area-cliente/vivaz-ai", icon: Sparkles, adminOnly: false },
 ];
 
 interface DashboardLayoutProps {
