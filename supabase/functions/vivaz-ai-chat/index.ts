@@ -312,12 +312,13 @@ ${actionPrompt}`;
       throw new Error(`AI API error: ${status}`);
     }
 
-    // Return streaming response with sources in header
+    // Return streaming response with sources encoded in Base64 to avoid non-ASCII issues in headers
+    const sourcesBase64 = btoa(encodeURIComponent(JSON.stringify(sources)));
     return new Response(response.body, { 
       headers: { 
         ...corsHeaders, 
         "Content-Type": "text/event-stream",
-        "X-AI-Sources": JSON.stringify(sources),
+        "X-AI-Sources": sourcesBase64,
       } 
     });
 
