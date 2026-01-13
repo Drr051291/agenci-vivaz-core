@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Upload, FileText, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { createNotification, getClientUserId } from "@/lib/notifications";
 
 interface UploadInvoiceDialogProps {
   open: boolean;
@@ -76,6 +77,20 @@ export function UploadInvoiceDialog({
         });
 
       if (dbError) throw dbError;
+
+      // Send notification to client user
+      const clientUserId = await getClientUserId(clientId);
+      if (clientUserId) {
+        await createNotification({
+          userId: clientUserId,
+          title: "Nova nota fiscal disponível",
+          message: `Uma nova nota fiscal foi disponibilizada: ${selectedFile.name}`,
+          category: "invoice",
+          referenceId: paymentId,
+          referenceType: "payment",
+          sendEmail: true,
+        });
+      }
 
       toast.success("Nota fiscal enviada com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["payment-invoices", clientId] });

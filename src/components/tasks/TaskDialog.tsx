@@ -30,6 +30,7 @@ import {
 } from "@/lib/activityTypes";
 import { getCategoryStatuses } from "@/lib/taskCategories";
 import { ChevronLeft, Zap } from "lucide-react";
+import { createNotification } from "@/lib/notifications";
 
 interface Profile {
   id: string;
@@ -163,19 +164,32 @@ export function TaskDialog({ open, onOpenChange, clientId, onSuccess }: TaskDial
       const title = generateTitle();
       const description = generateDescription();
       
-      const { error } = await supabase.from("tasks").insert({
+      const { data: taskData, error } = await supabase.from("tasks").insert({
         client_id: clientId,
         title,
         description: description || null,
         category: selectedType.category,
-        status: "pendente", // Sempre começa como pendente
+        status: "pendente",
         priority: priority as any,
         due_date: due_date || null,
         assigned_to: assigned_to || null,
         created_by: user?.id || null,
-      } as any);
+      } as any).select("id").single();
 
       if (error) throw error;
+
+      // Send notification to assigned user
+      if (assigned_to && assigned_to !== user?.id) {
+        await createNotification({
+          userId: assigned_to,
+          title: "Nova atividade atribuída",
+          message: `Você foi designado para a atividade: ${title}`,
+          category: "task",
+          referenceId: taskData?.id,
+          referenceType: "task",
+          sendEmail: true,
+        });
+      }
 
       toast.success("Atividade criada com sucesso!");
       onOpenChange(false);

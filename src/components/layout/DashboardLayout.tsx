@@ -32,6 +32,7 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/notifications";
 
 const adminMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: false },
@@ -261,10 +262,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar user={user} />
         <main className="flex-1 flex flex-col min-w-0">
-          <header className="sticky top-0 z-10 h-14 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center px-4 gap-4">
+          <header className="sticky top-0 z-10 h-14 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center justify-between px-4">
             <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground transition-colors">
               <PanelLeft className="h-4 w-4" />
             </SidebarTrigger>
+            <NotificationBell />
           </header>
           <div className="flex-1 p-6 overflow-auto">
             <AnimatePresence mode="wait">

@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.vivaz-ai-chat]
 verify_jwt = false
+
+[functions.send-notification-email]
+verify_jwt = false
