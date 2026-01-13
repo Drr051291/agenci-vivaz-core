@@ -255,7 +255,7 @@ const ClientDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Bem-vindo, {clientData.company_name}
+              Bem-vindo, {clientData.contact_name || clientData.company_name}
             </h1>
             <p className="text-muted-foreground">
               Acompanhe suas reuniões e atividades
