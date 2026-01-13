@@ -44,13 +44,24 @@ serve(async (req) => {
 
     console.log(`Processing file: ${fileName}, type: ${fileType}`);
 
-    // Download the file
-    const fileResponse = await fetch(fileUrl);
-    if (!fileResponse.ok) {
-      throw new Error(`Failed to download file: ${fileResponse.status}`);
+    // Extract file path from URL - format: .../storage/v1/object/public/bucket/path
+    const urlParts = fileUrl.split('/');
+    const bucketIndex = urlParts.findIndex((p: string) => p === 'object') + 2;
+    const bucket = urlParts[bucketIndex];
+    const filePath = urlParts.slice(bucketIndex + 1).join('/').split('?')[0];
+    
+    console.log(`Downloading from bucket: ${bucket}, path: ${filePath}`);
+    
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from(bucket)
+      .download(filePath);
+    
+    if (downloadError || !fileData) {
+      console.error("Storage download error:", downloadError);
+      throw new Error(`Failed to download file: ${downloadError?.message || 'Unknown error'}`);
     }
 
-    const fileBuffer = await fileResponse.arrayBuffer();
+    const fileBuffer = await fileData.arrayBuffer();
     const fileBytes = new Uint8Array(fileBuffer);
 
     let extractedText = "";
