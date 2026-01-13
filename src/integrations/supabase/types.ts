@@ -1619,6 +1619,81 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_comments: boolean
+          email_invoices: boolean
+          email_meetings: boolean
+          email_payments: boolean
+          email_tasks: boolean
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_comments?: boolean
+          email_invoices?: boolean
+          email_meetings?: boolean
+          email_payments?: boolean
+          email_tasks?: boolean
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_comments?: boolean
+          email_invoices?: boolean
+          email_meetings?: boolean
+          email_payments?: boolean
+          email_tasks?: boolean
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          reference_id: string | null
+          reference_type: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          reference_id?: string | null
+          reference_type?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payment_invoices: {
         Row: {
           client_id: string
