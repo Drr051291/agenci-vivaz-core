@@ -15,6 +15,7 @@ import ClientMeetingView from "./pages/client-area/ClientMeetingView";
 import ClientTasks from "./pages/client-area/ClientTasks";
 import ClientDashboards from "./pages/client-area/ClientDashboards";
 import ClientPerformance from "./pages/client-area/ClientPerformance";
+import ClientVivazAI from "./pages/client-area/ClientVivazAI";
 import Users from "./pages/Users";
 import SharedMeeting from "./pages/SharedMeeting";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
@@ -49,6 +50,7 @@ const App = () => (
           <Route path="/area-cliente/atividades" element={<ClientTasks />} />
           <Route path="/area-cliente/performance" element={<ClientPerformance />} />
           <Route path="/area-cliente/dashboards" element={<ClientDashboards />} />
+          <Route path="/area-cliente/vivaz-ai" element={<ClientVivazAI />} />
           <Route path="/clientes" element={<Clients />} />
           <Route path="/clientes/:id" element={<ClientDetails />} />
           <Route path="/clientes/:clientId/reunioes/:meetingId" element={<MeetingEditor />} />
