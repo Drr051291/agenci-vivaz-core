@@ -36,20 +36,20 @@ import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notifications";
 
 const adminMenuItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: false },
-  { title: "Clientes", url: "/clientes", icon: Users, adminOnly: false },
-  { title: "Financeiro", url: "/financeiro", icon: DollarSign, adminOnly: false },
-  { title: "Ferramentas", url: "/ferramentas", icon: Wrench, adminOnly: true },
-  { title: "Usuários", url: "/usuarios", icon: UserCog, adminOnly: true },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: false, disabled: false, comingSoon: false },
+  { title: "Clientes", url: "/clientes", icon: Users, adminOnly: false, disabled: false, comingSoon: false },
+  { title: "Financeiro", url: "/financeiro", icon: DollarSign, adminOnly: false, disabled: false, comingSoon: false },
+  { title: "Ferramentas", url: "/ferramentas", icon: Wrench, adminOnly: true, disabled: false, comingSoon: false },
+  { title: "Usuários", url: "/usuarios", icon: UserCog, adminOnly: true, disabled: false, comingSoon: false },
 ];
 
 const clientMenuItems = [
-  { title: "Visão Geral", url: "/area-cliente", icon: LayoutDashboard, adminOnly: false },
-  { title: "Reuniões", url: "/area-cliente/atas", icon: FileText, adminOnly: false },
-  { title: "Atividades", url: "/area-cliente/atividades", icon: CheckSquare, adminOnly: false },
-  { title: "Performance", url: "/area-cliente/performance", icon: BarChart3, adminOnly: false },
-  { title: "Dashboards", url: "/area-cliente/dashboards", icon: BarChart3, adminOnly: false },
-  { title: "Vivaz AI", url: "/area-cliente/vivaz-ai", icon: Sparkles, adminOnly: false },
+  { title: "Visão Geral", url: "/area-cliente", icon: LayoutDashboard, adminOnly: false, disabled: false },
+  { title: "Reuniões", url: "/area-cliente/atas", icon: FileText, adminOnly: false, disabled: false },
+  { title: "Atividades", url: "/area-cliente/atividades", icon: CheckSquare, adminOnly: false, disabled: false },
+  { title: "Performance", url: "/area-cliente/performance", icon: BarChart3, adminOnly: false, disabled: false },
+  { title: "Dashboards", url: "/area-cliente/dashboards", icon: BarChart3, adminOnly: false, disabled: false },
+  { title: "Vivaz AI", url: "/area-cliente/vivaz-ai", icon: Sparkles, adminOnly: false, disabled: true, comingSoon: true },
 ];
 
 interface DashboardLayoutProps {
@@ -150,27 +150,48 @@ const AppSidebar = ({ user }: { user: User | null }) => {
                     >
                       <SidebarMenuItem>
                         <SidebarMenuButton asChild className="h-9">
-                          <NavLink
-                            to={item.url}
-                            end={item.url === "/dashboard" || item.url === "/area-cliente"}
-                            className={cn(
-                              "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium relative overflow-hidden",
-                              "text-sidebar-foreground/70 hover:text-sidebar-foreground",
-                              "transition-colors duration-200"
-                            )}
-                            activeClassName="text-primary font-semibold"
-                          >
-                            {isActive && (
-                              <motion.div
-                                className="absolute inset-0 bg-primary/10 rounded-md"
-                                layoutId="activeMenuItem"
-                                initial={false}
-                                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                              />
-                            )}
-                            <item.icon className="h-4 w-4 flex-shrink-0 relative z-10" />
-                            {!isCollapsed && <span className="relative z-10">{item.title}</span>}
-                          </NavLink>
+                          {item.disabled ? (
+                            <div
+                              className={cn(
+                                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium relative overflow-hidden cursor-not-allowed",
+                                "text-sidebar-foreground/40",
+                              )}
+                            >
+                              <item.icon className="h-4 w-4 flex-shrink-0 relative z-10" />
+                              {!isCollapsed && (
+                                <span className="relative z-10 flex items-center gap-2">
+                                  {item.title}
+                                  {item.comingSoon && (
+                                    <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                                      Em breve
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <NavLink
+                              to={item.url}
+                              end={item.url === "/dashboard" || item.url === "/area-cliente"}
+                              className={cn(
+                                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium relative overflow-hidden",
+                                "text-sidebar-foreground/70 hover:text-sidebar-foreground",
+                                "transition-colors duration-200"
+                              )}
+                              activeClassName="text-primary font-semibold"
+                            >
+                              {isActive && (
+                                <motion.div
+                                  className="absolute inset-0 bg-primary/10 rounded-md"
+                                  layoutId="activeMenuItem"
+                                  initial={false}
+                                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                                />
+                              )}
+                              <item.icon className="h-4 w-4 flex-shrink-0 relative z-10" />
+                              {!isCollapsed && <span className="relative z-10">{item.title}</span>}
+                            </NavLink>
+                          )}
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     </motion.div>
