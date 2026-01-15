@@ -9,6 +9,7 @@ export interface CreateNotificationParams {
   category: NotificationCategory;
   referenceId?: string;
   referenceType?: string;
+  clientId?: string;
   sendEmail?: boolean;
 }
 
@@ -19,6 +20,7 @@ export async function createNotification({
   category,
   referenceId,
   referenceType,
+  clientId,
   sendEmail = true,
 }: CreateNotificationParams): Promise<{ success: boolean; error?: string }> {
   try {
@@ -52,6 +54,7 @@ export async function createNotification({
               category,
               referenceId,
               referenceType,
+              clientId,
             },
           }
         );
@@ -87,6 +90,25 @@ export async function getClientUserId(clientId: string): Promise<string | null> 
     return data.user_id;
   } catch (error) {
     console.error("Error getting client user_id:", error);
+    return null;
+  }
+}
+
+export async function getClientIdFromUserId(userId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("user_id", userId)
+      .single();
+
+    if (error || !data?.id) {
+      return null;
+    }
+
+    return data.id;
+  } catch (error) {
+    console.error("Error getting client_id from user_id:", error);
     return null;
   }
 }

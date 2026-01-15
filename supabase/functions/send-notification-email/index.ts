@@ -15,6 +15,7 @@ interface NotificationEmailRequest {
   category: "task" | "meeting" | "comment" | "payment" | "invoice";
   referenceId?: string;
   referenceType?: string;
+  clientId?: string;
 }
 
 const categoryConfig = {
@@ -58,24 +59,52 @@ const categoryPreferenceMap: Record<string, string> = {
   invoice: "email_invoices",
 };
 
-function buildActionUrl(category: string, referenceId?: string, referenceType?: string): string {
+function buildActionUrl(
+  category: string, 
+  referenceId?: string, 
+  referenceType?: string,
+  userRole?: string,
+  clientId?: string
+): string {
   const baseUrl = "https://hub.vivazagencia.com.br";
   
+  // URLs para clientes (area-cliente)
+  if (userRole === "client") {
+    switch (category) {
+      case "task":
+      case "comment":
+        return referenceId 
+          ? `${baseUrl}/area-cliente/atividades?task=${referenceId}`
+          : `${baseUrl}/area-cliente/atividades`;
+      case "meeting":
+        return referenceId 
+          ? `${baseUrl}/area-cliente/reunioes/${referenceId}`
+          : `${baseUrl}/area-cliente/reunioes`;
+      case "payment":
+      case "invoice":
+        return `${baseUrl}/area-cliente/performance`;
+      default:
+        return `${baseUrl}/area-cliente`;
+    }
+  }
+  
+  // URLs para admins/colaboradores
   switch (category) {
     case "task":
     case "comment":
       return referenceId 
-        ? `${baseUrl}/area-cliente/atividades?task=${referenceId}`
-        : `${baseUrl}/area-cliente/atividades`;
+        ? `${baseUrl}/dashboard?task=${referenceId}`
+        : `${baseUrl}/dashboard`;
     case "meeting":
-      return referenceId 
-        ? `${baseUrl}/area-cliente/reunioes/${referenceId}`
-        : `${baseUrl}/area-cliente/reunioes`;
+      if (referenceId && clientId) {
+        return `${baseUrl}/clientes/${clientId}/reunioes/${referenceId}`;
+      }
+      return `${baseUrl}/dashboard`;
     case "payment":
     case "invoice":
-      return `${baseUrl}/area-cliente/performance`;
+      return `${baseUrl}/financeiro`;
     default:
-      return `${baseUrl}/area-cliente`;
+      return `${baseUrl}/dashboard`;
   }
 }
 
@@ -91,14 +120,14 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { userId, title, message, category, referenceId, referenceType }: NotificationEmailRequest = await req.json();
+    const { userId, title, message, category, referenceId, referenceType, clientId }: NotificationEmailRequest = await req.json();
 
-    console.log(`Processing notification for user ${userId}, category: ${category}, referenceId: ${referenceId}`);
+    console.log(`Processing notification for user ${userId}, category: ${category}, referenceId: ${referenceId}, clientId: ${clientId}`);
 
-    // Get user profile
+    // Get user profile with role
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("email, full_name")
+      .select("email, full_name, role")
       .eq("id", userId)
       .single();
 
@@ -109,6 +138,8 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    console.log(`User role: ${profile.role}`);
 
     // Check user notification preferences
     const { data: preferences } = await supabase
@@ -129,7 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const config = categoryConfig[category];
-    const actionUrl = buildActionUrl(category, referenceId, referenceType);
+    const actionUrl = buildActionUrl(category, referenceId, referenceType, profile.role, clientId);
 
     console.log(`Action URL: ${actionUrl}`);
 
