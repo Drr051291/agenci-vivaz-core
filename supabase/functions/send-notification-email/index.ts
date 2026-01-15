@@ -22,26 +22,31 @@ const categoryConfig = {
     icon: "✓",
     color: "#3B82F6",
     label: "Tarefa",
+    actionLabel: "Ver Atividade",
   },
   meeting: {
     icon: "📅",
     color: "#8B5CF6",
     label: "Reunião",
+    actionLabel: "Ver Reunião",
   },
   comment: {
     icon: "💬",
     color: "#22C55E",
     label: "Comentário",
+    actionLabel: "Ver Comentário",
   },
   payment: {
     icon: "💰",
     color: "#EAB308",
     label: "Pagamento",
+    actionLabel: "Ver Financeiro",
   },
   invoice: {
     icon: "📄",
     color: "#F97316",
     label: "Nota Fiscal",
+    actionLabel: "Ver Nota Fiscal",
   },
 };
 
@@ -52,6 +57,27 @@ const categoryPreferenceMap: Record<string, string> = {
   payment: "email_payments",
   invoice: "email_invoices",
 };
+
+function buildActionUrl(category: string, referenceId?: string, referenceType?: string): string {
+  const baseUrl = "https://hub.vivazagencia.com.br";
+  
+  switch (category) {
+    case "task":
+    case "comment":
+      return referenceId 
+        ? `${baseUrl}/area-cliente/atividades?task=${referenceId}`
+        : `${baseUrl}/area-cliente/atividades`;
+    case "meeting":
+      return referenceId 
+        ? `${baseUrl}/area-cliente/reunioes/${referenceId}`
+        : `${baseUrl}/area-cliente/reunioes`;
+    case "payment":
+    case "invoice":
+      return `${baseUrl}/area-cliente/performance`;
+    default:
+      return `${baseUrl}/area-cliente`;
+  }
+}
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("send-notification-email function invoked");
@@ -67,7 +93,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { userId, title, message, category, referenceId, referenceType }: NotificationEmailRequest = await req.json();
 
-    console.log(`Processing notification for user ${userId}, category: ${category}`);
+    console.log(`Processing notification for user ${userId}, category: ${category}, referenceId: ${referenceId}`);
 
     // Get user profile
     const { data: profile, error: profileError } = await supabase
@@ -103,7 +129,9 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const config = categoryConfig[category];
-    const appUrl = Deno.env.get("SUPABASE_URL")?.replace("supabase.co", "lovable.app") || "https://app.vivazagencia.com.br";
+    const actionUrl = buildActionUrl(category, referenceId, referenceType);
+
+    console.log(`Action URL: ${actionUrl}`);
 
     const emailHtml = `
 <!DOCTYPE html>
@@ -140,8 +168,8 @@ const handler = async (req: Request): Promise<Response> => {
               </p>
               
               <div style="text-align: center; margin-top: 32px;">
-                <a href="${appUrl}" style="display: inline-block; background: linear-gradient(135deg, #8B5CF6, #6D28D9); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 14px;">
-                  Acessar Plataforma
+                <a href="${actionUrl}" style="display: inline-block; background: linear-gradient(135deg, #8B5CF6, #6D28D9); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                  ${config.actionLabel}
                 </a>
               </div>
             </td>

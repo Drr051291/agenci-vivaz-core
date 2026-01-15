@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +45,9 @@ const ClientTasks = () => {
   const [assignmentFilter, setAssignmentFilter] = useState<string>("all");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+  const taskIdFromUrl = searchParams.get("task");
 
   usePageMeta({
     title: "Atividades - Área do Cliente",
@@ -56,6 +58,18 @@ const ClientTasks = () => {
   useEffect(() => {
     checkAuthAndLoadTasks();
   }, [navigate, toast]);
+
+  // Handle deep link to specific task from email notification
+  useEffect(() => {
+    if (taskIdFromUrl && tasks.length > 0) {
+      const taskToOpen = tasks.find(t => t.id === taskIdFromUrl);
+      if (taskToOpen) {
+        setSelectedTask(taskToOpen);
+        // Clear the query param after opening
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [taskIdFromUrl, tasks, setSearchParams]);
 
   const checkAuthAndLoadTasks = async () => {
     const {
