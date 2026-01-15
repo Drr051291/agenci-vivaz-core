@@ -152,7 +152,7 @@ export function DiagnosisPickerSection({
                       className="bg-white/80 text-sm min-h-[60px] resize-none"
                     />
                   ) : (
-                    <p className="text-sm bg-white/50 rounded p-2">
+                    <p className="text-sm bg-white/50 rounded p-2 whitespace-pre-wrap">
                       {item.context || <span className="text-muted-foreground italic">Não especificado</span>}
                     </p>
                   )}
@@ -171,7 +171,7 @@ export function DiagnosisPickerSection({
                       className="bg-white/80 text-sm min-h-[60px] resize-none"
                     />
                   ) : (
-                    <p className="text-sm bg-white/50 rounded p-2">
+                    <p className="text-sm bg-white/50 rounded p-2 whitespace-pre-wrap">
                       {item.solution || <span className="text-muted-foreground italic">Não definida</span>}
                     </p>
                   )}
