@@ -178,8 +178,8 @@ export function TaskDialog({ open, onOpenChange, clientId, onSuccess }: TaskDial
 
       if (error) throw error;
 
-      // Send notification to assigned user
-      if (assigned_to && assigned_to !== user?.id) {
+      // Send notification to assigned user (always send, even if self-assigned)
+      if (assigned_to) {
         await createNotification({
           userId: assigned_to,
           title: "Nova atividade atribuída",
