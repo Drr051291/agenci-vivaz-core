@@ -29,6 +29,7 @@ import { useMeetingCalendarSync } from "@/hooks/useMeetingCalendarSync";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { getMeetingTemplate, MEETING_TEMPLATE_OPTIONS, type MeetingTemplateType } from "@/lib/meetingTemplates";
+import { createNotification, getClientUserId } from "@/lib/notifications";
 
 interface MeetingMinute {
   id: string;
@@ -162,6 +163,21 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
           participants: [],
         });
         fetchSyncedMeetings();
+      }
+
+      // Enviar notificação para o cliente
+      const clientUserId = await getClientUserId(clientId);
+      if (clientUserId) {
+        await createNotification({
+          userId: clientUserId,
+          title: "Nova reunião disponível",
+          message: `Uma nova reunião "${newMeeting.title}" foi criada e está disponível para visualização.`,
+          category: "meeting",
+          referenceId: newMeeting.id,
+          referenceType: "meeting",
+          clientId: clientId,
+          sendEmail: true,
+        });
       }
 
       setTemplateDialogOpen(false);

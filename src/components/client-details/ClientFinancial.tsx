@@ -411,6 +411,7 @@ export function ClientFinancial({ clientId }: ClientFinancialProps) {
             onOpenChange={setCreatePaymentOpen}
             asaasCustomerId={asaasLink.asaas_customer_id}
             clientName={asaasLink.asaas_customer_name || 'Cliente'}
+            clientId={clientId}
           />
           {selectedPaymentId && (
             <UploadInvoiceDialog

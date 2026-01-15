@@ -32,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { createNotification, getClientUserId } from "@/lib/notifications";
 
 const paymentSchema = z.object({
   value: z.string()
@@ -70,6 +71,7 @@ interface CreatePaymentDialogProps {
   onOpenChange: (open: boolean) => void;
   asaasCustomerId: string;
   clientName: string;
+  clientId: string;
 }
 
 export function CreatePaymentDialog({
@@ -77,6 +79,7 @@ export function CreatePaymentDialog({
   onOpenChange,
   asaasCustomerId,
   clientName,
+  clientId,
 }: CreatePaymentDialogProps) {
   const queryClient = useQueryClient();
   
@@ -109,12 +112,29 @@ export function CreatePaymentDialog({
         throw new Error(result.errors[0]?.description || 'Erro ao criar cobrança');
       }
       
-      return result;
+      return { result, formData: data };
     },
-    onSuccess: () => {
+    onSuccess: async ({ result, formData }) => {
       toast.success('Cobrança criada com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['client-payments'] });
       queryClient.invalidateQueries({ queryKey: ['asaas-payments'] });
+      
+      // Enviar notificação para o cliente
+      const clientUserId = await getClientUserId(clientId);
+      if (clientUserId) {
+        const formattedValue = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(formData.value));
+        await createNotification({
+          userId: clientUserId,
+          title: "Nova cobrança gerada",
+          message: `Uma cobrança de ${formattedValue} foi gerada para "${formData.description}". Vencimento: ${format(new Date(formData.dueDate), 'dd/MM/yyyy')}.`,
+          category: "payment",
+          referenceId: result.id,
+          referenceType: "payment",
+          clientId: clientId,
+          sendEmail: true,
+        });
+      }
+      
       form.reset();
       onOpenChange(false);
     },
