@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+import { useClientUser } from "@/hooks/useClientUser";
 import { 
   BarChart3, 
   ChevronDown, 
@@ -135,8 +135,7 @@ const formatCurrency = (n?: number | null): string => {
 };
 
 const ClientPerformance = () => {
-  const [loading, setLoading] = useState(true);
-  const [clientId, setClientId] = useState<string | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
   const [performanceEntries, setPerformanceEntries] = useState<PerformanceEntry[]>([]);
   const [diagnostics, setDiagnostics] = useState<InsideSalesDiagnostic[]>([]);
   const [matrixDiagnostics, setMatrixDiagnostics] = useState<DiagnosticEntry[]>([]);
@@ -145,7 +144,8 @@ const ClientPerformance = () => {
   const [expandedScenarioId, setExpandedScenarioId] = useState<string | null>(null);
   const [expandedDiagId, setExpandedDiagId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
+
+  const { clientId, loading: authLoading, error } = useClientUser();
 
   usePageMeta({
     title: "Performance - Área do Cliente",
@@ -154,68 +154,36 @@ const ClientPerformance = () => {
   });
 
   useEffect(() => {
-    const checkAuthAndLoadData = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    if (!authLoading && clientId) {
+      loadPerformanceData();
+    }
+  }, [authLoading, clientId]);
 
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
+  const loadPerformanceData = async () => {
+    if (!clientId) return;
 
-      // Verificar se é cliente
-      const { data: userRole } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .single();
-
-      if (userRole?.role !== "client") {
-        navigate("/dashboard");
-        return;
-      }
-
-      // Buscar cliente vinculado
-      const { data: client } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("user_id", session.user.id)
-        .single();
-
-      if (!client) {
-        toast({
-          title: "Erro",
-          description: "Cliente não encontrado",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      setClientId(client.id);
-
+    try {
       // Buscar dados em paralelo
       const [entriesRes, diagsRes, scenariosRes, matrixDiagsRes] = await Promise.all([
         supabase
           .from("client_performance_entries")
           .select("*")
-          .eq("client_id", client.id)
+          .eq("client_id", clientId)
           .order("created_at", { ascending: false }),
         supabase
           .from("inside_sales_diagnostics")
           .select("*")
-          .eq("client_id", client.id)
+          .eq("client_id", clientId)
           .order("created_at", { ascending: false }),
         supabase
           .from("performance_simulation_scenarios" as never)
           .select("*")
-          .eq("client_id", client.id)
+          .eq("client_id", clientId)
           .order("created_at", { ascending: false }),
         supabase
           .from("performance_matrix_diagnostics" as never)
           .select("*")
-          .eq("client_id", client.id)
+          .eq("client_id", clientId)
           .eq("status", "published")
           .order("created_at", { ascending: false }),
       ]);
@@ -224,11 +192,12 @@ const ClientPerformance = () => {
       setDiagnostics((diagsRes.data || []) as InsideSalesDiagnostic[]);
       setScenarios((scenariosRes.data || []) as SimulationScenario[]);
       setMatrixDiagnostics((matrixDiagsRes.data || []) as DiagnosticEntry[]);
-      setLoading(false);
-    };
-
-    checkAuthAndLoadData();
-  }, [navigate, toast]);
+    } catch (err) {
+      console.error("Erro ao carregar dados de performance:", err);
+    } finally {
+      setDataLoading(false);
+    }
+  };
 
   const formatPeriod = (start: string | null, end: string | null): string => {
     if (!start && !end) return "Sem período";
@@ -250,12 +219,24 @@ const ClientPerformance = () => {
     return <Minus className="h-3 w-3 text-muted-foreground" />;
   };
 
-  if (loading) {
+  if (authLoading || dataLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-muted-foreground text-center">{error}</p>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }

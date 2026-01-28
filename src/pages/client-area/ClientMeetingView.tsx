@@ -7,6 +7,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useClientUser } from "@/hooks/useClientUser";
 import { MeetingPresentationView } from "@/components/meetings/MeetingPresentationView";
 
 interface MeetingData {
@@ -75,13 +76,15 @@ interface RecentTask {
 export default function ClientMeetingView() {
   const { meetingId } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [meetingData, setMeetingData] = useState<MeetingData | null>(null);
   const [sections, setSections] = useState<MeetingSection[]>([]);
   const [metrics, setMetrics] = useState<MeetingMetric[]>([]);
   const [channels, setChannels] = useState<MeetingChannel[]>([]);
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
   const [actionPlanItems, setActionPlanItems] = useState<ActionPlanItem[]>([]);
+
+  const { clientId, loading: authLoading, error } = useClientUser();
 
   usePageMeta({
     title: meetingData?.title || "Reunião - Área do Cliente",
@@ -90,49 +93,23 @@ export default function ClientMeetingView() {
   });
 
   useEffect(() => {
-    checkAuthAndLoadMeeting();
-  }, [meetingId]);
+    if (!authLoading && clientId && meetingId) {
+      loadMeetingData();
+    }
+  }, [authLoading, clientId, meetingId]);
 
-  const checkAuthAndLoadMeeting = async () => {
+  const loadMeetingData = async () => {
+    if (!clientId || !meetingId) return;
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      if (profile?.role !== "client") {
-        navigate("/auth");
-        return;
-      }
-
-      const { data: client } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!client) {
-        toast.error("Nenhum cliente vinculado encontrado");
-        navigate("/area-cliente/reunioes");
-        return;
-      }
-
-      const { data: meeting, error } = await supabase
+      const { data: meeting, error: meetingError } = await supabase
         .from("meeting_minutes")
         .select("id, title, meeting_date, participants, content, action_items, client_id, share_token, analysis_period_start, analysis_period_end, next_period_priority")
         .eq("id", meetingId)
-        .eq("client_id", client.id)
+        .eq("client_id", clientId)
         .single();
 
-      if (error || !meeting) {
+      if (meetingError || !meeting) {
         toast.error("Reunião não encontrada");
         navigate("/area-cliente/reunioes");
         return;
@@ -182,7 +159,7 @@ export default function ClientMeetingView() {
       const { data: tasksData } = await supabase
         .from("tasks")
         .select("id, title, status, priority, due_date, category, assigned_to, meeting_excluded_from")
-        .eq("client_id", client.id)
+        .eq("client_id", clientId)
         .gte("created_at", sevenDaysAgo.toISOString())
         .in("status", ["pendente", "em_andamento", "concluido", "solicitado"])
         .order("created_at", { ascending: false });
@@ -218,12 +195,12 @@ export default function ClientMeetingView() {
       }));
       
       setRecentTasks(tasksWithProfiles);
-    } catch (error) {
-      console.error("Erro ao carregar reunião:", error);
+    } catch (err) {
+      console.error("Erro ao carregar reunião:", err);
       toast.error("Erro ao carregar reunião");
       navigate("/area-cliente/reunioes");
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -235,12 +212,24 @@ export default function ClientMeetingView() {
     }
   };
 
-  if (loading) {
+  if (authLoading || dataLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-muted-foreground text-center">{error}</p>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }
