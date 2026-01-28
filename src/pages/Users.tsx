@@ -37,6 +37,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Users as UsersIcon, Mail, Shield, Pencil, Trash2, Building2, Filter } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
+interface ClientLink {
+  id: string;
+  company_name: string;
+}
+
 interface UserWithRole {
   id: string;
   full_name: string;
@@ -45,14 +50,13 @@ interface UserWithRole {
   avatar_url: string | null;
   phone: string | null;
   user_roles: { role: string }[];
-  linked_client?: { id: string; company_name: string } | null;
+  linked_clients: ClientLink[];
 }
 
 interface Client {
   id: string;
   company_name: string;
   segment: string;
-  user_id: string | null;
 }
 
 const Users = () => {
@@ -132,19 +136,24 @@ const Users = () => {
       .from("user_roles")
       .select("user_id, role");
 
-    // Fetch clients to map linked users
-    const { data: clientsData } = await supabase
-      .from("clients")
-      .select("id, company_name, user_id");
+    // Fetch client_users to map linked users (nova tabela many-to-many)
+    const { data: clientUsersData } = await supabase
+      .from("client_users")
+      .select("user_id, client_id, clients(id, company_name)");
 
     // Map roles and linked clients to users
     const usersWithData = (profilesData || []).map(user => {
       const userRoles = rolesData?.filter(r => r.user_id === user.id) || [];
-      const linkedClient = clientsData?.find(c => c.user_id === user.id);
+      const userClientLinks = clientUsersData?.filter(cu => cu.user_id === user.id) || [];
+      const linkedClients = userClientLinks.map(cu => ({
+        id: (cu.clients as any)?.id,
+        company_name: (cu.clients as any)?.company_name,
+      })).filter(c => c.id);
+      
       return {
         ...user,
         user_roles: userRoles.map(r => ({ role: r.role })),
-        linked_client: linkedClient ? { id: linkedClient.id, company_name: linkedClient.company_name } : null,
+        linked_clients: linkedClients,
       };
     });
 
@@ -155,7 +164,7 @@ const Users = () => {
   const fetchClients = async () => {
     const { data, error } = await supabase
       .from("clients")
-      .select("id, company_name, segment, user_id")
+      .select("id, company_name, segment")
       .order("company_name");
 
     if (error) {
@@ -260,15 +269,17 @@ const Users = () => {
         }
       }
 
-      // Se for cliente, vincular user_id ao cliente
+      // Se for cliente, vincular na tabela client_users
       if (formData.role === "client" && formData.client_id) {
-        const { error: clientError } = await supabase
-          .from("clients")
-          .update({ user_id: userId })
-          .eq("id", formData.client_id);
+        const { error: clientUserError } = await supabase
+          .from("client_users")
+          .insert({ 
+            client_id: formData.client_id,
+            user_id: userId 
+          });
 
-        if (clientError) {
-          throw clientError;
+        if (clientUserError && !clientUserError.message.includes("duplicate")) {
+          throw clientUserError;
         }
       }
 
@@ -306,7 +317,7 @@ const Users = () => {
     setEditFormData({
       full_name: user.full_name,
       role: userRole,
-      client_id: user.linked_client?.id || "",
+      client_id: user.linked_clients?.[0]?.id || "",
     });
     setEditDialogOpen(true);
   };
@@ -356,32 +367,42 @@ const Users = () => {
         if (roleError) throw roleError;
       }
 
-      // Gerenciar vínculo com cliente
-      const oldClientId = userToEdit.linked_client?.id;
+      // Gerenciar vínculos com clientes na tabela client_users
+      const oldClientIds = userToEdit.linked_clients?.map(c => c.id) || [];
       const newClientId = editFormData.client_id;
 
-      // Se tinha vínculo e não tem mais, ou mudou de cliente
-      if (oldClientId && oldClientId !== newClientId) {
-        await supabase
-          .from("clients")
-          .update({ user_id: null })
-          .eq("id", oldClientId);
-      }
+      // Se mudou de cliente para outro role, remover todos os vínculos
+      if (editFormData.role !== "client") {
+        if (oldClientIds.length > 0) {
+          await supabase
+            .from("client_users")
+            .delete()
+            .eq("user_id", userToEdit.id);
+        }
+      } else {
+        // Se é cliente, atualizar o vínculo
+        // Primeiro remove vínculos antigos que não são o novo
+        if (oldClientIds.length > 0) {
+          await supabase
+            .from("client_users")
+            .delete()
+            .eq("user_id", userToEdit.id)
+            .not("client_id", "eq", newClientId);
+        }
 
-      // Se tem novo vínculo
-      if (editFormData.role === "client" && newClientId) {
-        const { error: clientError } = await supabase
-          .from("clients")
-          .update({ user_id: userToEdit.id })
-          .eq("id", newClientId);
+        // Adiciona novo vínculo se não existir
+        if (newClientId && !oldClientIds.includes(newClientId)) {
+          const { error: clientUserError } = await supabase
+            .from("client_users")
+            .insert({ 
+              client_id: newClientId,
+              user_id: userToEdit.id 
+            });
 
-        if (clientError) throw clientError;
-      } else if (editFormData.role !== "client" && oldClientId) {
-        // Se mudou de cliente para outro role, remover vínculo
-        await supabase
-          .from("clients")
-          .update({ user_id: null })
-          .eq("id", oldClientId);
+          if (clientUserError && !clientUserError.message.includes("duplicate")) {
+            throw clientUserError;
+          }
+        }
       }
 
       toast({
@@ -409,13 +430,11 @@ const Users = () => {
     
     setDeleting(true);
     try {
-      // Remover vínculo com cliente se existir
-      if (userToDelete.linked_client) {
-        await supabase
-          .from("clients")
-          .update({ user_id: null })
-          .eq("id", userToDelete.linked_client.id);
-      }
+      // Remover vínculos na tabela client_users
+      await supabase
+        .from("client_users")
+        .delete()
+        .eq("user_id", userToDelete.id);
 
       // Remover role
       await supabase
@@ -484,14 +503,6 @@ const Users = () => {
     const userRole = user.user_roles?.[0]?.role || user.role;
     return userRole === roleFilter;
   });
-
-  // Todos os clientes para vinculação (mostrar quais já estão vinculados)
-  const getAllClientsForLinking = (currentClientId?: string) => {
-    return clients.map(c => ({
-      ...c,
-      isAvailable: !c.user_id || c.id === currentClientId,
-    }));
-  };
 
   if (!isAdmin) {
     return (
@@ -618,14 +629,9 @@ const Users = () => {
                             <SelectValue placeholder="Selecione um cliente" />
                           </SelectTrigger>
                           <SelectContent>
-                            {getAllClientsForLinking().map((client) => (
+                            {clients.map((client) => (
                               <SelectItem key={client.id} value={client.id}>
-                                <span className="flex items-center gap-2">
-                                  {client.company_name}
-                                  {!client.isAvailable && (
-                                    <span className="text-xs text-muted-foreground">(já vinculado)</span>
-                                  )}
-                                </span>
+                                {client.company_name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -722,10 +728,17 @@ const Users = () => {
                       <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
                       <span className="truncate">{user.email}</span>
                     </div>
-                    {user.linked_client && (
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span className="truncate">{user.linked_client.company_name}</span>
+                    {user.linked_clients && user.linked_clients.length > 0 && (
+                      <div className="flex items-start text-sm text-muted-foreground">
+                        <Building2 className="h-4 w-4 mr-2 flex-shrink-0 mt-0.5" />
+                        <div className="flex flex-wrap gap-1">
+                          {user.linked_clients.map((client, idx) => (
+                            <span key={client.id} className="truncate">
+                              {client.company_name}
+                              {idx < user.linked_clients.length - 1 && ", "}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </CardContent>
@@ -801,14 +814,9 @@ const Users = () => {
                       <SelectValue placeholder="Selecione um cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      {getAllClientsForLinking(userToEdit?.linked_client?.id).map((client) => (
+                      {clients.map((client) => (
                         <SelectItem key={client.id} value={client.id}>
-                          <span className="flex items-center gap-2">
-                            {client.company_name}
-                            {!client.isAvailable && (
-                              <span className="text-xs text-muted-foreground">(já vinculado)</span>
-                            )}
-                          </span>
+                          {client.company_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -835,9 +843,9 @@ const Users = () => {
             <AlertDialogTitle>Excluir Usuário</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir o usuário "{userToDelete?.full_name}"?
-              {userToDelete?.linked_client && (
+              {userToDelete?.linked_clients && userToDelete.linked_clients.length > 0 && (
                 <span className="block mt-2 text-amber-600">
-                  O vínculo com o cliente "{userToDelete.linked_client.company_name}" será removido.
+                  O vínculo com {userToDelete.linked_clients.length > 1 ? "os clientes" : "o cliente"} "{userToDelete.linked_clients.map(c => c.company_name).join(", ")}" será removido.
                 </span>
               )}
               <span className="block mt-2">
