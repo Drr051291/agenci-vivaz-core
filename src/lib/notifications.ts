@@ -21,7 +21,7 @@ export async function createNotification({
   referenceId,
   referenceType,
   clientId,
-  sendEmail = true,
+  sendEmail = false, // Temporariamente desabilitado
 }: CreateNotificationParams): Promise<{ success: boolean; error?: string }> {
   try {
     // Insert notification into database
