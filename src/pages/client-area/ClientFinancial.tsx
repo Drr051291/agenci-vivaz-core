@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
 import { DollarSign, FileText, CreditCard, Eye, Download, Link2Off, ExternalLink } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useClientUser } from "@/hooks/useClientUser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,68 +13,20 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { PaymentFilters, PaymentFilterState } from "@/components/client-details/PaymentFilters";
+import { toast } from "sonner";
 
 const ClientFinancial = () => {
-  const [loading, setLoading] = useState(true);
-  const [clientId, setClientId] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const { toast } = useToast();
   const [paymentFilters, setPaymentFilters] = useState<PaymentFilterState>({
     status: "all",
   });
+
+  const { clientId, loading: authLoading, error } = useClientUser();
 
   usePageMeta({
     title: "Financeiro - Área do Cliente",
     description: "Acompanhe suas cobranças e assinaturas",
     keywords: "financeiro, cobranças, assinaturas, área do cliente, vivaz",
   });
-
-  useEffect(() => {
-    const checkAuthAndLoadClient = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-
-      // Verificar se é cliente
-      const { data: userRole } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .single();
-
-      if (userRole?.role !== "client") {
-        navigate("/dashboard");
-        return;
-      }
-
-      // Buscar cliente vinculado
-      const { data: client } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("user_id", session.user.id)
-        .single();
-
-      if (!client) {
-        toast({
-          title: "Erro",
-          description: "Cliente não encontrado",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      setClientId(client.id);
-      setLoading(false);
-    };
-
-    checkAuthAndLoadClient();
-  }, [navigate, toast]);
 
   // Buscar vínculo com Asaas
   const { data: asaasLink, isLoading: linkLoading } = useQuery({
@@ -162,17 +113,10 @@ const ClientFinancial = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      toast({
-        title: "Sucesso",
-        description: "Download iniciado",
-      });
+      toast.success("Download iniciado");
     } catch (error: any) {
       console.error("Erro ao baixar nota fiscal:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao baixar nota fiscal",
-        variant: "destructive",
-      });
+      toast.error("Erro ao baixar nota fiscal");
     }
   };
 
@@ -233,12 +177,24 @@ const ClientFinancial = () => {
     }
   };
 
-  if (loading || linkLoading) {
+  if (authLoading || linkLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-muted-foreground text-center">{error}</p>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }

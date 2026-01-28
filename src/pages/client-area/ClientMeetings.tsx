@@ -9,6 +9,7 @@ import { ptBR } from "date-fns/locale";
 import { safeFormatDate } from "@/lib/dateUtils";
 import { toast } from "sonner";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useClientUser } from "@/hooks/useClientUser";
 
 interface MeetingMinute {
   id: string;
@@ -30,9 +31,11 @@ interface Dashboard {
 
 export default function ClientMeetings() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [meetings, setMeetings] = useState<MeetingMinute[]>([]);
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
+  
+  const { clientId, loading: authLoading, error } = useClientUser();
 
   usePageMeta({
     title: "Minhas Reuniões - Área do Cliente",
@@ -41,67 +44,39 @@ export default function ClientMeetings() {
   });
 
   useEffect(() => {
-    checkAuthAndLoadData();
-  }, []);
+    if (!authLoading && clientId) {
+      loadMeetingsData();
+    }
+  }, [authLoading, clientId]);
 
-  const checkAuthAndLoadData = async () => {
+  const loadMeetingsData = async () => {
+    if (!clientId) return;
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
-
-      // Verificar role do usuário
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      if (profile?.role !== "client") {
-        navigate("/auth");
-        return;
-      }
-
-      // Buscar cliente vinculado
-      const { data: client } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!client) {
-        toast.error("Nenhum cliente vinculado encontrado");
-        navigate("/auth");
-        return;
-      }
-
       // Buscar dashboards do cliente
       const { data: dashboardsData } = await supabase
         .from("client_dashboards")
         .select("id, name, dashboard_type")
-        .eq("client_id", client.id)
+        .eq("client_id", clientId)
         .eq("is_active", true);
 
       setDashboards(dashboardsData || []);
 
       // Buscar reuniões do cliente
-      const { data: meetingsData, error } = await supabase
+      const { data: meetingsData, error: meetingsError } = await supabase
         .from("meeting_minutes")
         .select("*")
-        .eq("client_id", client.id)
+        .eq("client_id", clientId)
         .order("meeting_date", { ascending: false });
 
-      if (error) throw error;
+      if (meetingsError) throw meetingsError;
 
       setMeetings(meetingsData || []);
-    } catch (error) {
-      console.error("Erro ao carregar dados:", error);
+    } catch (err) {
+      console.error("Erro ao carregar dados:", err);
       toast.error("Erro ao carregar reuniões");
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -124,12 +99,24 @@ export default function ClientMeetings() {
       .map(d => d.name);
   };
 
-  if (loading) {
+  if (authLoading || dataLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-muted-foreground text-center">{error}</p>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }

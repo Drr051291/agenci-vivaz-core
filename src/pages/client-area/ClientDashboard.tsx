@@ -5,21 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { Building2, Calendar, FileText, CheckSquare, Clock, ArrowRight } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
-
+import { useClientUser } from "@/hooks/useClientUser";
 import { ptBR } from "date-fns/locale";
 import { safeFormatDate } from "@/lib/dateUtils";
-
-interface ClientData {
-  id: string;
-  company_name: string;
-  segment: string;
-  contact_name: string | null;
-  contract_start: string | null;
-  status: string;
-}
 
 interface UpcomingMeeting {
   id: string;
@@ -44,13 +34,13 @@ interface RecentActivity {
 }
 
 const ClientDashboard = () => {
-  const [clientData, setClientData] = useState<ClientData | null>(null);
   const [upcomingMeetings, setUpcomingMeetings] = useState<UpcomingMeeting[]>([]);
   const [myTasks, setMyTasks] = useState<MyTask[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const navigate = useNavigate();
-  const { toast } = useToast();
+  
+  const { clientId, clientData, userId, loading: authLoading, error } = useClientUser();
 
   usePageMeta({
     title: "Área do Cliente",
@@ -59,53 +49,21 @@ const ClientDashboard = () => {
   });
 
   useEffect(() => {
-    const checkAuthAndLoadData = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    if (!authLoading && clientId && userId) {
+      loadDashboardData();
+    }
+  }, [authLoading, clientId, userId]);
 
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
+  const loadDashboardData = async () => {
+    if (!clientId || !userId) return;
 
-      // Verificar se é cliente
-      const { data: userRole } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .single();
-
-      if (userRole?.role !== "client") {
-        navigate("/dashboard");
-        return;
-      }
-
-      // Buscar dados do cliente vinculado
-      const { data: client, error } = await supabase
-        .from("clients")
-        .select("id, company_name, segment, contact_name, contract_start, status")
-        .eq("user_id", session.user.id)
-        .single();
-
-      if (error || !client) {
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar os dados do cliente.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      setClientData(client);
-
+    try {
       // Buscar próximas reuniões (próximas 3)
       const today = new Date().toISOString();
       const { data: meetings } = await supabase
         .from("meeting_minutes")
         .select("id, title, meeting_date")
-        .eq("client_id", client.id)
+        .eq("client_id", clientId)
         .gte("meeting_date", today)
         .order("meeting_date", { ascending: true })
         .limit(3);
@@ -116,8 +74,8 @@ const ClientDashboard = () => {
       const { data: tasks } = await supabase
         .from("tasks")
         .select("id, title, status, priority, due_date")
-        .eq("client_id", client.id)
-        .eq("assigned_to", session.user.id)
+        .eq("client_id", clientId)
+        .eq("assigned_to", userId)
         .not("status", "eq", "done")
         .order("due_date", { ascending: true, nullsFirst: false })
         .limit(5);
@@ -129,13 +87,13 @@ const ClientDashboard = () => {
         supabase
           .from("meeting_minutes")
           .select("id, title, meeting_date")
-          .eq("client_id", client.id)
+          .eq("client_id", clientId)
           .order("meeting_date", { ascending: false })
           .limit(3),
         supabase
           .from("tasks")
           .select("id, title, created_at, status")
-          .eq("client_id", client.id)
+          .eq("client_id", clientId)
           .order("created_at", { ascending: false })
           .limit(3),
       ]);
@@ -162,11 +120,12 @@ const ClientDashboard = () => {
       }).slice(0, 5);
 
       setRecentActivity(activities);
-      setLoading(false);
-    };
-
-    checkAuthAndLoadData();
-  }, [navigate, toast]);
+    } catch (err) {
+      console.error("Erro ao carregar dados do dashboard:", err);
+    } finally {
+      setDataLoading(false);
+    }
+  };
 
   const getSegmentColor = (segment: string) => {
     const colors: Record<string, string> = {
@@ -224,7 +183,7 @@ const ClientDashboard = () => {
     );
   };
 
-  if (loading) {
+  if (authLoading || dataLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
@@ -234,13 +193,13 @@ const ClientDashboard = () => {
     );
   }
 
-  if (!clientData) {
+  if (error || !clientData) {
     return (
       <DashboardLayout>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <p className="text-muted-foreground text-center">
-              Não foi possível carregar os dados do cliente.
+              {error || "Não foi possível carregar os dados do cliente."}
             </p>
           </CardContent>
         </Card>

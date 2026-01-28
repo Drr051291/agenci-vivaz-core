@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { CheckSquare, User, Calendar, Clock, Filter } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useClientUser } from "@/hooks/useClientUser";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { LayoutGrid, List, Calendar as CalendarIcon } from "lucide-react";
@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TASK_CATEGORIES, TaskCategory, getStatusLabel, getStatusColor, getPriorityColor, getPriorityLabel } from "@/lib/taskCategories";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { TaskKanbanView } from "@/components/tasks/TaskKanbanView";
@@ -37,17 +37,17 @@ interface Task {
 }
 
 const ClientTasks = () => {
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar">("list");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [assignmentFilter, setAssignmentFilter] = useState<string>("all");
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { toast } = useToast();
   const taskIdFromUrl = searchParams.get("task");
+
+  const { clientId, userId, loading: authLoading, error } = useClientUser();
 
   usePageMeta({
     title: "Atividades - Área do Cliente",
@@ -56,8 +56,10 @@ const ClientTasks = () => {
   });
 
   useEffect(() => {
-    checkAuthAndLoadTasks();
-  }, [navigate, toast]);
+    if (!authLoading && clientId) {
+      loadTasksData();
+    }
+  }, [authLoading, clientId]);
 
   // Handle deep link to specific task from email notification
   useEffect(() => {
@@ -71,71 +73,32 @@ const ClientTasks = () => {
     }
   }, [taskIdFromUrl, tasks, setSearchParams]);
 
-  const checkAuthAndLoadTasks = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+  const loadTasksData = async () => {
+    if (!clientId) return;
 
-    if (!session) {
-      navigate("/auth");
-      return;
+    try {
+      // Buscar tasks do cliente
+      const { data: tasksData, error: tasksError } = await supabase
+        .from("tasks")
+        .select(`
+          *,
+          assigned_profile:profiles!tasks_assigned_to_fkey (
+            full_name
+          )
+        `)
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false });
+
+      if (tasksError) {
+        console.error("Erro ao buscar tasks:", tasksError);
+      } else {
+        setTasks(tasksData || []);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar atividades:", err);
+    } finally {
+      setDataLoading(false);
     }
-
-    setCurrentUserId(session.user.id);
-
-    // Verificar se é cliente
-    const { data: userRole } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (userRole?.role !== "client") {
-      navigate("/dashboard");
-      return;
-    }
-
-    // Buscar cliente vinculado
-    const { data: client } = await supabase
-      .from("clients")
-      .select("id")
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (!client) {
-      toast({
-        title: "Erro",
-        description: "Cliente não encontrado",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-
-    // Buscar tasks do cliente
-    const { data: tasksData, error } = await supabase
-      .from("tasks")
-      .select(`
-        *,
-        assigned_profile:profiles!tasks_assigned_to_fkey (
-          full_name
-        )
-      `)
-      .eq("client_id", client.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Erro ao buscar tasks:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as atividades",
-        variant: "destructive",
-      });
-    } else {
-      setTasks(tasksData || []);
-    }
-
-    setLoading(false);
   };
 
   // Aplicar filtros
@@ -143,32 +106,44 @@ const ClientTasks = () => {
     const categoryMatch = categoryFilter === "all" || task.category === categoryFilter;
     const assignmentMatch = 
       assignmentFilter === "all" ||
-      (assignmentFilter === "mine" && task.assigned_to === currentUserId) ||
-      (assignmentFilter === "others" && task.assigned_to !== currentUserId);
+      (assignmentFilter === "mine" && task.assigned_to === userId) ||
+      (assignmentFilter === "others" && task.assigned_to !== userId);
     return categoryMatch && assignmentMatch;
   });
 
   // Separar tarefas por atribuição
-  const myTasks = filteredTasks.filter(t => t.assigned_to === currentUserId);
-  const otherTasks = filteredTasks.filter(t => t.assigned_to !== currentUserId);
+  const myTasks = filteredTasks.filter(t => t.assigned_to === userId);
+  const otherTasks = filteredTasks.filter(t => t.assigned_to !== userId);
 
   // Check if user can edit the selected task (only if they are the assignee)
-  const canEditSelectedTask = selectedTask?.assigned_to === currentUserId;
+  const canEditSelectedTask = selectedTask?.assigned_to === userId;
 
   // Estatísticas
   const stats = {
     total: tasks.length,
-    myTasks: tasks.filter(t => t.assigned_to === currentUserId).length,
+    myTasks: tasks.filter(t => t.assigned_to === userId).length,
     pending: tasks.filter(t => t.status === "pendente" || t.status === "em_andamento").length,
     completed: tasks.filter(t => t.status === "concluido").length,
   };
 
-  if (loading) {
+  if (authLoading || dataLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-muted-foreground text-center">{error}</p>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }
@@ -421,7 +396,7 @@ const ClientTasks = () => {
           onOpenChange={(open) => !open && setSelectedTask(null)}
           task={selectedTask}
           canEdit={canEditSelectedTask}
-          onUpdate={checkAuthAndLoadTasks}
+          onUpdate={loadTasksData}
         />
       </div>
     </DashboardLayout>

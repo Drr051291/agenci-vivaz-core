@@ -1,62 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Bot, Menu, X, MessageSquare } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Bot, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { VivazAIChat, VivazAISessionHistory } from '@/components/vivaz-ai';
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { useClientUser } from '@/hooks/useClientUser';
 
 export default function ClientVivazAI() {
-  const [profile, setProfile] = useState<{ role: string } | null>(null);
-  const [client, setClient] = useState<{ id: string; company_name: string } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
 
-  useEffect(() => {
-    checkUserAccess();
-  }, []);
-
-  const checkUserAccess = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      // Get profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (!profileData || profileData.role !== 'client') {
-        setLoading(false);
-        return;
-      }
-
-      setProfile(profileData);
-
-      // Get client data
-      const { data: clientData } = await supabase
-        .from('clients')
-        .select('id, company_name')
-        .eq('user_id', user.id)
-        .single();
-
-      if (clientData) {
-        setClient(clientData);
-      }
-    } catch (error) {
-      console.error('Error checking access:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { clientId, clientData, loading, error } = useClientUser({ redirectOnFail: false });
 
   const handleNewSession = () => {
     setCurrentSessionId(null);
@@ -86,16 +40,8 @@ export default function ClientVivazAI() {
     );
   }
 
-  if (!profile || profile.role !== 'client') {
+  if (error || !clientId || !clientData) {
     return <Navigate to="/auth" replace />;
-  }
-
-  if (!client) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Nenhum cliente vinculado à sua conta.</p>
-      </div>
-    );
   }
 
   return (
@@ -109,13 +55,13 @@ export default function ClientVivazAI() {
             </div>
             <div>
               <h1 className="font-semibold">Vivaz AI</h1>
-              <p className="text-xs text-muted-foreground">{client.company_name}</p>
+              <p className="text-xs text-muted-foreground">{clientData.company_name}</p>
             </div>
           </div>
         </div>
         
         <VivazAISessionHistory
-          clientId={client.id}
+          clientId={clientId}
           currentSessionId={currentSessionId}
           onSelectSession={handleSelectSession}
           onNewSession={handleNewSession}
@@ -149,13 +95,13 @@ export default function ClientVivazAI() {
                   </div>
                   <div>
                     <h1 className="font-semibold">Vivaz AI</h1>
-                    <p className="text-xs text-muted-foreground">{client.company_name}</p>
+                    <p className="text-xs text-muted-foreground">{clientData.company_name}</p>
                   </div>
                 </div>
               </div>
               
               <VivazAISessionHistory
-                clientId={client.id}
+                clientId={clientId}
                 currentSessionId={currentSessionId}
                 onSelectSession={handleSelectSession}
                 onNewSession={handleNewSession}
@@ -169,8 +115,8 @@ export default function ClientVivazAI() {
         {/* Chat Area */}
         <div className="flex-1 flex flex-col min-h-0">
           <VivazAIChat
-            clientId={client.id}
-            clientName={client.company_name}
+            clientId={clientId}
+            clientName={clientData.company_name}
             sessionId={currentSessionId}
             onSessionCreated={handleSessionCreated}
             showQuickActions={true}
