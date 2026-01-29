@@ -10,6 +10,7 @@ import { StageInfo } from './types';
 
 interface FunnelStepperProps {
   conversions: Record<string, number>;
+  stageCounts?: Record<number, number>;
   allStages?: StageInfo[];
   loading?: boolean;
 }
@@ -31,7 +32,7 @@ function simplifyName(name: string): string {
   return simplified.length > 12 ? simplified.substring(0, 10) + '...' : simplified;
 }
 
-export function FunnelStepper({ conversions, allStages = [], loading = false }: FunnelStepperProps) {
+export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], loading = false }: FunnelStepperProps) {
   // Use ALL stages from the pipeline
   const displayStages = allStages;
   
@@ -94,7 +95,7 @@ export function FunnelStepper({ conversions, allStages = [], loading = false }: 
                   <TooltipTrigger asChild>
                     <div
                       className={cn(
-                        'w-full py-3 px-2 rounded-lg text-white text-center relative cursor-help',
+                        'w-full py-2 px-2 rounded-lg text-white text-center relative cursor-help',
                         STAGE_COLORS[index % STAGE_COLORS.length]
                       )}
                       style={{
@@ -106,14 +107,22 @@ export function FunnelStepper({ conversions, allStages = [], loading = false }: 
                       {loading ? (
                         <Skeleton className="h-4 w-16 mx-auto bg-white/30" />
                       ) : (
-                        <span className="text-xs font-semibold truncate block">
-                          {simplifyName(stage.name)}
-                        </span>
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-xs font-semibold truncate block">
+                            {simplifyName(stage.name)}
+                          </span>
+                          <span className="text-[10px] font-bold opacity-90">
+                            {stageCounts[stage.id] ?? 0} deals
+                          </span>
+                        </div>
                       )}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="text-xs">{stage.name}</p>
+                    <div className="text-xs">
+                      <p className="font-semibold">{stage.name}</p>
+                      <p className="text-muted-foreground">{stageCounts[stage.id] ?? 0} negócios ativos</p>
+                    </div>
                   </TooltipContent>
                 </Tooltip>
               </div>

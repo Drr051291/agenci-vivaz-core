@@ -55,6 +55,7 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
 
   // Get conversion values
   const conversions = data?.conversions || {};
+  const stageCounts = data?.stage_counts || {};
   const leadsCount = data?.leads_count || 0;
 
   return (
@@ -151,6 +152,7 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
         <CardContent className="pt-6">
           <FunnelStepper 
             conversions={conversions} 
+            stageCounts={stageCounts}
             allStages={data?.all_stages}
             loading={loading} 
           />

@@ -209,6 +209,69 @@ async function getMovementStatistics(
   return response
 }
 
+async function getDealsPerStage(
+  supabase: AnySupabaseClient,
+  pipelineId: number,
+  stages: StageInfo[],
+  forceRefresh: boolean
+): Promise<Record<number, number>> {
+  const cacheKey = `deals_per_stage_${pipelineId}`
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached deals per stage')
+      return cached.payload as Record<number, number>
+    }
+  }
+
+  // Get deal summary per stage using deals/summary endpoint
+  const result: Record<number, number> = {}
+  
+  // Fetch deals summary which includes count per stage
+  const response = await fetchFromPipedrive('/v1/deals/summary', {
+    pipeline_id: pipelineId.toString(),
+    status: 'open'
+  }) as { 
+    data?: { 
+      values_total?: { 
+        value_weighted?: number 
+      }
+      stages_summary?: Array<{
+        stage_id: number
+        count: number
+      }>
+    } 
+  }
+
+  // If stages_summary is available, use it
+  if (response?.data?.stages_summary) {
+    response.data.stages_summary.forEach(ss => {
+      result[ss.stage_id] = ss.count
+    })
+  } else {
+    // Fallback: Fetch count per stage individually (more expensive)
+    for (const stage of stages) {
+      try {
+        const stageDeals = await fetchFromPipedrive('/api/v2/deals', {
+          pipeline_id: pipelineId.toString(),
+          stage_id: stage.id.toString(),
+          status: 'open',
+          limit: '1'
+        }) as { additional_data?: { pagination?: { count?: number } } }
+        
+        result[stage.id] = stageDeals?.additional_data?.pagination?.count || 0
+      } catch (e) {
+        console.error(`Error fetching deals for stage ${stage.id}:`, e)
+        result[stage.id] = 0
+      }
+    }
+  }
+
+  await setCachedData(supabase, cacheKey, result, TTL_CONFIG.deals)
+  return result
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -247,16 +310,17 @@ serve(async (req) => {
 
       case 'get_funnel_data': {
         // Get all data needed for funnel dashboard
-        const [stagesResult, conversionStats, movementStats] = await Promise.all([
-          getStagesMap(supabase, pipeline_id, forceRefresh),
-          getConversionStatistics(supabase, pipeline_id, start_date, end_date, forceRefresh),
-          getMovementStatistics(supabase, pipeline_id, start_date, end_date, forceRefresh)
-        ])
-
-        // Sort all stages by order_nr to get the actual pipeline flow
+        // First get stages, then fetch all other data including deals per stage
+        const stagesResult = await getStagesMap(supabase, pipeline_id, forceRefresh)
         const allStagesSorted = [...stagesResult.all].sort((a, b) => a.order_nr - b.order_nr)
 
         console.log('All stages sorted by order:', allStagesSorted.map(s => ({ id: s.id, name: s.name, order: s.order_nr })))
+
+        const [conversionStats, movementStats, dealsPerStage] = await Promise.all([
+          getConversionStatistics(supabase, pipeline_id, start_date, end_date, forceRefresh),
+          getMovementStatistics(supabase, pipeline_id, start_date, end_date, forceRefresh),
+          getDealsPerStage(supabase, pipeline_id, allStagesSorted, forceRefresh)
+        ])
 
         // Parse conversion statistics - handle array format from Pipedrive API
         const convData = conversionStats as { 
@@ -316,13 +380,14 @@ serve(async (req) => {
                           0
 
         console.log('Leads count:', leadsCount)
+        console.log('Deals per stage:', dealsPerStage)
 
-        // Get stage-specific counts if available
-        const stageData: Record<string, { entries: number }> = {}
+        // Get stage-specific counts
+        const stageData: Record<number, { count: number; name: string }> = {}
         allStagesSorted.forEach(stage => {
-          const simpleName = stage.name.toLowerCase().split(' ')[0].split('(')[0]
-          stageData[simpleName] = {
-            entries: 0 // Would need additional API call to get this
+          stageData[stage.id] = {
+            count: dealsPerStage[stage.id] || 0,
+            name: stage.name
           }
         })
 
@@ -334,6 +399,7 @@ serve(async (req) => {
               all_stages: allStagesSorted,
               conversions,
               leads_count: leadsCount,
+              stage_counts: dealsPerStage,
               stage_data: stageData,
               raw_conversion_stats: conversionStats,
               raw_movement_stats: movementStats,
