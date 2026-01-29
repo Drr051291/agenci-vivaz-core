@@ -303,23 +303,36 @@ serve(async (req) => {
           getDealsPerStage(supabase, pipeline_id, allStagesSorted, forceRefresh)
         ])
 
+        // Log raw conversion stats to understand the data structure
+        console.log('Raw conversion stats full:', JSON.stringify(conversionStats, null, 2))
+        
         // Parse conversion statistics - handle array format from Pipedrive API
         const convData = conversionStats as { 
+          success?: boolean
           data?: { 
             stage_conversions?: Array<{ 
               conversion_rate: number
               from_stage_id: number
-              to_stage_id: number 
+              to_stage_id: number
+              deals_converted?: number
+              deals_entered?: number
+              count?: number
             }> 
           } 
         }
         const stageConversionsArray = convData?.data?.stage_conversions || []
         
-        // Create a map of stage transitions: "fromId_toId" -> conversion_rate
-        const conversionMap = new Map<string, number>()
+        console.log('Stage conversions array:', JSON.stringify(stageConversionsArray, null, 2))
+        
+        // Create a map of stage transitions: "fromId_toId" -> { rate, dealsEntered, dealsConverted }
+        const conversionMap = new Map<string, { rate: number; entered: number; converted: number }>()
         stageConversionsArray.forEach(conv => {
           const key = `${conv.from_stage_id}_${conv.to_stage_id}`
-          conversionMap.set(key, conv.conversion_rate)
+          conversionMap.set(key, { 
+            rate: conv.conversion_rate, 
+            entered: conv.deals_entered || 0,
+            converted: conv.deals_converted || 0
+          })
         })
         
         console.log('Conversion map entries:', Array.from(conversionMap.entries()))
@@ -334,7 +347,8 @@ serve(async (req) => {
           const fromStage = allStagesSorted[i]
           const toStage = allStagesSorted[i + 1]
           const idKey = `${fromStage.id}_${toStage.id}`
-          const rate = conversionMap.get(idKey) ?? 0
+          const convInfo = conversionMap.get(idKey)
+          const rate = convInfo?.rate ?? 0
           
           // Add with ID-based key
           conversions[idKey] = rate
@@ -349,6 +363,7 @@ serve(async (req) => {
 
         // Parse movement statistics for arrivals per stage (period flow)
         const movData = movementStats as { 
+          success?: boolean
           data?: { 
             new_deals?: { count?: number }
             deals_started?: number
@@ -366,12 +381,14 @@ serve(async (req) => {
 
         console.log('Leads count:', leadsCount)
         console.log('Deals per stage (current):', dealsPerStage)
-        console.log('Raw movement stats:', JSON.stringify(movData?.data, null, 2))
+        console.log('Raw conversion stats:', JSON.stringify(convData?.data, null, 2))
 
-        // Parse stage arrivals from conversion_statistics
-        // The conversion_statistics gives us deals_entered for each stage transition
-        // For the first stage, it's leadsCount
-        // For subsequent stages, we calculate from the conversion rate * previous stage arrivals
+        // Build stage arrivals from conversion_statistics data
+        // Each stage_conversion has deals_converted which represents 
+        // how many deals moved from one stage to the next
+        // The "Chegou à etapa" (arrived at stage) follows this pattern:
+        // - First stage: leadsCount (new deals entering the pipeline)
+        // - Subsequent stages: deals that converted from the previous stage
         const stageArrivals: Record<number, number> = {}
         
         // First stage gets all new leads
@@ -379,19 +396,25 @@ serve(async (req) => {
           stageArrivals[allStagesSorted[0].id] = leadsCount
         }
         
-        // Calculate arrivals for subsequent stages using conversion rates
-        // Stage N arrivals = Stage N-1 arrivals * conversion_rate / 100
+        // For each subsequent stage, arrivals = deals_converted from previous stage transition
+        // OR calculate from: previous_arrivals * conversion_rate / 100
         for (let i = 1; i < allStagesSorted.length; i++) {
           const prevStage = allStagesSorted[i - 1]
           const currStage = allStagesSorted[i]
           const convKey = `${prevStage.id}_${currStage.id}`
-          const convRate = conversionMap.get(convKey) ?? 0
-          const prevArrivals = stageArrivals[prevStage.id] || 0
+          const convInfo = conversionMap.get(convKey)
           
-          // Arrivals = previous stage arrivals * conversion rate
-          stageArrivals[currStage.id] = Math.round(prevArrivals * convRate / 100)
-          
-          console.log(`Stage ${currStage.name} arrivals: ${prevArrivals} * ${convRate}% = ${stageArrivals[currStage.id]}`)
+          if (convInfo && convInfo.converted > 0) {
+            // Use actual converted deals count if available
+            stageArrivals[currStage.id] = convInfo.converted
+            console.log(`Stage ${currStage.name} arrivals: ${convInfo.converted} (from deals_converted)`)
+          } else {
+            // Fallback: calculate from previous arrivals * rate
+            const prevArrivals = stageArrivals[prevStage.id] || 0
+            const rate = convInfo?.rate ?? 0
+            stageArrivals[currStage.id] = Math.round(prevArrivals * rate / 100)
+            console.log(`Stage ${currStage.name} arrivals: ${prevArrivals} * ${rate}% = ${stageArrivals[currStage.id]} (calculated)`)
+          }
         }
 
         console.log('Stage arrivals (period):', stageArrivals)
