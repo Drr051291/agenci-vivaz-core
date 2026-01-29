@@ -27,7 +27,7 @@ interface MetricsSectionProps {
 }
 
 const UNIT_OPTIONS = [
-  { value: "", label: "Número" },
+  { value: "numero", label: "Número" },
   { value: "R$", label: "R$ (Moeda)" },
   { value: "%", label: "% (Percentual)" },
   { value: "x", label: "x (Multiplicador)" },
@@ -38,7 +38,7 @@ const UNIT_OPTIONS = [
 
 const DEFAULT_METRICS = [
   { metric_key: "investimento", metric_label: "Investimento", unit: "R$" },
-  { metric_key: "leads", metric_label: "Leads", unit: "" },
+  { metric_key: "leads", metric_label: "Leads", unit: "numero" },
   { metric_key: "cpl", metric_label: "CPL", unit: "R$" },
   { metric_key: "conversao", metric_label: "Taxa de Conversão", unit: "%" },
   { metric_key: "roas", metric_label: "ROAS", unit: "x" },
@@ -132,6 +132,7 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
           if (metric.unit === "R$") return `R$ ${formatted}`;
           if (metric.unit === "%") return `${formatted}%`;
           if (metric.unit === "x") return `${formatted}x`;
+          if (metric.unit === "numero" || metric.unit === "") return formatted;
           if (metric.unit) return `${formatted} ${metric.unit}`;
           return formatted;
         };
@@ -161,8 +162,8 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
             {isEditing && (
               <div>
                 <Select
-                  value={metric.unit}
-                  onValueChange={(value) => handleChange(index, "unit", value)}
+                  value={metric.unit || "numero"}
+                  onValueChange={(value) => handleChange(index, "unit", value === "numero" ? "" : value)}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Un." />
@@ -238,10 +239,15 @@ export function MetricsSection({ metrics, onChange, isEditing = false }: Metrics
             {isEditing && (
               <div className="flex justify-end">
                 <Button
+                  type="button"
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                  onClick={() => removeMetric(index)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeMetric(index);
+                  }}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
