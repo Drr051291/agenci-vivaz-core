@@ -23,7 +23,7 @@ export interface FunnelResponse {
   error?: string;
 }
 
-export type PeriodPreset = '7d' | '30d' | '90d' | 'custom';
+export type PeriodPreset = 'today' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'custom';
 
 export type ViewMode = 'period' | 'snapshot';
 

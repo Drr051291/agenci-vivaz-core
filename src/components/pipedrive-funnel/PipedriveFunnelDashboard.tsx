@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, ExternalLink, AlertCircle, BarChart3, TrendingUp, Users } from 'lucide-react';
-import { format, subDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
@@ -21,8 +21,8 @@ interface PipedriveFunnelDashboardProps {
 
 export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardProps) {
   const [dateRange, setDateRange] = useState<DateRange>({
-    start: subDays(new Date(), 30),
-    end: new Date(),
+    start: startOfMonth(new Date()),
+    end: endOfMonth(new Date()),
   });
   const [viewMode, setViewMode] = useState<ViewMode>('period');
 
