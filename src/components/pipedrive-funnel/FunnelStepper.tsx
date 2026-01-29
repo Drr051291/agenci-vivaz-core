@@ -12,6 +12,7 @@ interface FunnelStepperProps {
   conversions: Record<string, number>;
   stageCounts?: Record<number, number>;
   allStages?: StageInfo[];
+  leadsCount?: number;
   loading?: boolean;
 }
 
@@ -32,7 +33,7 @@ function simplifyName(name: string): string {
   return simplified.length > 12 ? simplified.substring(0, 10) + '...' : simplified;
 }
 
-export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], loading = false }: FunnelStepperProps) {
+export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], leadsCount = 0, loading = false }: FunnelStepperProps) {
   // Use ALL stages from the pipeline
   const displayStages = allStages;
   
@@ -48,21 +49,33 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          Funil de Conversão
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-xs">
-              <p className="text-xs">
-                Taxa de conversão entre etapas consecutivas no período selecionado. 
-                Deals podem pular etapas; a conversão considera movimentações registradas.
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </h3>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
+          {/* KPI de Leads em destaque */}
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground">Leads no período</span>
+            {loading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <span className="text-2xl font-bold text-primary">{leadsCount}</span>
+            )}
+          </div>
+          <div className="h-8 w-px bg-border" />
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            Funil de Conversão
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                <p className="text-xs">
+                  Taxa de conversão entre etapas consecutivas no período selecionado. 
+                  Deals podem pular etapas; a conversão considera movimentações registradas.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </h3>
+        </div>
       </div>
 
       {/* Horizontal funnel stepper */}
