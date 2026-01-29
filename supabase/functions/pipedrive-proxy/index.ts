@@ -11,6 +11,10 @@ const PIPEDRIVE_BASE_URL = 'https://api.pipedrive.com'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || ''
 
+// Date filter: only consider deals created from this date onwards
+// This aligns with the new funnel stage rules implemented in November 2025
+const DEALS_CREATED_AFTER = '2025-11-01'
+
 // TTL configuration in seconds
 const TTL_CONFIG = {
   stages: 21600, // 6 hours
@@ -215,7 +219,7 @@ async function getDealsPerStage(
   stages: StageInfo[],
   forceRefresh: boolean
 ): Promise<Record<number, number>> {
-  const cacheKey = `deals_per_stage_${pipelineId}`
+  const cacheKey = `deals_per_stage_${pipelineId}_created_after_${DEALS_CREATED_AFTER}`
   
   if (!forceRefresh) {
     const cached = await getCachedData(supabase, cacheKey)
@@ -228,21 +232,28 @@ async function getDealsPerStage(
   const result: Record<number, number> = {}
   
   // Fetch deals for each stage using the v2 deals endpoint with filter
-  // This is more reliable than the summary endpoint
-  console.log('Fetching deals per stage for', stages.length, 'stages')
+  // Only count deals created on or after DEALS_CREATED_AFTER
+  console.log('Fetching deals per stage for', stages.length, 'stages (created after', DEALS_CREATED_AFTER, ')')
   
   for (const stage of stages) {
     try {
+      // Fetch all open deals in this stage
       const stageDeals = await fetchFromPipedrive('/api/v2/deals', {
         pipeline_id: pipelineId.toString(),
         stage_id: stage.id.toString(),
         status: 'open',
-        limit: '500' // Get enough to count
-      }) as { data?: Array<unknown> }
+        limit: '500'
+      }) as { data?: Array<{ add_time?: string }> }
       
-      const count = stageDeals?.data?.length || 0
-      result[stage.id] = count
-      console.log(`Stage ${stage.name} (${stage.id}): ${count} deals`)
+      // Filter deals by creation date (add_time >= DEALS_CREATED_AFTER)
+      const filteredDeals = (stageDeals?.data || []).filter(deal => {
+        if (!deal.add_time) return false
+        const addDate = deal.add_time.split('T')[0] // Get YYYY-MM-DD part
+        return addDate >= DEALS_CREATED_AFTER
+      })
+      
+      result[stage.id] = filteredDeals.length
+      console.log(`Stage ${stage.name} (${stage.id}): ${filteredDeals.length} deals (filtered from ${stageDeals?.data?.length || 0})`)
     } catch (e) {
       console.error(`Error fetching deals for stage ${stage.id}:`, e)
       result[stage.id] = 0
@@ -250,6 +261,94 @@ async function getDealsPerStage(
   }
 
   await setCachedData(supabase, cacheKey, result, TTL_CONFIG.deals)
+  return result
+}
+
+// Helper function to get deals that entered each stage during the period
+// Only considers deals created on or after DEALS_CREATED_AFTER
+async function getStageArrivalsFromDeals(
+  supabase: AnySupabaseClient,
+  pipelineId: number,
+  stages: StageInfo[],
+  startDate: string,
+  endDate: string,
+  forceRefresh: boolean
+): Promise<{ arrivals: Record<number, number>; totalNewDeals: number }> {
+  const cacheKey = `stage_arrivals_${pipelineId}_${startDate}_${endDate}_created_after_${DEALS_CREATED_AFTER}`
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached stage arrivals')
+      return cached.payload as { arrivals: Record<number, number>; totalNewDeals: number }
+    }
+  }
+
+  console.log('Calculating stage arrivals from deals (created after', DEALS_CREATED_AFTER, ')')
+  
+  // Fetch all deals in the pipeline (including won/lost to track movements)
+  const allDealsResponse = await fetchFromPipedrive('/api/v2/deals', {
+    pipeline_id: pipelineId.toString(),
+    limit: '500',
+    sort_by: 'add_time',
+    sort_direction: 'desc'
+  }) as { data?: Array<{ 
+    id: number
+    add_time?: string
+    stage_id?: number
+    status?: string
+    stage_change_time?: string
+  }> }
+
+  const allDeals = allDealsResponse?.data || []
+  
+  // Filter deals created on or after DEALS_CREATED_AFTER
+  const filteredDeals = allDeals.filter(deal => {
+    if (!deal.add_time) return false
+    const addDate = deal.add_time.split('T')[0]
+    return addDate >= DEALS_CREATED_AFTER
+  })
+
+  console.log(`Total deals: ${allDeals.length}, After ${DEALS_CREATED_AFTER}: ${filteredDeals.length}`)
+
+  // Count deals that were added during the period (new leads)
+  const newDealsInPeriod = filteredDeals.filter(deal => {
+    if (!deal.add_time) return false
+    const addDate = deal.add_time.split('T')[0]
+    return addDate >= startDate && addDate <= endDate
+  })
+
+  const totalNewDeals = newDealsInPeriod.length
+  console.log(`New deals in period ${startDate} to ${endDate}: ${totalNewDeals}`)
+
+  // For arrivals per stage, we need to count how many deals reached each stage during the period
+  // Since Pipedrive API doesn't give us historical stage transitions easily,
+  // we'll use the conversion statistics but apply the creation date filter logic
+  
+  // First stage gets all new deals from the period
+  const arrivals: Record<number, number> = {}
+  const sortedStages = [...stages].sort((a, b) => a.order_nr - b.order_nr)
+  
+  if (sortedStages.length > 0) {
+    arrivals[sortedStages[0].id] = totalNewDeals
+    
+    // For subsequent stages, we'll estimate based on deals currently in later stages
+    // that were created after the cutoff date
+    for (let i = 1; i < sortedStages.length; i++) {
+      const stageId = sortedStages[i].id
+      // Count deals in this stage or later stages (they "arrived" at this stage)
+      const dealsInOrPastStage = filteredDeals.filter(deal => {
+        const dealStageIndex = sortedStages.findIndex(s => s.id === deal.stage_id)
+        return dealStageIndex >= i
+      })
+      arrivals[stageId] = dealsInOrPastStage.length
+    }
+  }
+
+  console.log('Stage arrivals calculated:', arrivals)
+
+  const result = { arrivals, totalNewDeals }
+  await setCachedData(supabase, cacheKey, result, TTL_CONFIG.movement_statistics)
   return result
 }
 
@@ -296,11 +395,13 @@ serve(async (req) => {
         const allStagesSorted = [...stagesResult.all].sort((a, b) => a.order_nr - b.order_nr)
 
         console.log('All stages sorted by order:', allStagesSorted.map(s => ({ id: s.id, name: s.name, order: s.order_nr })))
+        console.log('Using deals created after filter:', DEALS_CREATED_AFTER)
 
-        const [conversionStats, movementStats, dealsPerStage] = await Promise.all([
+        // Fetch data in parallel - now using the filtered arrivals calculation
+        const [conversionStats, dealsPerStage, arrivalsData] = await Promise.all([
           getConversionStatistics(supabase, pipeline_id, start_date, end_date, forceRefresh),
-          getMovementStatistics(supabase, pipeline_id, start_date, end_date, forceRefresh),
-          getDealsPerStage(supabase, pipeline_id, allStagesSorted, forceRefresh)
+          getDealsPerStage(supabase, pipeline_id, allStagesSorted, forceRefresh),
+          getStageArrivalsFromDeals(supabase, pipeline_id, allStagesSorted, start_date, end_date, forceRefresh)
         ])
 
         // Log raw conversion stats to understand the data structure
@@ -337,7 +438,6 @@ serve(async (req) => {
         
         console.log('Conversion map entries:', Array.from(conversionMap.entries()))
 
-
         // Calculate conversion rates between consecutive stages
         const conversions: Record<string, number> = {}
         
@@ -361,63 +461,36 @@ serve(async (req) => {
           console.log(`Conversion ${fromName} -> ${toName} (${idKey}): ${rate}%`)
         }
 
-        // Parse movement statistics for arrivals per stage (period flow)
-        const movData = movementStats as { 
-          success?: boolean
-          data?: { 
-            new_deals?: { count?: number }
-            deals_started?: number
-            movements_between_stages?: {
-              count?: number
-              deals?: Array<unknown>
-            }
-          } 
-        }
-        
-        // Primary: new_deals.count (deals that entered the pipeline in the period)
-        const leadsCount = movData?.data?.new_deals?.count || 
-                          movData?.data?.deals_started || 
-                          0
+        // Use the filtered arrivals from the new function
+        const stageArrivals = arrivalsData.arrivals
+        const leadsCount = arrivalsData.totalNewDeals
 
-        console.log('Leads count:', leadsCount)
-        console.log('Deals per stage (current):', dealsPerStage)
-        console.log('Raw conversion stats:', JSON.stringify(convData?.data, null, 2))
+        console.log('Leads count (filtered):', leadsCount)
+        console.log('Deals per stage (current, filtered):', dealsPerStage)
+        console.log('Stage arrivals (period, filtered):', stageArrivals)
 
-        // Build stage arrivals from conversion_statistics data
-        // Each stage_conversion has deals_converted which represents 
-        // how many deals moved from one stage to the next
-        // The "Chegou à etapa" (arrived at stage) follows this pattern:
-        // - First stage: leadsCount (new deals entering the pipeline)
-        // - Subsequent stages: deals that converted from the previous stage
-        const stageArrivals: Record<number, number> = {}
-        
-        // First stage gets all new leads
-        if (allStagesSorted.length > 0) {
-          stageArrivals[allStagesSorted[0].id] = leadsCount
-        }
-        
-        // For each subsequent stage, arrivals = deals_converted from previous stage transition
-        // OR calculate from: previous_arrivals * conversion_rate / 100
-        for (let i = 1; i < allStagesSorted.length; i++) {
-          const prevStage = allStagesSorted[i - 1]
-          const currStage = allStagesSorted[i]
-          const convKey = `${prevStage.id}_${currStage.id}`
-          const convInfo = conversionMap.get(convKey)
+        // Recalculate conversion rates based on filtered data
+        // This gives more accurate conversions for the filtered dataset
+        for (let i = 0; i < allStagesSorted.length - 1; i++) {
+          const fromStage = allStagesSorted[i]
+          const toStage = allStagesSorted[i + 1]
+          const idKey = `${fromStage.id}_${toStage.id}`
           
-          if (convInfo && convInfo.converted > 0) {
-            // Use actual converted deals count if available
-            stageArrivals[currStage.id] = convInfo.converted
-            console.log(`Stage ${currStage.name} arrivals: ${convInfo.converted} (from deals_converted)`)
-          } else {
-            // Fallback: calculate from previous arrivals * rate
-            const prevArrivals = stageArrivals[prevStage.id] || 0
-            const rate = convInfo?.rate ?? 0
-            stageArrivals[currStage.id] = Math.round(prevArrivals * rate / 100)
-            console.log(`Stage ${currStage.name} arrivals: ${prevArrivals} * ${rate}% = ${stageArrivals[currStage.id]} (calculated)`)
+          const fromArrivals = stageArrivals[fromStage.id] || 0
+          const toArrivals = stageArrivals[toStage.id] || 0
+          
+          // Calculate conversion rate from filtered data
+          const calculatedRate = fromArrivals > 0 ? Math.round((toArrivals / fromArrivals) * 100) : 0
+          
+          // Use the calculated rate if we have data, otherwise keep the Pipedrive rate
+          if (fromArrivals > 0) {
+            conversions[idKey] = calculatedRate
+            const fromName = fromStage.name.toLowerCase().split(' ')[0].split('(')[0]
+            const toName = toStage.name.toLowerCase().split(' ')[0].split('(')[0]
+            conversions[`${fromName}_to_${toName}`] = calculatedRate
+            console.log(`Updated conversion ${fromName} -> ${toName}: ${calculatedRate}% (${toArrivals}/${fromArrivals})`)
           }
         }
-
-        console.log('Stage arrivals (period):', stageArrivals)
 
         // Get stage-specific counts
         const stageData: Record<number, { count: number; name: string }> = {}
@@ -437,10 +510,10 @@ serve(async (req) => {
               conversions,
               leads_count: leadsCount,
               stage_counts: dealsPerStage,
-              stage_arrivals: stageArrivals, // NEW: arrivals per stage during period
+              stage_arrivals: stageArrivals,
               stage_data: stageData,
+              deals_created_after: DEALS_CREATED_AFTER, // Include filter info in response
               raw_conversion_stats: conversionStats,
-              raw_movement_stats: movementStats,
               fetched_at: new Date().toISOString()
             }
           }),
