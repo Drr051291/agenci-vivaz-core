@@ -93,7 +93,36 @@ interface StageInfo {
   order_nr: number
 }
 
-async function getStagesMap(supabase: AnySupabaseClient, pipelineId: number, forceRefresh: boolean): Promise<Map<string, StageInfo>> {
+// Stage name aliases for flexible matching
+const STAGE_ALIASES: Record<string, string[]> = {
+  'lead': ['lead'],
+  'mql': ['mql'],
+  'sql': ['sql'],
+  'oportunidade': ['oportunidade', 'oportunidad'],
+  'contrato': ['contrato', 'negociação', 'negociacao', 'fechamento'],
+}
+
+function findStageByAlias(stages: StageInfo[], alias: string): StageInfo | undefined {
+  const aliases = STAGE_ALIASES[alias.toLowerCase()] || [alias.toLowerCase()]
+  
+  for (const stageAlias of aliases) {
+    // Try exact match first
+    const exactMatch = stages.find(s => s.name.toLowerCase() === stageAlias)
+    if (exactMatch) return exactMatch
+    
+    // Try partial match (stage name starts with alias)
+    const partialMatch = stages.find(s => s.name.toLowerCase().startsWith(stageAlias))
+    if (partialMatch) return partialMatch
+    
+    // Try contains match
+    const containsMatch = stages.find(s => s.name.toLowerCase().includes(stageAlias))
+    if (containsMatch) return containsMatch
+  }
+  
+  return undefined
+}
+
+async function getStagesMap(supabase: AnySupabaseClient, pipelineId: number, forceRefresh: boolean): Promise<{ map: Map<string, StageInfo>, all: StageInfo[] }> {
   const cacheKey = `stages_pipeline_${pipelineId}`
   
   if (!forceRefresh) {
@@ -103,7 +132,7 @@ async function getStagesMap(supabase: AnySupabaseClient, pipelineId: number, for
       const stagesArray = cached.payload as StageInfo[]
       const map = new Map<string, StageInfo>()
       stagesArray.forEach(stage => map.set(stage.name.toLowerCase(), stage))
-      return map
+      return { map, all: stagesArray }
     }
   }
 
@@ -125,7 +154,7 @@ async function getStagesMap(supabase: AnySupabaseClient, pipelineId: number, for
 
   const map = new Map<string, StageInfo>()
   stagesInfo.forEach(stage => map.set(stage.name.toLowerCase(), stage))
-  return map
+  return { map, all: stagesInfo }
 }
 
 async function getConversionStatistics(
@@ -209,65 +238,90 @@ serve(async (req) => {
 
     switch (action) {
       case 'get_stages': {
-        const stagesMap = await getStagesMap(supabase, pipeline_id, forceRefresh)
-        const stagesArray = Array.from(stagesMap.values())
+        const stagesResult = await getStagesMap(supabase, pipeline_id, forceRefresh)
         return new Response(
-          JSON.stringify({ success: true, data: stagesArray }),
+          JSON.stringify({ success: true, data: stagesResult.all }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
       case 'get_funnel_data': {
         // Get all data needed for funnel dashboard
-        const [stagesMap, conversionStats, movementStats] = await Promise.all([
+        const [stagesResult, conversionStats, movementStats] = await Promise.all([
           getStagesMap(supabase, pipeline_id, forceRefresh),
           getConversionStatistics(supabase, pipeline_id, start_date, end_date, forceRefresh),
           getMovementStatistics(supabase, pipeline_id, start_date, end_date, forceRefresh)
         ])
 
-        // Define stage order for funnel
-        const stageOrder = ['lead', 'mql', 'sql', 'oportunidade', 'contrato']
-        
-        // Map stage names to IDs
-        const orderedStages = stageOrder
-          .map(name => stagesMap.get(name.toLowerCase()))
-          .filter(Boolean) as StageInfo[]
+        // Sort all stages by order_nr to get the actual pipeline flow
+        const allStagesSorted = [...stagesResult.all].sort((a, b) => a.order_nr - b.order_nr)
 
-        // Parse conversion statistics
-        const convData = conversionStats as { data?: { stage_conversions?: Record<string, { conversion_rate: number }> } }
-        const convStats = convData?.data?.stage_conversions || {}
+        console.log('All stages sorted by order:', allStagesSorted.map(s => ({ id: s.id, name: s.name, order: s.order_nr })))
+
+        // Parse conversion statistics - handle array format from Pipedrive API
+        const convData = conversionStats as { 
+          data?: { 
+            stage_conversions?: Array<{ 
+              conversion_rate: number
+              from_stage_id: number
+              to_stage_id: number 
+            }> 
+          } 
+        }
+        const stageConversionsArray = convData?.data?.stage_conversions || []
+        
+        // Create a map of stage transitions: "fromId_toId" -> conversion_rate
+        const conversionMap = new Map<string, number>()
+        stageConversionsArray.forEach(conv => {
+          const key = `${conv.from_stage_id}_${conv.to_stage_id}`
+          conversionMap.set(key, conv.conversion_rate)
+        })
+        
+        console.log('Conversion map entries:', Array.from(conversionMap.entries()))
+
 
         // Calculate conversion rates between consecutive stages
         const conversions: Record<string, number> = {}
-        for (let i = 0; i < orderedStages.length - 1; i++) {
-          const fromStage = orderedStages[i]
-          const toStage = orderedStages[i + 1]
-          const key = `${fromStage.id}_${toStage.id}`
-          const keyAlt = `stage_${fromStage.id}_to_${toStage.id}`
+        
+        // Add conversions for all consecutive stages (using ID-based keys)
+        // This allows the frontend to look up conversions dynamically
+        for (let i = 0; i < allStagesSorted.length - 1; i++) {
+          const fromStage = allStagesSorted[i]
+          const toStage = allStagesSorted[i + 1]
+          const idKey = `${fromStage.id}_${toStage.id}`
+          const rate = conversionMap.get(idKey) ?? 0
           
-          // Try different key formats
-          conversions[`${stageOrder[i]}_to_${stageOrder[i + 1]}`] = 
-            convStats[key]?.conversion_rate || 
-            convStats[keyAlt]?.conversion_rate || 
-            0
+          // Add with ID-based key
+          conversions[idKey] = rate
+          
+          // Also add with name-based key for backward compatibility
+          const fromName = fromStage.name.toLowerCase().split(' ')[0].split('(')[0]
+          const toName = toStage.name.toLowerCase().split(' ')[0].split('(')[0]
+          conversions[`${fromName}_to_${toName}`] = rate
+          
+          console.log(`Conversion ${fromName} -> ${toName} (${idKey}): ${rate}%`)
         }
 
         // Parse movement statistics for lead count
         const movData = movementStats as { 
           data?: { 
-            new_deals_count?: number
+            new_deals?: { count?: number }
             deals_started?: number
-            movements_between_stages?: { count?: number }
           } 
         }
-        const leadsCount = movData?.data?.new_deals_count || 
+        
+        // Primary: new_deals.count (deals that entered the pipeline in the period)
+        const leadsCount = movData?.data?.new_deals?.count || 
                           movData?.data?.deals_started || 
                           0
 
+        console.log('Leads count:', leadsCount)
+
         // Get stage-specific counts if available
         const stageData: Record<string, { entries: number }> = {}
-        orderedStages.forEach(stage => {
-          stageData[stage.name.toLowerCase()] = {
+        allStagesSorted.forEach(stage => {
+          const simpleName = stage.name.toLowerCase().split(' ')[0].split('(')[0]
+          stageData[simpleName] = {
             entries: 0 // Would need additional API call to get this
           }
         })
@@ -276,7 +330,8 @@ serve(async (req) => {
           JSON.stringify({
             success: true,
             data: {
-              stages: orderedStages,
+              stages: allStagesSorted.slice(0, 5),
+              all_stages: allStagesSorted,
               conversions,
               leads_count: leadsCount,
               stage_data: stageData,

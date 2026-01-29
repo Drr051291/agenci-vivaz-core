@@ -6,6 +6,7 @@ export interface StageInfo {
 
 export interface FunnelData {
   stages: StageInfo[];
+  all_stages?: StageInfo[];
   conversions: Record<string, number>;
   leads_count: number;
   stage_data: Record<string, { entries: number }>;
@@ -30,8 +31,10 @@ export interface DateRange {
 export const PIPELINE_ID = 9;
 export const PIPEDRIVE_DOMAIN = 'setima';
 
+// These are the "display" labels for the 5 key stages
 export const STAGE_ORDER = ['Lead', 'MQL', 'SQL', 'Oportunidade', 'Contrato'] as const;
 
+// Transitions based on stage order (will be recalculated based on actual API data)
 export const STAGE_TRANSITIONS = [
   { from: 'Lead', to: 'MQL', key: 'lead_to_mql' },
   { from: 'MQL', to: 'SQL', key: 'mql_to_sql' },

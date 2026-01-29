@@ -15,16 +15,31 @@ import {
 import { ChevronDown, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { STAGE_TRANSITIONS } from './types';
+import { StageInfo } from './types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface FunnelDetailsTableProps {
   conversions: Record<string, number>;
+  allStages?: StageInfo[];
   loading?: boolean;
 }
 
-export function FunnelDetailsTable({ conversions, loading = false }: FunnelDetailsTableProps) {
+// Simplify stage name for display
+function simplifyName(name: string): string {
+  const simplified = name.replace(/\s*\(.*?\)/g, '').trim();
+  return simplified;
+}
+
+export function FunnelDetailsTable({ conversions, allStages = [], loading = false }: FunnelDetailsTableProps) {
   const [open, setOpen] = useState(false);
+
+  // Build transitions dynamically from actual stages
+  const displayStages = allStages.slice(0, 5);
+  const transitions = displayStages.slice(0, -1).map((stage, index) => ({
+    from: stage,
+    to: displayStages[index + 1],
+    key: `${stage.id}_${displayStages[index + 1].id}`,
+  }));
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -52,13 +67,17 @@ export function FunnelDetailsTable({ conversions, loading = false }: FunnelDetai
               </TableRow>
             </TableHeader>
             <TableBody>
-              {STAGE_TRANSITIONS.map((transition) => {
-                const rate = conversions[transition.key] || 0;
+              {transitions.map((transition) => {
+                // Try multiple key formats
+                const fromName = transition.from.name.toLowerCase().split(' ')[0].split('(')[0];
+                const toName = transition.to.name.toLowerCase().split(' ')[0].split('(')[0];
+                const namedKey = `${fromName}_to_${toName}`;
+                const rate = conversions[transition.key] ?? conversions[namedKey] ?? 0;
                 
                 return (
                   <TableRow key={transition.key}>
                     <TableCell className="text-xs py-2">
-                      {transition.from} → {transition.to}
+                      {simplifyName(transition.from.name)} → {simplifyName(transition.to.name)}
                     </TableCell>
                     <TableCell className="text-xs text-right py-2 font-medium">
                       {loading ? (
@@ -74,6 +93,13 @@ export function FunnelDetailsTable({ conversions, loading = false }: FunnelDetai
                   </TableRow>
                 );
               })}
+              {transitions.length === 0 && !loading && (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-xs text-center text-muted-foreground py-4">
+                    Nenhuma transição disponível
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
