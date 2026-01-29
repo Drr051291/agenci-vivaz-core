@@ -38,6 +38,7 @@ const ClientDashboard = () => {
   const [myTasks, setMyTasks] = useState<MyTask[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [userName, setUserName] = useState<string>("");
   const navigate = useNavigate();
   
   const { clientId, clientData, userId, loading: authLoading, error } = useClientUser();
@@ -51,8 +52,21 @@ const ClientDashboard = () => {
   useEffect(() => {
     if (!authLoading && clientId && userId) {
       loadDashboardData();
+      loadUserName();
     }
   }, [authLoading, clientId, userId]);
+
+  const loadUserName = async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userId)
+      .single();
+    if (data?.full_name) {
+      setUserName(data.full_name);
+    }
+  };
 
   const loadDashboardData = async () => {
     if (!clientId || !userId) return;
@@ -214,7 +228,7 @@ const ClientDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Bem-vindo, {clientData.contact_name || clientData.company_name}
+              Bem-vindo, {userName || clientData.contact_name || clientData.company_name}
             </h1>
             <p className="text-muted-foreground">
               Acompanhe suas reuniões e atividades
