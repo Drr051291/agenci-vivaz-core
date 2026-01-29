@@ -12,8 +12,8 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || ''
 
 // Date filter: only consider deals created from this date onwards
-// This aligns with the new funnel stage rules implemented in November 2025
-const DEALS_CREATED_AFTER = '2025-11-01'
+// This aligns with the new funnel stage rules implemented in 2026
+const DEALS_CREATED_AFTER = '2026-01-01'
 
 // TTL configuration in seconds
 const TTL_CONFIG = {
