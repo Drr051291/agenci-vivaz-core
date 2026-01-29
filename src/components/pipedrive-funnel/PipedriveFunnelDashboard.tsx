@@ -1,20 +1,19 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RefreshCw, ExternalLink, AlertCircle, BarChart3 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RefreshCw, ExternalLink, AlertCircle, BarChart3, TrendingUp, Users } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 import { usePipedriveFunnel } from './usePipedriveFunnel';
-import { FunnelKPICard } from './FunnelKPICard';
 import { FunnelStepper } from './FunnelStepper';
 import { FunnelPeriodFilter } from './FunnelPeriodFilter';
 import { FunnelDetailsTable } from './FunnelDetailsTable';
 import { FunnelComingSoon } from './FunnelComingSoon';
-import { DateRange, PIPELINE_ID, PIPEDRIVE_DOMAIN } from './types';
+import { DateRange, PIPELINE_ID, PIPEDRIVE_DOMAIN, ViewMode } from './types';
 
 interface PipedriveFunnelDashboardProps {
   clientId: string;
@@ -25,6 +24,7 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
     start: subDays(new Date(), 30),
     end: new Date(),
   });
+  const [viewMode, setViewMode] = useState<ViewMode>('period');
 
   const { data, loading, error, lastUpdated, refetch } = usePipedriveFunnel(dateRange);
 
@@ -112,6 +112,20 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
         </p>
       )}
 
+      {/* View Mode Toggle */}
+      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="period" className="gap-2">
+            <TrendingUp className="h-3.5 w-3.5" />
+            Fluxo do Período
+          </TabsTrigger>
+          <TabsTrigger value="snapshot" className="gap-2">
+            <Users className="h-3.5 w-3.5" />
+            Snapshot Atual
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Funnel Visualization */}
       <Card>
         <CardContent className="pt-6">
@@ -120,6 +134,7 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
             stageCounts={stageCounts}
             allStages={data?.all_stages}
             leadsCount={leadsCount}
+            viewMode={viewMode}
             loading={loading} 
           />
         </CardContent>

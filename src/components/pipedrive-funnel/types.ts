@@ -24,6 +24,8 @@ export interface FunnelResponse {
 
 export type PeriodPreset = '7d' | '30d' | '90d' | 'custom';
 
+export type ViewMode = 'period' | 'snapshot';
+
 export interface DateRange {
   start: Date;
   end: Date;

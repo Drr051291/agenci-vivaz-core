@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronRight, Info } from 'lucide-react';
@@ -6,13 +7,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { StageInfo } from './types';
+import { StageInfo, ViewMode } from './types';
 
 interface FunnelStepperProps {
   conversions: Record<string, number>;
   stageCounts?: Record<number, number>;
   allStages?: StageInfo[];
   leadsCount?: number;
+  viewMode?: ViewMode;
   loading?: boolean;
 }
 
@@ -33,7 +35,7 @@ function simplifyName(name: string): string {
   return simplified.length > 12 ? simplified.substring(0, 10) + '...' : simplified;
 }
 
-export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], leadsCount = 0, loading = false }: FunnelStepperProps) {
+export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], leadsCount = 0, viewMode = 'period', loading = false }: FunnelStepperProps) {
   // Use ALL stages from the pipeline
   const displayStages = allStages;
   
@@ -44,6 +46,13 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
     key: `${stage.id}_${displayStages[index + 1].id}`,
   }));
 
+  // Calculate total active deals for snapshot mode
+  const totalActiveDeals = useMemo(() => {
+    return Object.values(stageCounts).reduce((sum, count) => sum + (count || 0), 0);
+  }, [stageCounts]);
+
+  const isPeriodMode = viewMode === 'period';
+
   // If no stages yet, show placeholder
   const hasStages = displayStages.length > 0;
 
@@ -51,26 +60,31 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
-          {/* KPI de Leads em destaque */}
+          {/* KPI principal - muda baseado no modo */}
           <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">Leads no período</span>
+            <span className="text-xs text-muted-foreground">
+              {isPeriodMode ? 'Leads no período' : 'Deals ativos'}
+            </span>
             {loading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <span className="text-2xl font-bold text-primary">{leadsCount}</span>
+              <span className="text-2xl font-bold text-primary">
+                {isPeriodMode ? leadsCount : totalActiveDeals}
+              </span>
             )}
           </div>
           <div className="h-8 w-px bg-border" />
           <h3 className="text-sm font-semibold flex items-center gap-2">
-            Funil de Conversão
+            {isPeriodMode ? 'Funil de Conversão' : 'Pipeline Atual'}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent side="right" className="max-w-xs">
                 <p className="text-xs">
-                  Taxa de conversão entre etapas consecutivas no período selecionado. 
-                  Deals podem pular etapas; a conversão considera movimentações registradas.
+                  {isPeriodMode 
+                    ? 'Taxa de conversão entre etapas consecutivas no período selecionado. Deals podem pular etapas; a conversão considera movimentações registradas.'
+                    : 'Quantidade atual de deals abertos em cada etapa do pipeline. Representa o estado atual, não o fluxo do período.'}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -140,12 +154,12 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
                 </Tooltip>
               </div>
 
-              {/* Conversion arrow between stages */}
+              {/* Conversion arrow between stages - only show in period mode */}
               {!isLast && (
                 <div className="flex flex-col items-center justify-center px-1 min-w-[50px]">
                   {loading ? (
                     <Skeleton className="h-5 w-10" />
-                  ) : (
+                  ) : isPeriodMode ? (
                     <>
                       <span className={cn(
                         'text-sm font-bold',
@@ -159,6 +173,8 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
                       </span>
                       <ChevronRight className="h-3 w-3 text-muted-foreground" />
                     </>
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   )}
                 </div>
               )}
@@ -175,36 +191,64 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
         )}
       </div>
 
-      {/* Mobile-friendly vertical list */}
-      <div className="md:hidden space-y-2 mt-4">
-        {hasStages ? transitions.map((transition) => {
-          const fromName = transition.from.name.toLowerCase().split(' ')[0].split('(')[0];
-          const toName = transition.to.name.toLowerCase().split(' ')[0].split('(')[0];
-          const namedKey = `${fromName}_to_${toName}`;
-          const rate = conversions[transition.key] ?? conversions[namedKey] ?? 0;
-          
-          return (
-            <div 
-              key={transition.key}
-              className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg"
-            >
-              <span className="text-xs text-muted-foreground">
-                {simplifyName(transition.from.name)} → {simplifyName(transition.to.name)}
-              </span>
-              {loading ? (
-                <Skeleton className="h-4 w-12" />
-              ) : (
-                <span className={cn(
-                  'text-sm font-semibold',
-                  rate > 0 ? 'text-foreground' : 'text-muted-foreground'
-                )}>
-                  {rate.toFixed(1)}%
+      {/* Mobile-friendly vertical list - only show in period mode */}
+      {isPeriodMode && (
+        <div className="md:hidden space-y-2 mt-4">
+          {hasStages ? transitions.map((transition) => {
+            const fromName = transition.from.name.toLowerCase().split(' ')[0].split('(')[0];
+            const toName = transition.to.name.toLowerCase().split(' ')[0].split('(')[0];
+            const namedKey = `${fromName}_to_${toName}`;
+            const rate = conversions[transition.key] ?? conversions[namedKey] ?? 0;
+            
+            return (
+              <div 
+                key={transition.key}
+                className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg"
+              >
+                <span className="text-xs text-muted-foreground">
+                  {simplifyName(transition.from.name)} → {simplifyName(transition.to.name)}
                 </span>
-              )}
-            </div>
-          );
-        }) : null}
-      </div>
+                {loading ? (
+                  <Skeleton className="h-4 w-12" />
+                ) : (
+                  <span className={cn(
+                    'text-sm font-semibold',
+                    rate > 0 ? 'text-foreground' : 'text-muted-foreground'
+                  )}>
+                    {rate.toFixed(1)}%
+                  </span>
+                )}
+              </div>
+            );
+          }) : null}
+        </div>
+      )}
+
+      {/* Mobile-friendly list for snapshot mode */}
+      {!isPeriodMode && (
+        <div className="md:hidden space-y-2 mt-4">
+          {hasStages ? displayStages.map((stage) => {
+            const count = stageCounts[stage.id] ?? stageCounts[String(stage.id)] ?? 0;
+            return (
+              <div 
+                key={stage.id}
+                className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg"
+              >
+                <span className="text-xs text-muted-foreground">
+                  {stage.name}
+                </span>
+                {loading ? (
+                  <Skeleton className="h-4 w-12" />
+                ) : (
+                  <span className="text-sm font-semibold">
+                    {count} deals
+                  </span>
+                )}
+              </div>
+            );
+          }) : null}
+        </div>
+      )}
     </div>
   );
 }
