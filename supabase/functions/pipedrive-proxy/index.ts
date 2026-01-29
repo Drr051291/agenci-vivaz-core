@@ -332,12 +332,12 @@ async function getStageArrivalsFromDeals(
   if (sortedStages.length > 0) {
     arrivals[sortedStages[0].id] = totalNewDeals
     
-    // For subsequent stages, we'll estimate based on deals currently in later stages
-    // that were created after the cutoff date
+    // For subsequent stages, count deals from the period that are currently in this stage or later
+    // This reflects deals that were created in the period AND progressed to each stage
     for (let i = 1; i < sortedStages.length; i++) {
       const stageId = sortedStages[i].id
-      // Count deals in this stage or later stages (they "arrived" at this stage)
-      const dealsInOrPastStage = filteredDeals.filter(deal => {
+      // Count deals created in the period that are now in this stage or later stages
+      const dealsInOrPastStage = newDealsInPeriod.filter(deal => {
         const dealStageIndex = sortedStages.findIndex(s => s.id === deal.stage_id)
         return dealStageIndex >= i
       })
