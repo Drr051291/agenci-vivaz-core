@@ -120,14 +120,16 @@ export const useGoogleCalendar = () => {
     queryKey: ["google-calendar-events"],
     queryFn: async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error("Not authenticated");
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!currentSession?.access_token) {
+          throw new Error("Not authenticated");
+        }
 
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar?action=list-events`,
           {
             headers: {
-              Authorization: `Bearer ${session.access_token}`,
+              Authorization: `Bearer ${currentSession.access_token}`,
             },
           }
         );
@@ -144,8 +146,9 @@ export const useGoogleCalendar = () => {
         throw error;
       }
     },
-    enabled: !!session && !!isConnected,
+    enabled: !!session?.access_token && isConnected === true,
     retry: false,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   // Create event in Google Calendar
