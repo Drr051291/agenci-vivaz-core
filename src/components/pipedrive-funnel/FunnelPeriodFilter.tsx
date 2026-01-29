@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
-import { format, subDays } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PeriodPreset, DateRange } from './types';
 
@@ -17,10 +17,37 @@ interface FunnelPeriodFilterProps {
   onDateRangeChange: (range: DateRange) => void;
 }
 
-const PRESETS: { value: PeriodPreset; label: string; days?: number }[] = [
-  { value: '7d', label: 'Últimos 7 dias', days: 7 },
-  { value: '30d', label: 'Últimos 30 dias', days: 30 },
-  { value: '90d', label: 'Últimos 90 dias', days: 90 },
+interface PresetConfig {
+  value: PeriodPreset;
+  label: string;
+  getRange?: () => { start: Date; end: Date };
+}
+
+const PRESETS: PresetConfig[] = [
+  { 
+    value: 'today', 
+    label: 'Hoje',
+    getRange: () => ({ start: startOfDay(new Date()), end: endOfDay(new Date()) })
+  },
+  { 
+    value: 'thisMonth', 
+    label: 'Este mês',
+    getRange: () => ({ start: startOfMonth(new Date()), end: endOfMonth(new Date()) })
+  },
+  { 
+    value: 'lastMonth', 
+    label: 'Mês passado',
+    getRange: () => {
+      const lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+    }
+  },
+  { 
+    value: 'thisYear', 
+    label: 'Este ano',
+    getRange: () => ({ start: startOfYear(new Date()), end: endOfYear(new Date()) })
+  },
   { value: 'custom', label: 'Personalizado' },
 ];
 
@@ -28,21 +55,20 @@ export function FunnelPeriodFilter({
   dateRange,
   onDateRangeChange,
 }: FunnelPeriodFilterProps) {
-  const [activePreset, setActivePreset] = useState<PeriodPreset>('30d');
+  const [activePreset, setActivePreset] = useState<PeriodPreset>('thisMonth');
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  const handlePresetClick = (preset: PeriodPreset, days?: number) => {
-    setActivePreset(preset);
+  const handlePresetClick = (preset: PresetConfig) => {
+    setActivePreset(preset.value);
     
-    if (preset === 'custom') {
+    if (preset.value === 'custom') {
       setCalendarOpen(true);
       return;
     }
 
-    if (days) {
-      const end = new Date();
-      const start = subDays(end, days);
-      onDateRangeChange({ start, end });
+    if (preset.getRange) {
+      const range = preset.getRange();
+      onDateRangeChange(range);
     }
   };
 
@@ -90,7 +116,7 @@ export function FunnelPeriodFilter({
             variant={activePreset === preset.value ? 'default' : 'outline'}
             size="sm"
             className="h-7 text-xs"
-            onClick={() => handlePresetClick(preset.value, preset.days)}
+            onClick={() => handlePresetClick(preset)}
           >
             {preset.label}
           </Button>
