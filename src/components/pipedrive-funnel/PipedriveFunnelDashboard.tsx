@@ -140,6 +140,7 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
         <CardContent className="pt-6">
           <FunnelStepper 
             conversions={conversions} 
+            allStages={data?.all_stages}
             loading={loading} 
           />
         </CardContent>
@@ -150,6 +151,7 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
         <CardContent className="pt-4 pb-4">
           <FunnelDetailsTable 
             conversions={conversions} 
+            allStages={data?.all_stages}
             loading={loading} 
           />
         </CardContent>
