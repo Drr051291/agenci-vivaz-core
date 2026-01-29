@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
 
     // Get JWT from Authorization header
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -37,15 +37,19 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
-    if (userError || !user) {
-      console.error('Auth error:', userError);
+    // Use getClaims for faster JWT validation
+    const { data: claimsData, error: claimsError } = await supabaseAdmin.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims?.sub) {
+      console.error('Auth error:', claimsError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    
+    const userId = claimsData.claims.sub as string;
 
     // Create user-scoped client for database operations
     const supabaseClient = createClient(
@@ -82,7 +86,7 @@ Deno.serve(async (req) => {
       authUrl.searchParams.set('scope', 'https://www.googleapis.com/auth/calendar');
       authUrl.searchParams.set('access_type', 'offline');
       authUrl.searchParams.set('prompt', 'consent');
-      authUrl.searchParams.set('state', user.id);
+      authUrl.searchParams.set('state', userId);
 
       return new Response(JSON.stringify({ authUrl: authUrl.toString() }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -137,7 +141,7 @@ Deno.serve(async (req) => {
       const { error: dbError } = await supabaseClient
         .from('google_calendar_tokens')
         .upsert({
-          user_id: user.id,
+          user_id: userId,
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token || '',
           token_expiry: tokenExpiry.toISOString(),
@@ -151,7 +155,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      console.log('Google Calendar connected successfully for user:', user.id);
+      console.log('Google Calendar connected successfully for user:', userId);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -163,7 +167,7 @@ Deno.serve(async (req) => {
       const { data: tokenData } = await supabaseClient
         .from('google_calendar_tokens')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single();
 
       if (!tokenData) {
@@ -197,7 +201,7 @@ Deno.serve(async (req) => {
             access_token: newTokens.access_token,
             token_expiry: tokenExpiry.toISOString(),
           })
-          .eq('user_id', user.id);
+          .eq('user_id', userId);
       }
 
       // Fetch events from Google Calendar
@@ -231,7 +235,7 @@ Deno.serve(async (req) => {
       const { data: tokenData } = await supabaseClient
         .from('google_calendar_tokens')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single();
 
       if (!tokenData) {
@@ -265,7 +269,7 @@ Deno.serve(async (req) => {
             access_token: newTokens.access_token,
             token_expiry: tokenExpiry.toISOString(),
           })
-          .eq('user_id', user.id);
+          .eq('user_id', userId);
       }
 
       // Create event
@@ -326,7 +330,7 @@ Deno.serve(async (req) => {
       const { data: tokenData } = await supabaseClient
         .from('google_calendar_tokens')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single();
 
       if (!tokenData) {
@@ -360,7 +364,7 @@ Deno.serve(async (req) => {
             access_token: newTokens.access_token,
             token_expiry: tokenExpiry.toISOString(),
           })
-          .eq('user_id', user.id);
+          .eq('user_id', userId);
       }
 
       // Update event
@@ -419,7 +423,7 @@ Deno.serve(async (req) => {
       const { data: tokenData } = await supabaseClient
         .from('google_calendar_tokens')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single();
 
       if (!tokenData) {
@@ -453,7 +457,7 @@ Deno.serve(async (req) => {
             access_token: newTokens.access_token,
             token_expiry: tokenExpiry.toISOString(),
           })
-          .eq('user_id', user.id);
+          .eq('user_id', userId);
       }
 
       const deleteResponse = await fetch(
@@ -484,7 +488,7 @@ Deno.serve(async (req) => {
       const { error } = await supabaseClient
         .from('google_calendar_tokens')
         .delete()
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
 
       if (error) {
         return new Response(JSON.stringify({ error: 'Failed to disconnect' }), {
