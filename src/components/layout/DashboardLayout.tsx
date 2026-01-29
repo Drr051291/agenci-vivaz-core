@@ -64,10 +64,17 @@ const AppSidebar = ({ user }: { user: User | null }) => {
   const isCollapsed = state === "collapsed";
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [roleLoading, setRoleLoading] = useState(true);
+
+  // Check if user is in client area based on current route
+  const isInClientArea = location.pathname.startsWith("/area-cliente");
 
   useEffect(() => {
     const checkUserRole = async () => {
-      if (!user) return;
+      if (!user) {
+        setRoleLoading(false);
+        return;
+      }
       
       const { data } = await supabase
         .from("user_roles")
@@ -79,6 +86,7 @@ const AppSidebar = ({ user }: { user: User | null }) => {
         setUserRole(data.role);
         setIsAdmin(data.role === "admin");
       }
+      setRoleLoading(false);
     };
 
     checkUserRole();
@@ -93,7 +101,9 @@ const AppSidebar = ({ user }: { user: User | null }) => {
     navigate("/auth");
   };
 
-  const menuItems = userRole === "client" ? clientMenuItems : adminMenuItems;
+  // Use client menu if user role is client OR if we're in client area (even while loading)
+  // This prevents showing admin menu briefly during navigation in client area
+  const menuItems = (userRole === "client" || (roleLoading && isInClientArea)) ? clientMenuItems : adminMenuItems;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
