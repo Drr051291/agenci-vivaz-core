@@ -14,7 +14,7 @@ import { FunnelStepper } from './FunnelStepper';
 import { FunnelPeriodFilter } from './FunnelPeriodFilter';
 import { FunnelDetailsTable } from './FunnelDetailsTable';
 import { FunnelComingSoon } from './FunnelComingSoon';
-import { DateRange, PIPELINE_ID, PIPEDRIVE_DOMAIN, STAGE_TRANSITIONS } from './types';
+import { DateRange, PIPELINE_ID, PIPEDRIVE_DOMAIN } from './types';
 
 interface PipedriveFunnelDashboardProps {
   clientId: string;
@@ -111,8 +111,8 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
         </p>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {/* KPI Cards - Dynamic based on all stages */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2">
         <FunnelKPICard
           title="Leads no período"
           value={leadsCount}
@@ -123,16 +123,27 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
           helperText="Total de deals iniciados"
         />
         
-        {STAGE_TRANSITIONS.map((transition) => (
-          <FunnelKPICard
-            key={transition.key}
-            title={`${transition.from} → ${transition.to}`}
-            value={conversions[transition.key] || 0}
-            format="percent"
-            loading={loading}
-            icon="arrow"
-          />
-        ))}
+        {/* Dynamic conversion KPIs from all stages */}
+        {data?.all_stages && data.all_stages.length > 1 && data.all_stages.slice(0, -1).map((stage, index) => {
+          const nextStage = data.all_stages![index + 1];
+          const key = `${stage.id}_${nextStage.id}`;
+          const fromName = stage.name.replace(/\s*\(.*?\)/g, '').trim();
+          const toName = nextStage.name.replace(/\s*\(.*?\)/g, '').trim();
+          // Shorten names for display
+          const shortFrom = fromName.length > 8 ? fromName.substring(0, 6) + '..' : fromName;
+          const shortTo = toName.length > 8 ? toName.substring(0, 6) + '..' : toName;
+          
+          return (
+            <FunnelKPICard
+              key={key}
+              title={`${shortFrom} → ${shortTo}`}
+              value={conversions[key] || 0}
+              format="percent"
+              loading={loading}
+              icon="arrow"
+            />
+          );
+        })}
       </div>
 
       {/* Funnel Visualization */}

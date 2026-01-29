@@ -32,8 +32,8 @@ function simplifyName(name: string): string {
 }
 
 export function FunnelStepper({ conversions, allStages = [], loading = false }: FunnelStepperProps) {
-  // Use first 5 stages or all if fewer
-  const displayStages = allStages.slice(0, 5);
+  // Use ALL stages from the pipeline
+  const displayStages = allStages;
   
   // Build transitions dynamically from actual stages
   const transitions = displayStages.slice(0, -1).map((stage, index) => ({
@@ -89,7 +89,7 @@ export function FunnelStepper({ conversions, allStages = [], loading = false }: 
           return (
             <div key={stage.id} className="flex items-center flex-1 min-w-0">
               {/* Stage box */}
-              <div className="flex flex-col items-center flex-1 min-w-[80px]">
+              <div className="flex flex-col items-center flex-1 min-w-[60px]">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
@@ -144,10 +144,10 @@ export function FunnelStepper({ conversions, allStages = [], loading = false }: 
           );
         }) : (
           // Placeholder when loading
-          Array.from({ length: 5 }).map((_, index) => (
+          Array.from({ length: 7 }).map((_, index) => (
             <div key={index} className="flex items-center flex-1 min-w-0">
-              <Skeleton className="h-10 flex-1 min-w-[80px]" />
-              {index < 4 && <Skeleton className="h-5 w-10 mx-1" />}
+              <Skeleton className="h-10 flex-1 min-w-[60px]" />
+              {index < 6 && <Skeleton className="h-5 w-8 mx-1" />}
             </div>
           ))
         )}

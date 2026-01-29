@@ -33,12 +33,11 @@ function simplifyName(name: string): string {
 export function FunnelDetailsTable({ conversions, allStages = [], loading = false }: FunnelDetailsTableProps) {
   const [open, setOpen] = useState(false);
 
-  // Build transitions dynamically from actual stages
-  const displayStages = allStages.slice(0, 5);
-  const transitions = displayStages.slice(0, -1).map((stage, index) => ({
+  // Build transitions dynamically from ALL stages
+  const transitions = allStages.slice(0, -1).map((stage, index) => ({
     from: stage,
-    to: displayStages[index + 1],
-    key: `${stage.id}_${displayStages[index + 1].id}`,
+    to: allStages[index + 1],
+    key: `${stage.id}_${allStages[index + 1].id}`,
   }));
 
   return (
