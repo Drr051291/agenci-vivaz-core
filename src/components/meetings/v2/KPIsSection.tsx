@@ -23,7 +23,7 @@ interface KPIsSectionProps {
 }
 
 const UNIT_OPTIONS = [
-  { value: "", label: "Número" },
+  { value: "numero", label: "Número" },
   { value: "R$", label: "R$" },
   { value: "%", label: "%" },
   { value: "x", label: "x (multiplicador)" },
@@ -34,9 +34,9 @@ const UNIT_OPTIONS = [
 
 const DEFAULT_KPIS: Metric[] = [
   { metric_key: "investimento", metric_label: "Investimento", target_value: null, actual_value: null, unit: "R$" },
-  { metric_key: "leads", metric_label: "Leads", target_value: null, actual_value: null, unit: "" },
+  { metric_key: "leads", metric_label: "Leads", target_value: null, actual_value: null, unit: "numero" },
   { metric_key: "cpl", metric_label: "CPL", target_value: null, actual_value: null, unit: "R$" },
-  { metric_key: "conversoes", metric_label: "Conversões", target_value: null, actual_value: null, unit: "" },
+  { metric_key: "conversoes", metric_label: "Conversões", target_value: null, actual_value: null, unit: "numero" },
   { metric_key: "cpa", metric_label: "CPA", target_value: null, actual_value: null, unit: "R$" },
   { metric_key: "roas", metric_label: "ROAS", target_value: null, actual_value: null, unit: "x" },
   { metric_key: "receita", metric_label: "Receita", target_value: null, actual_value: null, unit: "R$" },
@@ -105,6 +105,7 @@ export function KPIsSection({ metrics, highlight, lowlight, onChange, isEditing 
     if (unit === 'R$') return `R$ ${formatted}`;
     if (unit === 'x') return `${formatted}x`;
     if (unit === '%') return `${formatted}%`;
+    if (unit === 'numero' || unit === '') return formatted;
     return unit ? `${formatted} ${unit}` : formatted;
   };
 
@@ -253,10 +254,15 @@ export function KPIsSection({ metrics, highlight, lowlight, onChange, isEditing 
                 {isEditing && (
                   <div className="col-span-1 flex justify-end">
                     <Button
+                      type="button"
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      onClick={() => removeMetric(index)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        removeMetric(index);
+                      }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
