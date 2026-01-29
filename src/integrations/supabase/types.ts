@@ -1928,6 +1928,27 @@ export type Database = {
           },
         ]
       }
+      pipedrive_cache: {
+        Row: {
+          fetched_at: string
+          key: string
+          payload: Json
+          ttl_seconds: number
+        }
+        Insert: {
+          fetched_at?: string
+          key: string
+          payload?: Json
+          ttl_seconds?: number
+        }
+        Update: {
+          fetched_at?: string
+          key?: string
+          payload?: Json
+          ttl_seconds?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
