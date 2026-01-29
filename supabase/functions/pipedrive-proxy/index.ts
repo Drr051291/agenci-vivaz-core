@@ -219,25 +219,25 @@ async function getDealsPerStage(
   stages: StageInfo[],
   forceRefresh: boolean
 ): Promise<Record<number, number>> {
-  const cacheKey = `deals_per_stage_${pipelineId}_created_after_${DEALS_CREATED_AFTER}`
+  // Snapshot atual: conta TODOS os deals abertos em cada etapa, sem filtro de data
+  const cacheKey = `deals_per_stage_${pipelineId}_snapshot`
   
   if (!forceRefresh) {
     const cached = await getCachedData(supabase, cacheKey)
     if (cached) {
-      console.log('Using cached deals per stage')
+      console.log('Using cached deals per stage (snapshot)')
       return cached.payload as Record<number, number>
     }
   }
 
   const result: Record<number, number> = {}
   
-  // Fetch deals for each stage using the v2 deals endpoint with filter
-  // Only count deals created on or after DEALS_CREATED_AFTER
-  console.log('Fetching deals per stage for', stages.length, 'stages (created after', DEALS_CREATED_AFTER, ')')
+  // Fetch deals for each stage - NO date filter for snapshot
+  console.log('Fetching deals per stage for', stages.length, 'stages (snapshot - all open deals)')
   
   for (const stage of stages) {
     try {
-      // Fetch all open deals in this stage
+      // Fetch all open deals in this stage (no date filter)
       const stageDeals = await fetchFromPipedrive('/api/v2/deals', {
         pipeline_id: pipelineId.toString(),
         stage_id: stage.id.toString(),
@@ -245,15 +245,9 @@ async function getDealsPerStage(
         limit: '500'
       }) as { data?: Array<{ add_time?: string }> }
       
-      // Filter deals by creation date (add_time >= DEALS_CREATED_AFTER)
-      const filteredDeals = (stageDeals?.data || []).filter(deal => {
-        if (!deal.add_time) return false
-        const addDate = deal.add_time.split('T')[0] // Get YYYY-MM-DD part
-        return addDate >= DEALS_CREATED_AFTER
-      })
-      
-      result[stage.id] = filteredDeals.length
-      console.log(`Stage ${stage.name} (${stage.id}): ${filteredDeals.length} deals (filtered from ${stageDeals?.data?.length || 0})`)
+      // Count all open deals - no date filtering for snapshot
+      result[stage.id] = stageDeals?.data?.length || 0
+      console.log(`Stage ${stage.name} (${stage.id}): ${result[stage.id]} deals (snapshot)`)
     } catch (e) {
       console.error(`Error fetching deals for stage ${stage.id}:`, e)
       result[stage.id] = 0
