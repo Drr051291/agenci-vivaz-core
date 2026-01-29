@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
-import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PeriodPreset, DateRange } from './types';
 
@@ -28,6 +28,21 @@ const PRESETS: PresetConfig[] = [
     value: 'today', 
     label: 'Hoje',
     getRange: () => ({ start: startOfDay(new Date()), end: endOfDay(new Date()) })
+  },
+  { 
+    value: 'thisWeek', 
+    label: 'Esta semana',
+    getRange: () => ({ start: startOfWeek(new Date(), { weekStartsOn: 0 }), end: endOfWeek(new Date(), { weekStartsOn: 0 }) })
+  },
+  { 
+    value: 'last7Days', 
+    label: 'Últimos 7 dias',
+    getRange: () => ({ start: startOfDay(subDays(new Date(), 6)), end: endOfDay(new Date()) })
+  },
+  { 
+    value: 'last14Days', 
+    label: 'Últimos 14 dias',
+    getRange: () => ({ start: startOfDay(subDays(new Date(), 13)), end: endOfDay(new Date()) })
   },
   { 
     value: 'thisMonth', 
