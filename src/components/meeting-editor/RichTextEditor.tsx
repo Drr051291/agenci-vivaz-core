@@ -7,6 +7,7 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
+import Link from '@tiptap/extension-link';
 import { ChartExtension } from './extensions/ChartExtension';
 import { createSlashCommandExtension } from './extensions/SlashCommands';
 import { ColumnGroup, Column } from './extensions/ColumnsExtension';
@@ -63,6 +64,16 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
   const editor = useEditor({
     extensions: [
       StarterKit,
+      Link.configure({
+        openOnClick: true,
+        autolink: true,
+        linkOnPaste: true,
+        HTMLAttributes: {
+          class: 'text-primary underline hover:text-primary/80 cursor-pointer',
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
+      }),
       ResizableImageExtension.configure({
         HTMLAttributes: {
           class: 'rounded-lg max-w-full h-auto my-4',
