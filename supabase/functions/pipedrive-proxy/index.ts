@@ -225,46 +225,27 @@ async function getDealsPerStage(
     }
   }
 
-  // Get deal summary per stage using deals/summary endpoint
   const result: Record<number, number> = {}
   
-  // Fetch deals summary which includes count per stage
-  const response = await fetchFromPipedrive('/v1/deals/summary', {
-    pipeline_id: pipelineId.toString(),
-    status: 'open'
-  }) as { 
-    data?: { 
-      values_total?: { 
-        value_weighted?: number 
-      }
-      stages_summary?: Array<{
-        stage_id: number
-        count: number
-      }>
-    } 
-  }
-
-  // If stages_summary is available, use it
-  if (response?.data?.stages_summary) {
-    response.data.stages_summary.forEach(ss => {
-      result[ss.stage_id] = ss.count
-    })
-  } else {
-    // Fallback: Fetch count per stage individually (more expensive)
-    for (const stage of stages) {
-      try {
-        const stageDeals = await fetchFromPipedrive('/api/v2/deals', {
-          pipeline_id: pipelineId.toString(),
-          stage_id: stage.id.toString(),
-          status: 'open',
-          limit: '1'
-        }) as { additional_data?: { pagination?: { count?: number } } }
-        
-        result[stage.id] = stageDeals?.additional_data?.pagination?.count || 0
-      } catch (e) {
-        console.error(`Error fetching deals for stage ${stage.id}:`, e)
-        result[stage.id] = 0
-      }
+  // Fetch deals for each stage using the v2 deals endpoint with filter
+  // This is more reliable than the summary endpoint
+  console.log('Fetching deals per stage for', stages.length, 'stages')
+  
+  for (const stage of stages) {
+    try {
+      const stageDeals = await fetchFromPipedrive('/api/v2/deals', {
+        pipeline_id: pipelineId.toString(),
+        stage_id: stage.id.toString(),
+        status: 'open',
+        limit: '500' // Get enough to count
+      }) as { data?: Array<unknown> }
+      
+      const count = stageDeals?.data?.length || 0
+      result[stage.id] = count
+      console.log(`Stage ${stage.name} (${stage.id}): ${count} deals`)
+    } catch (e) {
+      console.error(`Error fetching deals for stage ${stage.id}:`, e)
+      result[stage.id] = 0
     }
   }
 

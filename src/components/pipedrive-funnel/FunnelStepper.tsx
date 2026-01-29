@@ -112,7 +112,7 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
                             {simplifyName(stage.name)}
                           </span>
                           <span className="text-[10px] font-bold opacity-90">
-                            {stageCounts[stage.id] ?? 0} deals
+                            {stageCounts[stage.id] ?? stageCounts[String(stage.id)] ?? 0} deals
                           </span>
                         </div>
                       )}
@@ -121,7 +121,7 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
                   <TooltipContent>
                     <div className="text-xs">
                       <p className="font-semibold">{stage.name}</p>
-                      <p className="text-muted-foreground">{stageCounts[stage.id] ?? 0} negócios ativos</p>
+                      <p className="text-muted-foreground">{stageCounts[stage.id] ?? stageCounts[String(stage.id)] ?? 0} negócios ativos</p>
                     </div>
                   </TooltipContent>
                 </Tooltip>
