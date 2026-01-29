@@ -31,9 +31,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, AlertCircle, CheckCircle2, Loader2, Filter, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardViewerDialog } from "./DashboardViewerDialog";
+import { PipedriveFunnelDashboard } from "@/components/pipedrive-funnel";
 
 interface Dashboard {
   id: string;
@@ -93,6 +94,9 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDashboardId, setSelectedDashboardId] = useState<string | null>(null);
+  
+  // Pipedrive funnel view state
+  const [showPipedriveFunnel, setShowPipedriveFunnel] = useState(false);
   
   // Form state
   const [formDialogOpen, setFormDialogOpen] = useState(false);
@@ -271,6 +275,24 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
     );
   }
 
+  // If showing Pipedrive funnel dashboard
+  if (showPipedriveFunnel) {
+    return (
+      <div className="space-y-4 p-4">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => setShowPipedriveFunnel(false)}
+          className="mb-2"
+        >
+          <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
+          Voltar para Dashboards
+        </Button>
+        <PipedriveFunnelDashboard clientId={clientId} />
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Header com botão criar */}
@@ -289,13 +311,48 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
         </div>
       </div>
 
+      {/* Pipedrive Funnel Card - Always visible */}
+      <div className="p-4 pb-0">
+        <Card className="hover:shadow-md transition-shadow border-blue-500/30 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
+          <CardContent className="p-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600">
+                    <Filter className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-base">Funil (Pipedrive) — serviços_b2b</h3>
+                    <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs mt-1">
+                      Pipeline ID 9
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              
+              <p className="text-xs text-muted-foreground">
+                Visualize leads, taxas de conversão e performance do funil de vendas.
+              </p>
+
+              <Button
+                size="sm"
+                onClick={() => setShowPipedriveFunnel(true)}
+                className="w-full"
+              >
+                Visualizar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {dashboards.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-[calc(100vh-350px)] gap-4">
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-450px)] gap-4">
           <div className="text-center">
             <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">Nenhum dashboard configurado</h3>
+            <h3 className="text-lg font-medium mb-2">Nenhum dashboard adicional</h3>
             <p className="text-muted-foreground mb-4">
-              Adicione dashboards do Reportei ou Pipedrive para visualização.
+              Adicione dashboards do Reportei ou Pipedrive Insights.
             </p>
             <Button onClick={openCreateDialog}>
               <Plus className="h-4 w-4 mr-2" />
