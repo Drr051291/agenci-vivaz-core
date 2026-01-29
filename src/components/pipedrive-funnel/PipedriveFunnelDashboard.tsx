@@ -56,6 +56,7 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
   // Get conversion values
   const conversions = data?.conversions || {};
   const stageCounts = data?.stage_counts || {};
+  const stageArrivals = data?.stage_arrivals || {};
   const leadsCount = data?.leads_count || 0;
 
   return (
@@ -132,6 +133,7 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
           <FunnelStepper 
             conversions={conversions} 
             stageCounts={stageCounts}
+            stageArrivals={stageArrivals}
             allStages={data?.all_stages}
             leadsCount={leadsCount}
             viewMode={viewMode}

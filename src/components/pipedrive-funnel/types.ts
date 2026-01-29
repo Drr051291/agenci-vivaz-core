@@ -10,6 +10,7 @@ export interface FunnelData {
   conversions: Record<string, number>;
   leads_count: number;
   stage_counts?: Record<number, number>;
+  stage_arrivals?: Record<number, number>; // NEW: arrivals per stage during period
   stage_data: Record<number, { count: number; name: string }>;
   fetched_at: string;
   raw_conversion_stats?: unknown;

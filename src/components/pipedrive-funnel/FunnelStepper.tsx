@@ -12,6 +12,7 @@ import { StageInfo, ViewMode } from './types';
 interface FunnelStepperProps {
   conversions: Record<string, number>;
   stageCounts?: Record<number, number>;
+  stageArrivals?: Record<number, number>; // NEW: arrivals per stage during period
   allStages?: StageInfo[];
   leadsCount?: number;
   viewMode?: ViewMode;
@@ -35,7 +36,7 @@ function simplifyName(name: string): string {
   return simplified.length > 12 ? simplified.substring(0, 10) + '...' : simplified;
 }
 
-export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], leadsCount = 0, viewMode = 'period', loading = false }: FunnelStepperProps) {
+export function FunnelStepper({ conversions, stageCounts = {}, stageArrivals = {}, allStages = [], leadsCount = 0, viewMode = 'period', loading = false }: FunnelStepperProps) {
   // Use ALL stages from the pipeline
   const displayStages = allStages;
   
@@ -52,6 +53,17 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
   }, [stageCounts]);
 
   const isPeriodMode = viewMode === 'period';
+
+  // Get the correct count based on view mode
+  const getStageCount = (stageId: number): number => {
+    if (isPeriodMode) {
+      // Use arrivals (how many entered this stage during the period)
+      return stageArrivals[stageId] ?? stageArrivals[String(stageId) as unknown as number] ?? 0;
+    } else {
+      // Use current counts (how many are in this stage now)
+      return stageCounts[stageId] ?? stageCounts[String(stageId) as unknown as number] ?? 0;
+    }
+  };
 
   // If no stages yet, show placeholder
   const hasStages = displayStages.length > 0;
@@ -139,7 +151,7 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
                             {simplifyName(stage.name)}
                           </span>
                           <span className="text-[10px] font-bold opacity-90">
-                            {stageCounts[stage.id] ?? stageCounts[String(stage.id)] ?? 0} deals
+                            {getStageCount(stage.id)} {isPeriodMode ? 'chegaram' : 'deals'}
                           </span>
                         </div>
                       )}
@@ -148,7 +160,11 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
                   <TooltipContent>
                     <div className="text-xs">
                       <p className="font-semibold">{stage.name}</p>
-                      <p className="text-muted-foreground">{stageCounts[stage.id] ?? stageCounts[String(stage.id)] ?? 0} negócios ativos</p>
+                      <p className="text-muted-foreground">
+                        {isPeriodMode 
+                          ? `${getStageCount(stage.id)} chegaram no período` 
+                          : `${getStageCount(stage.id)} negócios ativos`}
+                      </p>
                     </div>
                   </TooltipContent>
                 </Tooltip>
@@ -228,7 +244,6 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
       {!isPeriodMode && (
         <div className="md:hidden space-y-2 mt-4">
           {hasStages ? displayStages.map((stage) => {
-            const count = stageCounts[stage.id] ?? stageCounts[String(stage.id)] ?? 0;
             return (
               <div 
                 key={stage.id}
@@ -241,7 +256,7 @@ export function FunnelStepper({ conversions, stageCounts = {}, allStages = [], l
                   <Skeleton className="h-4 w-12" />
                 ) : (
                   <span className="text-sm font-semibold">
-                    {count} deals
+                    {getStageCount(stage.id)} deals
                   </span>
                 )}
               </div>

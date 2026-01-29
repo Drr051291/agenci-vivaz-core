@@ -347,11 +347,15 @@ serve(async (req) => {
           console.log(`Conversion ${fromName} -> ${toName} (${idKey}): ${rate}%`)
         }
 
-        // Parse movement statistics for lead count
+        // Parse movement statistics for arrivals per stage (period flow)
         const movData = movementStats as { 
           data?: { 
             new_deals?: { count?: number }
             deals_started?: number
+            movements_between_stages?: {
+              count?: number
+              deals?: Array<unknown>
+            }
           } 
         }
         
@@ -361,7 +365,36 @@ serve(async (req) => {
                           0
 
         console.log('Leads count:', leadsCount)
-        console.log('Deals per stage:', dealsPerStage)
+        console.log('Deals per stage (current):', dealsPerStage)
+        console.log('Raw movement stats:', JSON.stringify(movData?.data, null, 2))
+
+        // Parse stage arrivals from conversion_statistics
+        // The conversion_statistics gives us deals_entered for each stage transition
+        // For the first stage, it's leadsCount
+        // For subsequent stages, we calculate from the conversion rate * previous stage arrivals
+        const stageArrivals: Record<number, number> = {}
+        
+        // First stage gets all new leads
+        if (allStagesSorted.length > 0) {
+          stageArrivals[allStagesSorted[0].id] = leadsCount
+        }
+        
+        // Calculate arrivals for subsequent stages using conversion rates
+        // Stage N arrivals = Stage N-1 arrivals * conversion_rate / 100
+        for (let i = 1; i < allStagesSorted.length; i++) {
+          const prevStage = allStagesSorted[i - 1]
+          const currStage = allStagesSorted[i]
+          const convKey = `${prevStage.id}_${currStage.id}`
+          const convRate = conversionMap.get(convKey) ?? 0
+          const prevArrivals = stageArrivals[prevStage.id] || 0
+          
+          // Arrivals = previous stage arrivals * conversion rate
+          stageArrivals[currStage.id] = Math.round(prevArrivals * convRate / 100)
+          
+          console.log(`Stage ${currStage.name} arrivals: ${prevArrivals} * ${convRate}% = ${stageArrivals[currStage.id]}`)
+        }
+
+        console.log('Stage arrivals (period):', stageArrivals)
 
         // Get stage-specific counts
         const stageData: Record<number, { count: number; name: string }> = {}
@@ -381,6 +414,7 @@ serve(async (req) => {
               conversions,
               leads_count: leadsCount,
               stage_counts: dealsPerStage,
+              stage_arrivals: stageArrivals, // NEW: arrivals per stage during period
               stage_data: stageData,
               raw_conversion_stats: conversionStats,
               raw_movement_stats: movementStats,
