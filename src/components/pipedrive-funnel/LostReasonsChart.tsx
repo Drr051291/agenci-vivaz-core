@@ -99,13 +99,19 @@ export function LostReasonsChart({ lostReasons, allStages, loading }: LostReason
   // Merge similar reasons into one
   const mergeReasons = (reasons: Record<string, number>): Record<string, number> => {
     const merged: Record<string, number> = {};
-    const mergeMap: Record<string, string> = {
-      'Fora do icp': 'Fora do ICP',
-      'Desqualificado Brandspot': 'Fora do ICP',
+    
+    // Normalize reason to check for ICP-related patterns
+    const normalizeReason = (reason: string): string => {
+      const lower = reason.toLowerCase();
+      if (lower.includes('fora do icp') || 
+          lower.includes('desqualificado') && lower.includes('brandspot')) {
+        return 'Fora do ICP';
+      }
+      return reason;
     };
     
     Object.entries(reasons).forEach(([reason, count]) => {
-      const normalizedReason = mergeMap[reason] || reason;
+      const normalizedReason = normalizeReason(reason);
       merged[normalizedReason] = (merged[normalizedReason] || 0) + count;
     });
     
