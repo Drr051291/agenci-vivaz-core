@@ -100,12 +100,15 @@ export function LostReasonsChart({ lostReasons, allStages, loading }: LostReason
   const mergeReasons = (reasons: Record<string, number>): Record<string, number> => {
     const merged: Record<string, number> = {};
     
-    // Normalize reason to check for ICP-related patterns
+    // Normalize reason to check for similar patterns
     const normalizeReason = (reason: string): string => {
       const lower = reason.toLowerCase();
       if (lower.includes('fora do icp') || 
-          lower.includes('desqualificado') && lower.includes('brandspot')) {
+          (lower.includes('desqualificado') && lower.includes('brandspot'))) {
         return 'Fora do ICP';
+      }
+      if (lower.includes('sem contato')) {
+        return 'Sem contato';
       }
       return reason;
     };
