@@ -13,6 +13,7 @@ import { FunnelStepper } from './FunnelStepper';
 import { FunnelPeriodFilter } from './FunnelPeriodFilter';
 import { FunnelDetailsTable } from './FunnelDetailsTable';
 import { FunnelComingSoon } from './FunnelComingSoon';
+import { LostReasonsChart } from './LostReasonsChart';
 import { DateRange, PIPELINE_ID, PIPEDRIVE_DOMAIN, ViewMode } from './types';
 
 interface PipedriveFunnelDashboardProps {
@@ -152,6 +153,12 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
           />
         </CardContent>
       </Card>
+
+      {/* Lost Reasons Chart */}
+      <LostReasonsChart 
+        lostReasons={data?.lost_reasons} 
+        loading={loading} 
+      />
 
       {/* Coming Soon */}
       <FunnelComingSoon />

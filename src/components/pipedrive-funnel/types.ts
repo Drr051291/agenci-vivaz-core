@@ -12,6 +12,7 @@ export interface FunnelData {
   stage_counts?: Record<number, number>;
   stage_arrivals?: Record<number, number>; // NEW: arrivals per stage during period
   stage_data: Record<number, { count: number; name: string }>;
+  lost_reasons?: Record<string, number>; // NEW: loss reasons with counts
   fetched_at: string;
   raw_conversion_stats?: unknown;
   raw_movement_stats?: unknown;

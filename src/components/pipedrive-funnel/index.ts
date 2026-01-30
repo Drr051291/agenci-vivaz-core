@@ -4,5 +4,6 @@ export { FunnelStepper } from './FunnelStepper';
 export { FunnelPeriodFilter } from './FunnelPeriodFilter';
 export { FunnelDetailsTable } from './FunnelDetailsTable';
 export { FunnelComingSoon } from './FunnelComingSoon';
+export { LostReasonsChart } from './LostReasonsChart';
 export { usePipedriveFunnel } from './usePipedriveFunnel';
 export * from './types';
