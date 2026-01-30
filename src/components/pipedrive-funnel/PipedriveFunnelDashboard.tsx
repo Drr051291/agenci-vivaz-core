@@ -143,16 +143,6 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
         </CardContent>
       </Card>
 
-      {/* Details (collapsed) */}
-      <Card>
-        <CardContent className="pt-4 pb-4">
-          <FunnelDetailsTable 
-            conversions={conversions} 
-            allStages={data?.all_stages}
-            loading={loading} 
-          />
-        </CardContent>
-      </Card>
 
       {/* Lost Reasons Chart */}
       <LostReasonsChart 
