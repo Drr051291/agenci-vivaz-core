@@ -311,40 +311,42 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
         </div>
       </div>
 
-      {/* Pipedrive Funnel Card - Always visible */}
-      <div className="p-4 pb-0">
-        <Card className="hover:shadow-md transition-shadow border-blue-500/30 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
-          <CardContent className="p-6">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600">
-                    <Filter className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-base">Funil (Pipedrive) — serviços_b2b</h3>
-                    <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs mt-1">
-                      Pipeline ID 9
-                    </Badge>
+      {/* Pipedrive Funnel Card - Only visible for Sétima (c694df38-b4ec-444c-bc0d-8d8b6102b161) */}
+      {clientId === "c694df38-b4ec-444c-bc0d-8d8b6102b161" && (
+        <div className="p-4 pb-0">
+          <Card className="hover:shadow-md transition-shadow border-blue-500/30 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
+            <CardContent className="p-6">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600">
+                      <Filter className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-base">Funil (Pipedrive) — serviços_b2b</h3>
+                      <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs mt-1">
+                        Pipeline ID 9
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <p className="text-xs text-muted-foreground">
-                Visualize leads, taxas de conversão e performance do funil de vendas.
-              </p>
+                
+                <p className="text-xs text-muted-foreground">
+                  Visualize leads, taxas de conversão e performance do funil de vendas.
+                </p>
 
-              <Button
-                size="sm"
-                onClick={() => setShowPipedriveFunnel(true)}
-                className="w-full"
-              >
-                Visualizar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                <Button
+                  size="sm"
+                  onClick={() => setShowPipedriveFunnel(true)}
+                  className="w-full"
+                >
+                  Visualizar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {dashboards.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[calc(100vh-450px)] gap-4">
