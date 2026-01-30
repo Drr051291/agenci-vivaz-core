@@ -145,14 +145,14 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
 
 
       {/* Lost Reasons Chart */}
+      {/* Lost Reasons Chart */}
       <LostReasonsChart 
         lostReasons={data?.lost_reasons} 
         allStages={data?.all_stages}
         loading={loading} 
       />
 
-      {/* Coming Soon */}
-      <FunnelComingSoon />
+      {/* Empty state when no data */}
 
       {/* Empty state when no data */}
       {!loading && data && leadsCount === 0 && Object.values(conversions).every(v => v === 0) && (
