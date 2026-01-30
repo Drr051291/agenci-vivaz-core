@@ -366,11 +366,13 @@ async function getLostDealsReasons(
 
   console.log('Fetching lost deals reasons for period:', startDate, 'to', endDate)
 
-  // First, fetch all lost deals in the period
-  const lostDealsResponse = await fetchFromPipedrive('/api/v2/deals', {
+  // Use v1 API which has better support for lost_reason field
+  // Fetch deals with status=lost and filter by lost_time
+  const lostDealsResponse = await fetchFromPipedrive('/v1/deals', {
     pipeline_id: pipelineId.toString(),
     status: 'lost',
-    limit: '500'
+    limit: '500',
+    start: '0'
   }) as { data?: Array<{ 
     id: number
     lost_time?: string
@@ -379,14 +381,16 @@ async function getLostDealsReasons(
 
   const lostDeals = lostDealsResponse?.data || []
   
-  // Filter to period
+  console.log(`Total lost deals fetched: ${lostDeals.length}`)
+  
+  // Filter to period based on lost_time
   const lostInPeriod = lostDeals.filter(deal => {
     if (!deal.lost_time) return false
-    const lostDate = deal.lost_time.split('T')[0]
+    const lostDate = deal.lost_time.split(' ')[0] // v1 API format: "2026-01-15 10:30:00"
     return lostDate >= startDate && lostDate <= endDate
   })
 
-  console.log(`Lost deals in period: ${lostInPeriod.length} of ${lostDeals.length}`)
+  console.log(`Lost deals in period: ${lostInPeriod.length}`)
 
   // Group by loss reason
   const reasonCounts: Record<string, number> = {}
