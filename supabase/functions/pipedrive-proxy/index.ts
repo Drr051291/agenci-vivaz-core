@@ -346,6 +346,12 @@ async function getStageArrivalsFromDeals(
   return result
 }
 
+// Lost reasons result type
+interface LostReasonsResult {
+  total: Record<string, number>
+  by_stage: Record<number, Record<string, number>>
+}
+
 // Get lost deals with their loss reasons
 async function getLostDealsReasons(
   supabase: AnySupabaseClient,
@@ -353,24 +359,25 @@ async function getLostDealsReasons(
   startDate: string,
   endDate: string,
   forceRefresh: boolean
-): Promise<Record<string, number>> {
+): Promise<LostReasonsResult> {
   const cacheKey = `lost_reasons_${pipelineId}_${startDate}_${endDate}`
   
   if (!forceRefresh) {
     const cached = await getCachedData(supabase, cacheKey)
     if (cached) {
       console.log('Using cached lost reasons')
-      return cached.payload as Record<string, number>
+      return cached.payload as LostReasonsResult
     }
   }
 
   console.log('Fetching lost deals reasons for period:', startDate, 'to', endDate)
 
-  // Paginate through all lost deals
+  // Paginate through all lost deals - include stage_id for per-stage analysis
   const allLostDeals: Array<{ 
     id: number
     lost_time?: string
     lost_reason?: string
+    stage_id?: number
   }> = []
   
   let start = 0
@@ -388,6 +395,7 @@ async function getLostDealsReasons(
         id: number
         lost_time?: string
         lost_reason?: string
+        stage_id?: number
       }>
       additional_data?: {
         pagination?: {
@@ -408,30 +416,40 @@ async function getLostDealsReasons(
 
   console.log(`Total lost deals fetched: ${allLostDeals.length}`)
   
-  // Log a sample to debug date format
+  // Log a sample to debug
   if (allLostDeals.length > 0) {
-    console.log('Sample deal lost_time format:', allLostDeals[0].lost_time, 'lost_reason:', allLostDeals[0].lost_reason)
+    console.log('Sample deal:', allLostDeals[0].lost_time, 'reason:', allLostDeals[0].lost_reason, 'stage_id:', allLostDeals[0].stage_id)
   }
   
   // Filter to period based on lost_time
   const lostInPeriod = allLostDeals.filter(deal => {
     if (!deal.lost_time) return false
-    // Handle both formats: "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS"
-    const lostDate = deal.lost_time.substring(0, 10) // Get first 10 chars: YYYY-MM-DD
+    const lostDate = deal.lost_time.substring(0, 10)
     return lostDate >= startDate && lostDate <= endDate
   })
 
   console.log(`Lost deals in period: ${lostInPeriod.length}`)
 
-  // Group by loss reason
+  // Group by loss reason (total)
   const reasonCounts: Record<string, number> = {}
+  
+  // Group by stage -> reason
+  const reasonsByStage: Record<number, Record<string, number>> = {}
   
   lostInPeriod.forEach(deal => {
     const reason = deal.lost_reason || 'Não informado'
     reasonCounts[reason] = (reasonCounts[reason] || 0) + 1
+    
+    // Group by stage
+    if (deal.stage_id) {
+      if (!reasonsByStage[deal.stage_id]) {
+        reasonsByStage[deal.stage_id] = {}
+      }
+      reasonsByStage[deal.stage_id][reason] = (reasonsByStage[deal.stage_id][reason] || 0) + 1
+    }
   })
 
-  // Sort by count descending
+  // Sort total reasons by count descending
   const sortedReasons: Record<string, number> = {}
   Object.entries(reasonCounts)
     .sort((a, b) => b[1] - a[1])
@@ -439,10 +457,27 @@ async function getLostDealsReasons(
       sortedReasons[reason] = count
     })
 
-  console.log('Lost reasons:', sortedReasons)
+  // Sort reasons within each stage
+  const sortedReasonsByStage: Record<number, Record<string, number>> = {}
+  Object.entries(reasonsByStage).forEach(([stageId, reasons]) => {
+    sortedReasonsByStage[Number(stageId)] = {}
+    Object.entries(reasons)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([reason, count]) => {
+        sortedReasonsByStage[Number(stageId)][reason] = count
+      })
+  })
 
-  await setCachedData(supabase, cacheKey, sortedReasons, TTL_CONFIG.deals)
-  return sortedReasons
+  console.log('Lost reasons total:', sortedReasons)
+  console.log('Lost reasons by stage:', sortedReasonsByStage)
+
+  const result = {
+    total: sortedReasons,
+    by_stage: sortedReasonsByStage
+  }
+
+  await setCachedData(supabase, cacheKey, result, TTL_CONFIG.deals)
+  return result
 }
 
 serve(async (req) => {

@@ -157,6 +157,7 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
       {/* Lost Reasons Chart */}
       <LostReasonsChart 
         lostReasons={data?.lost_reasons} 
+        allStages={data?.all_stages}
         loading={loading} 
       />
 

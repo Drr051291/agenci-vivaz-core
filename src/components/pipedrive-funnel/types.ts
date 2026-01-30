@@ -4,6 +4,11 @@ export interface StageInfo {
   order_nr: number;
 }
 
+export interface LostReasonsData {
+  total: Record<string, number>;
+  by_stage: Record<number, Record<string, number>>;
+}
+
 export interface FunnelData {
   stages: StageInfo[];
   all_stages?: StageInfo[];
@@ -12,7 +17,7 @@ export interface FunnelData {
   stage_counts?: Record<number, number>;
   stage_arrivals?: Record<number, number>; // NEW: arrivals per stage during period
   stage_data: Record<number, { count: number; name: string }>;
-  lost_reasons?: Record<string, number>; // NEW: loss reasons with counts
+  lost_reasons?: LostReasonsData; // Updated: includes total and by_stage
   fetched_at: string;
   raw_conversion_stats?: unknown;
   raw_movement_stats?: unknown;

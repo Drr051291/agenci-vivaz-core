@@ -1,11 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { LostReasonsData, StageInfo } from './types';
 
 interface LostReasonsChartProps {
-  lostReasons?: Record<string, number>;
+  lostReasons?: LostReasonsData;
+  allStages?: StageInfo[];
   loading?: boolean;
 }
 
@@ -18,12 +21,72 @@ const COLORS = [
   'hsl(var(--muted-foreground))',
 ];
 
-export function LostReasonsChart({ lostReasons, loading }: LostReasonsChartProps) {
-  const chartData = useMemo(() => {
-    if (!lostReasons) return [];
+function ReasonBarChart({ data, height = 200 }: { data: Array<{ reason: string; fullReason: string; count: number; fill: string }>; height?: number }) {
+  if (data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+        Sem perdas nesta etapa
+      </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart 
+        data={data} 
+        layout="vertical" 
+        margin={{ top: 0, right: 20, left: 0, bottom: 0 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+        <XAxis 
+          type="number" 
+          tick={{ fontSize: 10 }} 
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis 
+          type="category" 
+          dataKey="reason" 
+          tick={{ fontSize: 10 }} 
+          width={120}
+          tickLine={false}
+          axisLine={false}
+        />
+        <Tooltip 
+          cursor={{ fill: 'hsl(var(--muted))' }}
+          contentStyle={{ 
+            backgroundColor: 'hsl(var(--popover))', 
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '6px',
+            fontSize: '12px'
+          }}
+          formatter={(value: number, _name: string, props: { payload?: { fullReason?: string } }) => [
+            `${value} deal${value !== 1 ? 's' : ''}`,
+            props.payload?.fullReason || 'Motivo'
+          ]}
+        />
+        <Bar 
+          dataKey="count" 
+          radius={[0, 4, 4, 0]}
+          maxBarSize={24}
+        >
+          {data.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={entry.fill} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function LostReasonsChart({ lostReasons, allStages, loading }: LostReasonsChartProps) {
+  const [activeTab, setActiveTab] = useState<string>('total');
+
+  const totalChartData = useMemo(() => {
+    if (!lostReasons?.total) return [];
     
-    return Object.entries(lostReasons)
-      .slice(0, 6) // Show top 6 reasons
+    return Object.entries(lostReasons.total)
+      .slice(0, 6)
       .map(([reason, count], index) => ({
         reason: reason.length > 25 ? reason.substring(0, 25) + '...' : reason,
         fullReason: reason,
@@ -32,10 +95,38 @@ export function LostReasonsChart({ lostReasons, loading }: LostReasonsChartProps
       }));
   }, [lostReasons]);
 
+  const stageChartData = useMemo(() => {
+    if (!lostReasons?.by_stage || !allStages) return {};
+    
+    const result: Record<number, Array<{ reason: string; fullReason: string; count: number; fill: string }>> = {};
+    
+    Object.entries(lostReasons.by_stage).forEach(([stageIdStr, reasons]) => {
+      const stageId = Number(stageIdStr);
+      result[stageId] = Object.entries(reasons)
+        .slice(0, 6)
+        .map(([reason, count], index) => ({
+          reason: reason.length > 25 ? reason.substring(0, 25) + '...' : reason,
+          fullReason: reason,
+          count,
+          fill: COLORS[index % COLORS.length]
+        }));
+    });
+    
+    return result;
+  }, [lostReasons, allStages]);
+
   const totalLost = useMemo(() => {
-    if (!lostReasons) return 0;
-    return Object.values(lostReasons).reduce((a, b) => a + b, 0);
+    if (!lostReasons?.total) return 0;
+    return Object.values(lostReasons.total).reduce((a, b) => a + b, 0);
   }, [lostReasons]);
+
+  const stagesWithLosses = useMemo(() => {
+    if (!allStages || !lostReasons?.by_stage) return [];
+    return allStages.filter(stage => 
+      lostReasons.by_stage[stage.id] && 
+      Object.keys(lostReasons.by_stage[stage.id]).length > 0
+    );
+  }, [allStages, lostReasons]);
 
   if (loading) {
     return (
@@ -77,51 +168,28 @@ export function LostReasonsChart({ lostReasons, loading }: LostReasonsChartProps
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart 
-            data={chartData} 
-            layout="vertical" 
-            margin={{ top: 0, right: 20, left: 0, bottom: 0 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-            <XAxis 
-              type="number" 
-              tick={{ fontSize: 10 }} 
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis 
-              type="category" 
-              dataKey="reason" 
-              tick={{ fontSize: 10 }} 
-              width={120}
-              tickLine={false}
-              axisLine={false}
-            />
-            <Tooltip 
-              cursor={{ fill: 'hsl(var(--muted))' }}
-              contentStyle={{ 
-                backgroundColor: 'hsl(var(--popover))', 
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-                fontSize: '12px'
-              }}
-              formatter={(value: number, _name: string, props: { payload?: { fullReason?: string } }) => [
-                `${value} deal${value !== 1 ? 's' : ''}`,
-                props.payload?.fullReason || 'Motivo'
-              ]}
-            />
-            <Bar 
-              dataKey="count" 
-              radius={[0, 4, 4, 0]}
-              maxBarSize={24}
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.fill} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mb-4 w-full flex-wrap h-auto gap-1">
+            <TabsTrigger value="total" className="text-xs">
+              Total
+            </TabsTrigger>
+            {stagesWithLosses.map(stage => (
+              <TabsTrigger key={stage.id} value={String(stage.id)} className="text-xs">
+                {stage.name.split(' ')[0].split('(')[0]}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <TabsContent value="total" className="mt-0">
+            <ReasonBarChart data={totalChartData} />
+          </TabsContent>
+
+          {stagesWithLosses.map(stage => (
+            <TabsContent key={stage.id} value={String(stage.id)} className="mt-0">
+              <ReasonBarChart data={stageChartData[stage.id] || []} />
+            </TabsContent>
+          ))}
+        </Tabs>
       </CardContent>
     </Card>
   );
