@@ -366,27 +366,58 @@ async function getLostDealsReasons(
 
   console.log('Fetching lost deals reasons for period:', startDate, 'to', endDate)
 
-  // Use v1 API which has better support for lost_reason field
-  // Fetch deals with status=lost and filter by lost_time
-  const lostDealsResponse = await fetchFromPipedrive('/v1/deals', {
-    pipeline_id: pipelineId.toString(),
-    status: 'lost',
-    limit: '500',
-    start: '0'
-  }) as { data?: Array<{ 
+  // Paginate through all lost deals
+  const allLostDeals: Array<{ 
     id: number
     lost_time?: string
     lost_reason?: string
-  }> }
-
-  const lostDeals = lostDealsResponse?.data || []
+  }> = []
   
-  console.log(`Total lost deals fetched: ${lostDeals.length}`)
+  let start = 0
+  const limit = 500
+  let hasMore = true
+  
+  while (hasMore) {
+    const lostDealsResponse = await fetchFromPipedrive('/v1/deals', {
+      pipeline_id: pipelineId.toString(),
+      status: 'lost',
+      limit: limit.toString(),
+      start: start.toString()
+    }) as { 
+      data?: Array<{ 
+        id: number
+        lost_time?: string
+        lost_reason?: string
+      }>
+      additional_data?: {
+        pagination?: {
+          more_items_in_collection?: boolean
+        }
+      }
+    }
+
+    const deals = lostDealsResponse?.data || []
+    allLostDeals.push(...deals)
+    
+    hasMore = lostDealsResponse?.additional_data?.pagination?.more_items_in_collection || false
+    start += limit
+    
+    // Safety limit
+    if (start > 5000) break
+  }
+
+  console.log(`Total lost deals fetched: ${allLostDeals.length}`)
+  
+  // Log a sample to debug date format
+  if (allLostDeals.length > 0) {
+    console.log('Sample deal lost_time format:', allLostDeals[0].lost_time, 'lost_reason:', allLostDeals[0].lost_reason)
+  }
   
   // Filter to period based on lost_time
-  const lostInPeriod = lostDeals.filter(deal => {
+  const lostInPeriod = allLostDeals.filter(deal => {
     if (!deal.lost_time) return false
-    const lostDate = deal.lost_time.split(' ')[0] // v1 API format: "2026-01-15 10:30:00"
+    // Handle both formats: "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS"
+    const lostDate = deal.lost_time.substring(0, 10) // Get first 10 chars: YYYY-MM-DD
     return lostDate >= startDate && lostDate <= endDate
   })
 
