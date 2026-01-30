@@ -9,6 +9,15 @@ export interface LostReasonsData {
   by_stage: Record<number, Record<string, number>>;
 }
 
+export interface CampaignTrackingData {
+  by_campaign: Record<string, { total: number; by_stage: Record<number, number> }>;
+  by_adset: Record<string, { total: number; by_stage: Record<number, number> }>;
+  by_creative: Record<string, { total: number; by_stage: Record<number, number> }>;
+  field_key: string | null;
+  all_stages?: StageInfo[];
+  fetched_at?: string;
+}
+
 export interface FunnelData {
   stages: StageInfo[];
   all_stages?: StageInfo[];
@@ -29,9 +38,17 @@ export interface FunnelResponse {
   error?: string;
 }
 
+export interface CampaignTrackingResponse {
+  success: boolean;
+  data?: CampaignTrackingData;
+  error?: string;
+}
+
 export type PeriodPreset = 'today' | 'thisWeek' | 'last7Days' | 'last14Days' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'custom';
 
 export type ViewMode = 'period' | 'snapshot';
+
+export type TrackingLevel = 'campaign' | 'adset' | 'creative';
 
 export interface DateRange {
   start: Date;

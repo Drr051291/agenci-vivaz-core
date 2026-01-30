@@ -9,11 +9,13 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 import { usePipedriveFunnel } from './usePipedriveFunnel';
+import { useCampaignTracking } from './useCampaignTracking';
 import { FunnelStepper } from './FunnelStepper';
 import { FunnelPeriodFilter } from './FunnelPeriodFilter';
 import { FunnelDetailsTable } from './FunnelDetailsTable';
 import { FunnelComingSoon } from './FunnelComingSoon';
 import { LostReasonsChart } from './LostReasonsChart';
+import { CampaignTrackingChart } from './CampaignTrackingChart';
 import { DateRange, PIPELINE_ID, PIPEDRIVE_DOMAIN, ViewMode } from './types';
 
 interface PipedriveFunnelDashboardProps {
@@ -28,9 +30,14 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
   const [viewMode, setViewMode] = useState<ViewMode>('period');
 
   const { data, loading, error, lastUpdated, refetch } = usePipedriveFunnel(dateRange);
+  const { 
+    data: trackingData, 
+    loading: trackingLoading, 
+    refetch: refetchTracking 
+  } = useCampaignTracking(dateRange);
 
   const handleRefresh = async () => {
-    await refetch(true);
+    await Promise.all([refetch(true), refetchTracking(true)]);
   };
 
   const pipedriveUrl = `https://${PIPEDRIVE_DOMAIN}.pipedrive.com/pipeline/${PIPELINE_ID}`;
@@ -145,11 +152,17 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
 
 
       {/* Lost Reasons Chart */}
-      {/* Lost Reasons Chart */}
       <LostReasonsChart 
         lostReasons={data?.lost_reasons} 
         allStages={data?.all_stages}
         loading={loading} 
+      />
+
+      {/* Campaign Tracking Chart */}
+      <CampaignTrackingChart 
+        data={trackingData}
+        allStages={data?.all_stages}
+        loading={trackingLoading} 
       />
 
       {/* Empty state when no data */}

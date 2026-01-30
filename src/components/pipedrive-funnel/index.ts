@@ -5,5 +5,7 @@ export { FunnelPeriodFilter } from './FunnelPeriodFilter';
 export { FunnelDetailsTable } from './FunnelDetailsTable';
 export { FunnelComingSoon } from './FunnelComingSoon';
 export { LostReasonsChart } from './LostReasonsChart';
+export { CampaignTrackingChart } from './CampaignTrackingChart';
 export { usePipedriveFunnel } from './usePipedriveFunnel';
+export { useCampaignTracking } from './useCampaignTracking';
 export * from './types';

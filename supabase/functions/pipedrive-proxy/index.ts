@@ -352,6 +352,216 @@ interface LostReasonsResult {
   by_stage: Record<number, Record<string, number>>
 }
 
+// Campaign tracking data types
+interface CampaignTrackingResult {
+  by_campaign: Record<string, { total: number; by_stage: Record<number, number> }>
+  by_adset: Record<string, { total: number; by_stage: Record<number, number> }>
+  by_creative: Record<string, { total: number; by_stage: Record<number, number> }>
+  field_key: string | null
+}
+
+// Parse the tracking field value
+function parseTrackingField(value: string): { campaign: string; adSet: string; creative: string } {
+  if (!value || value.trim() === '') {
+    return { campaign: 'Não informado', adSet: 'Não informado', creative: 'Não informado' }
+  }
+  
+  // Split by " / " (space-slash-space) first, then try just "/"
+  let parts = value.split(' / ').map(p => p.trim())
+  if (parts.length < 3) {
+    parts = value.split('/').map(p => p.trim())
+  }
+  
+  return {
+    campaign: parts[0] || 'Não informado',
+    adSet: parts[1] || 'Não informado',
+    creative: parts[2] || 'Não informado'
+  }
+}
+
+// Get the custom field key for "Origem - Campanha / Conjunto / Criativo"
+async function getTrackingFieldKey(
+  supabase: AnySupabaseClient,
+  forceRefresh: boolean
+): Promise<string | null> {
+  const cacheKey = 'pipedrive_tracking_field_key'
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached tracking field key')
+      return cached.payload as string | null
+    }
+  }
+
+  console.log('Fetching deal fields to find tracking field key')
+  
+  const response = await fetchFromPipedrive('/v1/dealFields') as {
+    data?: Array<{
+      key: string
+      name: string
+      field_type: string
+    }>
+  }
+
+  const fields = response?.data || []
+  
+  // Look for the field by name (case-insensitive, partial match)
+  const trackingField = fields.find(f => 
+    f.name.toLowerCase().includes('origem') && 
+    (f.name.toLowerCase().includes('campanha') || f.name.toLowerCase().includes('criativo'))
+  )
+
+  const fieldKey = trackingField?.key || null
+  console.log('Tracking field found:', trackingField?.name, 'key:', fieldKey)
+
+  await setCachedData(supabase, cacheKey, fieldKey, TTL_CONFIG.stages)
+  return fieldKey
+}
+
+// Get campaign tracking data from deals
+async function getCampaignTrackingData(
+  supabase: AnySupabaseClient,
+  pipelineId: number,
+  startDate: string,
+  endDate: string,
+  forceRefresh: boolean
+): Promise<CampaignTrackingResult> {
+  const cacheKey = `campaign_tracking_${pipelineId}_${startDate}_${endDate}`
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached campaign tracking data')
+      return cached.payload as CampaignTrackingResult
+    }
+  }
+
+  // First, get the tracking field key
+  const fieldKey = await getTrackingFieldKey(supabase, forceRefresh)
+  
+  if (!fieldKey) {
+    console.log('Tracking field not found in Pipedrive')
+    return {
+      by_campaign: {},
+      by_adset: {},
+      by_creative: {},
+      field_key: null
+    }
+  }
+
+  console.log('Fetching deals with tracking field:', fieldKey)
+
+  // Fetch all deals in the pipeline (open and won) within the date range
+  const allDeals: Array<{
+    id: number
+    add_time?: string
+    stage_id?: number
+    status?: string
+    [key: string]: unknown
+  }> = []
+  
+  let start = 0
+  const limit = 500
+  let hasMore = true
+  
+  while (hasMore) {
+    const dealsResponse = await fetchFromPipedrive('/v1/deals', {
+      pipeline_id: pipelineId.toString(),
+      limit: limit.toString(),
+      start: start.toString()
+    }) as { 
+      data?: Array<{
+        id: number
+        add_time?: string
+        stage_id?: number
+        status?: string
+        [key: string]: unknown
+      }>
+      additional_data?: {
+        pagination?: {
+          more_items_in_collection?: boolean
+        }
+      }
+    }
+
+    const deals = dealsResponse?.data || []
+    allDeals.push(...deals)
+    
+    hasMore = dealsResponse?.additional_data?.pagination?.more_items_in_collection || false
+    start += limit
+    
+    if (start > 5000) break
+  }
+
+  console.log(`Total deals fetched: ${allDeals.length}`)
+
+  // Filter to deals created in the period and after the base date
+  const filteredDeals = allDeals.filter(deal => {
+    if (!deal.add_time) return false
+    const addDate = deal.add_time.split('T')[0]
+    return addDate >= DEALS_CREATED_AFTER && addDate >= startDate && addDate <= endDate
+  })
+
+  console.log(`Deals in period: ${filteredDeals.length}`)
+
+  // Initialize result structures
+  const byCampaign: Record<string, { total: number; by_stage: Record<number, number> }> = {}
+  const byAdset: Record<string, { total: number; by_stage: Record<number, number> }> = {}
+  const byCreative: Record<string, { total: number; by_stage: Record<number, number> }> = {}
+
+  // Process each deal
+  filteredDeals.forEach(deal => {
+    const trackingValue = deal[fieldKey] as string | undefined
+    const { campaign, adSet, creative } = parseTrackingField(trackingValue || '')
+    const stageId = deal.stage_id || 0
+
+    // Aggregate by campaign
+    if (!byCampaign[campaign]) {
+      byCampaign[campaign] = { total: 0, by_stage: {} }
+    }
+    byCampaign[campaign].total++
+    byCampaign[campaign].by_stage[stageId] = (byCampaign[campaign].by_stage[stageId] || 0) + 1
+
+    // Aggregate by ad set
+    if (!byAdset[adSet]) {
+      byAdset[adSet] = { total: 0, by_stage: {} }
+    }
+    byAdset[adSet].total++
+    byAdset[adSet].by_stage[stageId] = (byAdset[adSet].by_stage[stageId] || 0) + 1
+
+    // Aggregate by creative
+    if (!byCreative[creative]) {
+      byCreative[creative] = { total: 0, by_stage: {} }
+    }
+    byCreative[creative].total++
+    byCreative[creative].by_stage[stageId] = (byCreative[creative].by_stage[stageId] || 0) + 1
+  })
+
+  // Sort each record by total descending
+  const sortByTotal = (obj: Record<string, { total: number; by_stage: Record<number, number> }>) => {
+    return Object.fromEntries(
+      Object.entries(obj).sort((a, b) => b[1].total - a[1].total)
+    )
+  }
+
+  const result: CampaignTrackingResult = {
+    by_campaign: sortByTotal(byCampaign),
+    by_adset: sortByTotal(byAdset),
+    by_creative: sortByTotal(byCreative),
+    field_key: fieldKey
+  }
+
+  console.log('Campaign tracking result:', {
+    campaigns: Object.keys(result.by_campaign).length,
+    adsets: Object.keys(result.by_adset).length,
+    creatives: Object.keys(result.by_creative).length
+  })
+
+  await setCachedData(supabase, cacheKey, result, TTL_CONFIG.deals)
+  return result
+}
+
 // Get lost deals with their loss reasons
 async function getLostDealsReasons(
   supabase: AnySupabaseClient,
@@ -644,6 +854,32 @@ serve(async (req) => {
               lost_reasons: lostReasons,
               deals_created_after: DEALS_CREATED_AFTER, // Include filter info in response
               raw_conversion_stats: conversionStats,
+              fetched_at: new Date().toISOString()
+            }
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      case 'get_campaign_tracking': {
+        // Get campaign tracking data from deals
+        const trackingData = await getCampaignTrackingData(
+          supabase, 
+          pipeline_id, 
+          start_date, 
+          end_date, 
+          forceRefresh
+        )
+
+        // Also get stages for reference
+        const stagesResult = await getStagesMap(supabase, pipeline_id, forceRefresh)
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              ...trackingData,
+              all_stages: stagesResult.all,
               fetched_at: new Date().toISOString()
             }
           }),
