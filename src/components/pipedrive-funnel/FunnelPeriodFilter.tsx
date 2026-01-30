@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -6,8 +6,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, ChevronDown } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PeriodPreset, DateRange } from './types';
@@ -73,7 +80,18 @@ export function FunnelPeriodFilter({
   const [activePreset, setActivePreset] = useState<PeriodPreset>('thisMonth');
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  const handlePresetClick = (preset: PresetConfig) => {
+  const displayLabel = useMemo(() => {
+    if (activePreset === 'custom') {
+      return `${format(dateRange.start, 'dd/MM', { locale: ptBR })} - ${format(dateRange.end, 'dd/MM/yy', { locale: ptBR })}`;
+    }
+    const preset = PRESETS.find(p => p.value === activePreset);
+    return preset?.label || 'Selecione';
+  }, [activePreset, dateRange]);
+
+  const handlePresetChange = (value: string) => {
+    const preset = PRESETS.find(p => p.value === value);
+    if (!preset) return;
+
     setActivePreset(preset.value);
     
     if (preset.value === 'custom') {
@@ -91,52 +109,48 @@ export function FunnelPeriodFilter({
     if (range?.from && range?.to) {
       onDateRangeChange({ start: range.from, end: range.to });
       setActivePreset('custom');
+      setCalendarOpen(false);
     }
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs text-muted-foreground mr-1">Período:</span>
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground">Período:</span>
       
-      {PRESETS.map((preset) => (
-        preset.value === 'custom' ? (
-          <Popover key={preset.value} open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant={activePreset === 'custom' ? 'default' : 'outline'}
-                size="sm"
-                className="h-7 text-xs"
-              >
-                <CalendarIcon className="h-3 w-3 mr-1" />
-                {activePreset === 'custom' 
-                  ? `${format(dateRange.start, 'dd/MM', { locale: ptBR })} - ${format(dateRange.end, 'dd/MM', { locale: ptBR })}`
-                  : preset.label
-                }
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="range"
-                defaultMonth={dateRange.start}
-                selected={{ from: dateRange.start, to: dateRange.end }}
-                onSelect={handleCalendarSelect}
-                numberOfMonths={2}
-                locale={ptBR}
-              />
-            </PopoverContent>
-          </Popover>
-        ) : (
-          <Button
-            key={preset.value}
-            variant={activePreset === preset.value ? 'default' : 'outline'}
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => handlePresetClick(preset)}
-          >
-            {preset.label}
-          </Button>
-        )
-      ))}
+      <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+        <Select value={activePreset} onValueChange={handlePresetChange}>
+          <SelectTrigger className="w-[180px] h-8 text-xs">
+            <div className="flex items-center gap-1.5">
+              <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue placeholder="Selecione o período">
+                {displayLabel}
+              </SelectValue>
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            {PRESETS.map((preset) => (
+              <SelectItem key={preset.value} value={preset.value} className="text-xs">
+                {preset.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        
+        {/* Calendar popover for custom dates */}
+        <PopoverTrigger asChild>
+          <span className="hidden" />
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="range"
+            defaultMonth={dateRange.start}
+            selected={{ from: dateRange.start, to: dateRange.end }}
+            onSelect={handleCalendarSelect}
+            numberOfMonths={2}
+            locale={ptBR}
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
