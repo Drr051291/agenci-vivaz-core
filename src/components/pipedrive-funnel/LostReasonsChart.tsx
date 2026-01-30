@@ -96,10 +96,29 @@ function ReasonBarChart({ data, height = 200 }: { data: Array<{ reason: string; 
 export function LostReasonsChart({ lostReasons, allStages, loading }: LostReasonsChartProps) {
   const [activeTab, setActiveTab] = useState<string>('total');
 
+  // Merge similar reasons into one
+  const mergeReasons = (reasons: Record<string, number>): Record<string, number> => {
+    const merged: Record<string, number> = {};
+    const mergeMap: Record<string, string> = {
+      'Fora do icp': 'Fora do ICP',
+      'Desqualificado Brandspot': 'Fora do ICP',
+    };
+    
+    Object.entries(reasons).forEach(([reason, count]) => {
+      const normalizedReason = mergeMap[reason] || reason;
+      merged[normalizedReason] = (merged[normalizedReason] || 0) + count;
+    });
+    
+    return merged;
+  };
+
   const totalChartData = useMemo(() => {
     if (!lostReasons?.total) return [];
     
-    const entries = Object.entries(lostReasons.total).slice(0, 6);
+    const mergedReasons = mergeReasons(lostReasons.total);
+    const entries = Object.entries(mergedReasons)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
     const totalCount = entries.reduce((sum, [, count]) => sum + count, 0);
     
     return entries.map(([reason, count], index) => ({
@@ -118,7 +137,10 @@ export function LostReasonsChart({ lostReasons, allStages, loading }: LostReason
     
     Object.entries(lostReasons.by_stage).forEach(([stageIdStr, reasons]) => {
       const stageId = Number(stageIdStr);
-      const entries = Object.entries(reasons).slice(0, 6);
+      const mergedReasons = mergeReasons(reasons);
+      const entries = Object.entries(mergedReasons)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6);
       const stageTotal = entries.reduce((sum, [, count]) => sum + count, 0);
       
       result[stageId] = entries.map(([reason, count], index) => ({
