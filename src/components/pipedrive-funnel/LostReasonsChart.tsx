@@ -21,7 +21,7 @@ const COLORS = [
   'hsl(var(--muted-foreground))',
 ];
 
-function ReasonBarChart({ data, height = 200 }: { data: Array<{ reason: string; fullReason: string; count: number; fill: string }>; height?: number }) {
+function ReasonBarChart({ data, height = 200 }: { data: Array<{ reason: string; fullReason: string; count: number; percentage: number; fill: string }>; height?: number }) {
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
@@ -35,7 +35,7 @@ function ReasonBarChart({ data, height = 200 }: { data: Array<{ reason: string; 
       <BarChart 
         data={data} 
         layout="vertical" 
-        margin={{ top: 0, right: 20, left: 0, bottom: 0 }}
+        margin={{ top: 0, right: 60, left: 0, bottom: 0 }}
       >
         <CartesianGrid strokeDasharray="3 3" horizontal={false} />
         <XAxis 
@@ -60,8 +60,8 @@ function ReasonBarChart({ data, height = 200 }: { data: Array<{ reason: string; 
             borderRadius: '6px',
             fontSize: '12px'
           }}
-          formatter={(value: number, _name: string, props: { payload?: { fullReason?: string } }) => [
-            `${value} deal${value !== 1 ? 's' : ''}`,
+          formatter={(value: number, _name: string, props: { payload?: { fullReason?: string; percentage?: number } }) => [
+            `${value} deal${value !== 1 ? 's' : ''} (${props.payload?.percentage?.toFixed(1) || 0}%)`,
             props.payload?.fullReason || 'Motivo'
           ]}
         />
@@ -69,6 +69,20 @@ function ReasonBarChart({ data, height = 200 }: { data: Array<{ reason: string; 
           dataKey="count" 
           radius={[0, 4, 4, 0]}
           maxBarSize={24}
+          label={({ x, y, width, height, value, index }) => {
+            const item = data[index];
+            return (
+              <text
+                x={x + width + 4}
+                y={y + height / 2}
+                fill="hsl(var(--foreground))"
+                fontSize={10}
+                dominantBaseline="middle"
+              >
+                {value} ({item.percentage.toFixed(0)}%)
+              </text>
+            );
+          }}
         >
           {data.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -85,31 +99,35 @@ export function LostReasonsChart({ lostReasons, allStages, loading }: LostReason
   const totalChartData = useMemo(() => {
     if (!lostReasons?.total) return [];
     
-    return Object.entries(lostReasons.total)
-      .slice(0, 6)
-      .map(([reason, count], index) => ({
-        reason: reason.length > 25 ? reason.substring(0, 25) + '...' : reason,
-        fullReason: reason,
-        count,
-        fill: COLORS[index % COLORS.length]
-      }));
+    const entries = Object.entries(lostReasons.total).slice(0, 6);
+    const totalCount = entries.reduce((sum, [, count]) => sum + count, 0);
+    
+    return entries.map(([reason, count], index) => ({
+      reason: reason.length > 25 ? reason.substring(0, 25) + '...' : reason,
+      fullReason: reason,
+      count,
+      percentage: totalCount > 0 ? (count / totalCount) * 100 : 0,
+      fill: COLORS[index % COLORS.length]
+    }));
   }, [lostReasons]);
 
   const stageChartData = useMemo(() => {
     if (!lostReasons?.by_stage || !allStages) return {};
     
-    const result: Record<number, Array<{ reason: string; fullReason: string; count: number; fill: string }>> = {};
+    const result: Record<number, Array<{ reason: string; fullReason: string; count: number; percentage: number; fill: string }>> = {};
     
     Object.entries(lostReasons.by_stage).forEach(([stageIdStr, reasons]) => {
       const stageId = Number(stageIdStr);
-      result[stageId] = Object.entries(reasons)
-        .slice(0, 6)
-        .map(([reason, count], index) => ({
-          reason: reason.length > 25 ? reason.substring(0, 25) + '...' : reason,
-          fullReason: reason,
-          count,
-          fill: COLORS[index % COLORS.length]
-        }));
+      const entries = Object.entries(reasons).slice(0, 6);
+      const stageTotal = entries.reduce((sum, [, count]) => sum + count, 0);
+      
+      result[stageId] = entries.map(([reason, count], index) => ({
+        reason: reason.length > 25 ? reason.substring(0, 25) + '...' : reason,
+        fullReason: reason,
+        count,
+        percentage: stageTotal > 0 ? (count / stageTotal) * 100 : 0,
+        fill: COLORS[index % COLORS.length]
+      }));
     });
     
     return result;
