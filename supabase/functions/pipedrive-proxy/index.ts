@@ -346,6 +346,72 @@ async function getStageArrivalsFromDeals(
   return result
 }
 
+// Get lost deals with their loss reasons
+async function getLostDealsReasons(
+  supabase: AnySupabaseClient,
+  pipelineId: number,
+  startDate: string,
+  endDate: string,
+  forceRefresh: boolean
+): Promise<Record<string, number>> {
+  const cacheKey = `lost_reasons_${pipelineId}_${startDate}_${endDate}`
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached lost reasons')
+      return cached.payload as Record<string, number>
+    }
+  }
+
+  console.log('Fetching lost deals reasons for period:', startDate, 'to', endDate)
+
+  // First, fetch all lost deals in the period
+  const lostDealsResponse = await fetchFromPipedrive('/api/v2/deals', {
+    pipeline_id: pipelineId.toString(),
+    status: 'lost',
+    limit: '500',
+    sort_by: 'lost_time',
+    sort_direction: 'desc'
+  }) as { data?: Array<{ 
+    id: number
+    lost_time?: string
+    lost_reason?: string
+  }> }
+
+  const lostDeals = lostDealsResponse?.data || []
+  
+  // Filter to period
+  const lostInPeriod = lostDeals.filter(deal => {
+    if (!deal.lost_time) return false
+    const lostDate = deal.lost_time.split('T')[0]
+    return lostDate >= startDate && lostDate <= endDate
+  })
+
+  console.log(`Lost deals in period: ${lostInPeriod.length} of ${lostDeals.length}`)
+
+  // Group by loss reason
+  const reasonCounts: Record<string, number> = {}
+  
+  lostInPeriod.forEach(deal => {
+    const reason = deal.lost_reason || 'Não informado'
+    reasonCounts[reason] = (reasonCounts[reason] || 0) + 1
+  })
+
+  // Sort by count descending
+  const sortedReasons: Record<string, number> = {}
+  Object.entries(reasonCounts)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([reason, count]) => {
+      sortedReasons[reason] = count
+    })
+
+  console.log('Lost reasons:', sortedReasons)
+
+  await setCachedData(supabase, cacheKey, sortedReasons, TTL_CONFIG.deals)
+  return sortedReasons
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -392,10 +458,11 @@ serve(async (req) => {
         console.log('Using deals created after filter:', DEALS_CREATED_AFTER)
 
         // Fetch data in parallel - now using the filtered arrivals calculation
-        const [conversionStats, dealsPerStage, arrivalsData] = await Promise.all([
+        const [conversionStats, dealsPerStage, arrivalsData, lostReasons] = await Promise.all([
           getConversionStatistics(supabase, pipeline_id, start_date, end_date, forceRefresh),
           getDealsPerStage(supabase, pipeline_id, allStagesSorted, forceRefresh),
-          getStageArrivalsFromDeals(supabase, pipeline_id, allStagesSorted, start_date, end_date, forceRefresh)
+          getStageArrivalsFromDeals(supabase, pipeline_id, allStagesSorted, start_date, end_date, forceRefresh),
+          getLostDealsReasons(supabase, pipeline_id, start_date, end_date, forceRefresh)
         ])
 
         // Log raw conversion stats to understand the data structure
@@ -506,6 +573,7 @@ serve(async (req) => {
               stage_counts: dealsPerStage,
               stage_arrivals: stageArrivals,
               stage_data: stageData,
+              lost_reasons: lostReasons,
               deals_created_after: DEALS_CREATED_AFTER, // Include filter info in response
               raw_conversion_stats: conversionStats,
               fetched_at: new Date().toISOString()
