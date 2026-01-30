@@ -370,9 +370,7 @@ async function getLostDealsReasons(
   const lostDealsResponse = await fetchFromPipedrive('/api/v2/deals', {
     pipeline_id: pipelineId.toString(),
     status: 'lost',
-    limit: '500',
-    sort_by: 'lost_time',
-    sort_direction: 'desc'
+    limit: '500'
   }) as { data?: Array<{ 
     id: number
     lost_time?: string
