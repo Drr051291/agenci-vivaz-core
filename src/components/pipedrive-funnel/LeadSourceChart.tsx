@@ -2,14 +2,17 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Users } from 'lucide-react';
+import { Users, TrendingUp, Camera } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { LeadSourceData, LeadSource, StageInfo } from './types';
+import { LeadSourceData, LeadSource, StageInfo, ViewMode } from './types';
 
 interface LeadSourceChartProps {
   data?: LeadSourceData | null;
+  snapshotData?: LeadSourceData | null;
   allStages?: StageInfo[];
   loading?: boolean;
+  snapshotLoading?: boolean;
+  viewMode?: ViewMode;
 }
 
 // Fixed colors for each source type
@@ -101,61 +104,83 @@ function SourceBarChart({ data, height = 150 }: { data: ChartDataItem[]; height?
   );
 }
 
-export function LeadSourceChart({ data, allStages, loading }: LeadSourceChartProps) {
+function buildChartData(sourceData: LeadSourceData | null | undefined): ChartDataItem[] {
+  if (!sourceData?.by_source) return [];
+  
+  const totalCount = Object.values(sourceData.by_source).reduce((sum, s) => sum + s.total, 0);
+  
+  return SOURCE_ORDER.map(source => ({
+    source,
+    count: sourceData.by_source[source]?.total || 0,
+    percentage: totalCount > 0 ? ((sourceData.by_source[source]?.total || 0) / totalCount) * 100 : 0,
+    fill: SOURCE_COLORS[source]
+  })).filter(item => item.count > 0);
+}
+
+function buildStageChartData(
+  sourceData: LeadSourceData | null | undefined, 
+  allStages: StageInfo[] | undefined
+): Record<number, ChartDataItem[]> {
+  if (!sourceData?.by_source || !allStages) return {};
+  
+  const result: Record<number, ChartDataItem[]> = {};
+  
+  allStages.forEach(stage => {
+    const stageTotal = SOURCE_ORDER.reduce((sum, source) => {
+      return sum + (sourceData.by_source[source]?.by_stage[stage.id] || 0);
+    }, 0);
+    
+    if (stageTotal > 0) {
+      result[stage.id] = SOURCE_ORDER.map(source => ({
+        source,
+        count: sourceData.by_source[source]?.by_stage[stage.id] || 0,
+        percentage: stageTotal > 0 ? ((sourceData.by_source[source]?.by_stage[stage.id] || 0) / stageTotal) * 100 : 0,
+        fill: SOURCE_COLORS[source]
+      })).filter(item => item.count > 0);
+    }
+  });
+  
+  return result;
+}
+
+function getStagesWithData(
+  sourceData: LeadSourceData | null | undefined, 
+  allStages: StageInfo[] | undefined
+): StageInfo[] {
+  if (!allStages || !sourceData?.by_source) return [];
+  return allStages.filter(stage => {
+    const stageTotal = SOURCE_ORDER.reduce((sum, source) => {
+      return sum + (sourceData.by_source[source]?.by_stage[stage.id] || 0);
+    }, 0);
+    return stageTotal > 0;
+  });
+}
+
+function getTotalLeads(sourceData: LeadSourceData | null | undefined): number {
+  if (!sourceData?.by_source) return 0;
+  return Object.values(sourceData.by_source).reduce((sum, s) => sum + s.total, 0);
+}
+
+export function LeadSourceChart({ 
+  data, 
+  snapshotData, 
+  allStages, 
+  loading, 
+  snapshotLoading,
+  viewMode = 'period' 
+}: LeadSourceChartProps) {
   const [activeTab, setActiveTab] = useState<string>('total');
 
-  const totalChartData = useMemo(() => {
-    if (!data?.by_source) return [];
-    
-    const totalCount = Object.values(data.by_source).reduce((sum, s) => sum + s.total, 0);
-    
-    return SOURCE_ORDER.map(source => ({
-      source,
-      count: data.by_source[source]?.total || 0,
-      percentage: totalCount > 0 ? ((data.by_source[source]?.total || 0) / totalCount) * 100 : 0,
-      fill: SOURCE_COLORS[source]
-    })).filter(item => item.count > 0);
-  }, [data]);
+  // Use period or snapshot data based on viewMode
+  const activeData = viewMode === 'snapshot' ? snapshotData : data;
+  const isLoading = viewMode === 'snapshot' ? snapshotLoading : loading;
 
-  const stageChartData = useMemo(() => {
-    if (!data?.by_source || !allStages) return {};
-    
-    const result: Record<number, ChartDataItem[]> = {};
-    
-    allStages.forEach(stage => {
-      const stageTotal = SOURCE_ORDER.reduce((sum, source) => {
-        return sum + (data.by_source[source]?.by_stage[stage.id] || 0);
-      }, 0);
-      
-      if (stageTotal > 0) {
-        result[stage.id] = SOURCE_ORDER.map(source => ({
-          source,
-          count: data.by_source[source]?.by_stage[stage.id] || 0,
-          percentage: stageTotal > 0 ? ((data.by_source[source]?.by_stage[stage.id] || 0) / stageTotal) * 100 : 0,
-          fill: SOURCE_COLORS[source]
-        })).filter(item => item.count > 0);
-      }
-    });
-    
-    return result;
-  }, [data, allStages]);
+  const totalChartData = useMemo(() => buildChartData(activeData), [activeData]);
+  const stageChartData = useMemo(() => buildStageChartData(activeData, allStages), [activeData, allStages]);
+  const stagesWithData = useMemo(() => getStagesWithData(activeData, allStages), [activeData, allStages]);
+  const totalLeads = useMemo(() => getTotalLeads(activeData), [activeData]);
 
-  const totalLeads = useMemo(() => {
-    if (!data?.by_source) return 0;
-    return Object.values(data.by_source).reduce((sum, s) => sum + s.total, 0);
-  }, [data]);
-
-  const stagesWithData = useMemo(() => {
-    if (!allStages || !data?.by_source) return [];
-    return allStages.filter(stage => {
-      const stageTotal = SOURCE_ORDER.reduce((sum, source) => {
-        return sum + (data.by_source[source]?.by_stage[stage.id] || 0);
-      }, 0);
-      return stageTotal > 0;
-    });
-  }, [allStages, data]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader className="pb-2">
@@ -168,13 +193,15 @@ export function LeadSourceChart({ data, allStages, loading }: LeadSourceChartPro
     );
   }
 
-  if (!data || totalLeads === 0) {
+  if (!activeData || totalLeads === 0) {
     return (
       <Card className="border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-8 gap-2">
           <Users className="h-8 w-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground text-center">
-            Sem dados de origem no período.
+            {viewMode === 'snapshot' 
+              ? 'Sem negócios abertos no momento.'
+              : 'Sem dados de origem no período.'}
           </p>
         </CardContent>
       </Card>
@@ -188,9 +215,21 @@ export function LeadSourceChart({ data, allStages, loading }: LeadSourceChartPro
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Users className="h-4 w-4 text-primary" />
             Origem dos Leads
+            {viewMode === 'snapshot' ? (
+              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded flex items-center gap-1">
+                <Camera className="h-3 w-3" />
+                Snapshot
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" />
+                Período
+              </span>
+            )}
           </CardTitle>
           <span className="text-xs text-muted-foreground">
-            {totalLeads} lead{totalLeads !== 1 ? 's' : ''} no período
+            {totalLeads} {viewMode === 'snapshot' ? 'negócio' : 'lead'}{totalLeads !== 1 ? 's' : ''} 
+            {viewMode === 'snapshot' ? ' abertos' : ' no período'}
           </span>
         </div>
       </CardHeader>

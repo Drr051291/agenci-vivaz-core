@@ -744,6 +744,107 @@ async function getLeadSourceTrackingData(
   return result
 }
 
+// Get lead source SNAPSHOT data - all open deals regardless of date filter
+async function getLeadSourceSnapshotData(
+  supabase: AnySupabaseClient,
+  pipelineId: number,
+  forceRefresh: boolean
+): Promise<LeadSourceTrackingResult> {
+  const cacheKey = `lead_source_snapshot_${pipelineId}`
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached lead source snapshot data')
+      return cached.payload as LeadSourceTrackingResult
+    }
+  }
+
+  // Get deal labels to find "BASE SETIMA" label ID
+  const labels = await getDealLabels(supabase, forceRefresh)
+  const baseSetimaLabel = labels.find(l => 
+    l.name.toUpperCase().includes('BASE SETIMA') || 
+    l.name.toUpperCase().includes('BASE SÉTIMA')
+  )
+  const baseSetimaLabelId = baseSetimaLabel?.id || null
+
+  console.log('Base Sétima label ID (snapshot):', baseSetimaLabelId)
+
+  // Fetch ALL OPEN deals in the pipeline - no date filter for snapshot
+  const allDeals: Array<{
+    id: number
+    title?: string
+    add_time?: string
+    stage_id?: number
+    status?: string
+    label?: string | number | null
+  }> = []
+  
+  let start = 0
+  const limit = 500
+  let hasMore = true
+  
+  while (hasMore) {
+    const dealsResponse = await fetchFromPipedrive('/v1/deals', {
+      pipeline_id: pipelineId.toString(),
+      status: 'open', // Only open deals for snapshot
+      limit: limit.toString(),
+      start: start.toString()
+    }) as { 
+      data?: Array<{
+        id: number
+        title?: string
+        add_time?: string
+        stage_id?: number
+        status?: string
+        label?: string | number | null
+      }>
+      additional_data?: {
+        pagination?: {
+          more_items_in_collection?: boolean
+        }
+      }
+    }
+
+    const deals = dealsResponse?.data || []
+    allDeals.push(...deals)
+    
+    hasMore = dealsResponse?.additional_data?.pagination?.more_items_in_collection || false
+    start += limit
+    
+    if (start > 5000) break
+  }
+
+  console.log(`Total OPEN deals fetched for lead source snapshot: ${allDeals.length}`)
+
+  // Initialize result structure
+  const bySource: Record<LeadSource, { total: number; by_stage: Record<number, number> }> = {
+    'Landing Page': { total: 0, by_stage: {} },
+    'Base Sétima': { total: 0, by_stage: {} },
+    'Lead Nativo': { total: 0, by_stage: {} }
+  }
+
+  // Classify each deal - NO date filtering
+  allDeals.forEach(deal => {
+    const source = classifyDealSource(deal, baseSetimaLabelId)
+    const stageId = deal.stage_id || 0
+
+    bySource[source].total++
+    bySource[source].by_stage[stageId] = (bySource[source].by_stage[stageId] || 0) + 1
+  })
+
+  console.log('Lead source snapshot result:', {
+    landingPage: bySource['Landing Page'].total,
+    baseSetima: bySource['Base Sétima'].total,
+    leadNativo: bySource['Lead Nativo'].total
+  })
+
+  const result: LeadSourceTrackingResult = { by_source: bySource }
+
+  await setCachedData(supabase, cacheKey, result, TTL_CONFIG.deals)
+  return result
+}
+
 // Get lost deals with their loss reasons
 async function getLostDealsReasons(
   supabase: AnySupabaseClient,
@@ -1087,6 +1188,30 @@ serve(async (req) => {
             success: true,
             data: {
               ...sourceData,
+              all_stages: stagesResult.all,
+              fetched_at: new Date().toISOString()
+            }
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      case 'get_lead_source_snapshot': {
+        // Get lead source SNAPSHOT data - all open deals regardless of date
+        const snapshotData = await getLeadSourceSnapshotData(
+          supabase, 
+          pipeline_id, 
+          forceRefresh
+        )
+
+        // Also get stages for reference
+        const stagesResult = await getStagesMap(supabase, pipeline_id, forceRefresh)
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              ...snapshotData,
               all_stages: stagesResult.all,
               fetched_at: new Date().toISOString()
             }
