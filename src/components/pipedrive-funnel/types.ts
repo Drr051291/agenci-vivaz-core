@@ -44,6 +44,21 @@ export interface CampaignTrackingResponse {
   error?: string;
 }
 
+// Lead Source Tracking Types
+export type LeadSource = 'Landing Page' | 'Base Sétima' | 'Lead Nativo';
+
+export interface LeadSourceData {
+  by_source: Record<LeadSource, { total: number; by_stage: Record<number, number> }>;
+  all_stages?: StageInfo[];
+  fetched_at?: string;
+}
+
+export interface LeadSourceResponse {
+  success: boolean;
+  data?: LeadSourceData;
+  error?: string;
+}
+
 export type PeriodPreset = 'today' | 'thisWeek' | 'last7Days' | 'last14Days' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'custom';
 
 export type ViewMode = 'period' | 'snapshot';

@@ -360,6 +360,13 @@ interface CampaignTrackingResult {
   field_key: string | null
 }
 
+// Lead source tracking data types
+type LeadSource = 'Landing Page' | 'Base Sétima' | 'Lead Nativo'
+
+interface LeadSourceTrackingResult {
+  by_source: Record<LeadSource, { total: number; by_stage: Record<number, number> }>
+}
+
 // Parse the tracking field value
 function parseTrackingField(value: string): { campaign: string; adSet: string; creative: string } {
   if (!value || value.trim() === '') {
@@ -557,6 +564,181 @@ async function getCampaignTrackingData(
     adsets: Object.keys(result.by_adset).length,
     creatives: Object.keys(result.by_creative).length
   })
+
+  await setCachedData(supabase, cacheKey, result, TTL_CONFIG.deals)
+  return result
+}
+
+// Classify deal source based on title and labels
+function classifyDealSource(
+  deal: { title?: string; label?: string | number | null },
+  baseSetimaLabelId: string | number | null
+): LeadSource {
+  // Priority 1: Landing Page - title contains "[Lead Site]"
+  if (deal.title && deal.title.includes('[Lead Site]')) {
+    return 'Landing Page'
+  }
+  
+  // Priority 2: Base Sétima - has the specific label
+  if (baseSetimaLabelId && deal.label) {
+    // Label can be a string or number ID
+    const dealLabel = String(deal.label)
+    if (dealLabel === String(baseSetimaLabelId)) {
+      return 'Base Sétima'
+    }
+  }
+  
+  // Default: Lead Nativo
+  return 'Lead Nativo'
+}
+
+// Get deal labels from Pipedrive
+async function getDealLabels(
+  supabase: AnySupabaseClient,
+  forceRefresh: boolean
+): Promise<Array<{ id: string | number; name: string; color: string }>> {
+  const cacheKey = 'pipedrive_deal_labels'
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached deal labels')
+      return cached.payload as Array<{ id: string | number; name: string; color: string }>
+    }
+  }
+
+  console.log('Fetching deal labels from Pipedrive')
+  
+  const response = await fetchFromPipedrive('/v1/dealFields') as {
+    data?: Array<{
+      key: string
+      name: string
+      options?: Array<{ id: string | number; label: string }>
+    }>
+  }
+
+  const fields = response?.data || []
+  
+  // Find the label field
+  const labelField = fields.find(f => f.key === 'label')
+  const labels = labelField?.options?.map(opt => ({
+    id: opt.id,
+    name: opt.label,
+    color: 'default'
+  })) || []
+
+  console.log('Deal labels found:', labels)
+
+  await setCachedData(supabase, cacheKey, labels, TTL_CONFIG.stages)
+  return labels
+}
+
+// Get lead source tracking data
+async function getLeadSourceTrackingData(
+  supabase: AnySupabaseClient,
+  pipelineId: number,
+  startDate: string,
+  endDate: string,
+  forceRefresh: boolean
+): Promise<LeadSourceTrackingResult> {
+  const cacheKey = `lead_source_tracking_${pipelineId}_${startDate}_${endDate}`
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached lead source tracking data')
+      return cached.payload as LeadSourceTrackingResult
+    }
+  }
+
+  // Get deal labels to find "BASE SETIMA" label ID
+  const labels = await getDealLabels(supabase, forceRefresh)
+  const baseSetimaLabel = labels.find(l => 
+    l.name.toUpperCase().includes('BASE SETIMA') || 
+    l.name.toUpperCase().includes('BASE SÉTIMA')
+  )
+  const baseSetimaLabelId = baseSetimaLabel?.id || null
+
+  console.log('Base Sétima label ID:', baseSetimaLabelId)
+
+  // Fetch all deals in the pipeline within the date range
+  const allDeals: Array<{
+    id: number
+    title?: string
+    add_time?: string
+    stage_id?: number
+    status?: string
+    label?: string | number | null
+  }> = []
+  
+  let start = 0
+  const limit = 500
+  let hasMore = true
+  
+  while (hasMore) {
+    const dealsResponse = await fetchFromPipedrive('/v1/deals', {
+      pipeline_id: pipelineId.toString(),
+      limit: limit.toString(),
+      start: start.toString()
+    }) as { 
+      data?: Array<{
+        id: number
+        title?: string
+        add_time?: string
+        stage_id?: number
+        status?: string
+        label?: string | number | null
+      }>
+      additional_data?: {
+        pagination?: {
+          more_items_in_collection?: boolean
+        }
+      }
+    }
+
+    const deals = dealsResponse?.data || []
+    allDeals.push(...deals)
+    
+    hasMore = dealsResponse?.additional_data?.pagination?.more_items_in_collection || false
+    start += limit
+    
+    if (start > 5000) break
+  }
+
+  console.log(`Total deals fetched for lead source: ${allDeals.length}`)
+
+  // Filter to deals created in the period and after the base date
+  const filteredDeals = allDeals.filter(deal => {
+    if (!deal.add_time) return false
+    const addDate = deal.add_time.split('T')[0]
+    return addDate >= DEALS_CREATED_AFTER && addDate >= startDate && addDate <= endDate
+  })
+
+  console.log(`Deals in period for lead source: ${filteredDeals.length}`)
+
+  // Initialize result structure
+  const bySource: Record<LeadSource, { total: number; by_stage: Record<number, number> }> = {
+    'Landing Page': { total: 0, by_stage: {} },
+    'Base Sétima': { total: 0, by_stage: {} },
+    'Lead Nativo': { total: 0, by_stage: {} }
+  }
+
+  // Classify each deal
+  filteredDeals.forEach(deal => {
+    const source = classifyDealSource(deal, baseSetimaLabelId)
+    const stageId = deal.stage_id || 0
+
+    bySource[source].total++
+    bySource[source].by_stage[stageId] = (bySource[source].by_stage[stageId] || 0) + 1
+  })
+
+  console.log('Lead source tracking result:', {
+    landingPage: bySource['Landing Page'].total,
+    baseSetima: bySource['Base Sétima'].total,
+    leadNativo: bySource['Lead Nativo'].total
+  })
+
+  const result: LeadSourceTrackingResult = { by_source: bySource }
 
   await setCachedData(supabase, cacheKey, result, TTL_CONFIG.deals)
   return result
@@ -879,6 +1061,32 @@ serve(async (req) => {
             success: true,
             data: {
               ...trackingData,
+              all_stages: stagesResult.all,
+              fetched_at: new Date().toISOString()
+            }
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      case 'get_lead_source_tracking': {
+        // Get lead source tracking data from deals
+        const sourceData = await getLeadSourceTrackingData(
+          supabase, 
+          pipeline_id, 
+          start_date, 
+          end_date, 
+          forceRefresh
+        )
+
+        // Also get stages for reference
+        const stagesResult = await getStagesMap(supabase, pipeline_id, forceRefresh)
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              ...sourceData,
               all_stages: stagesResult.all,
               fetched_at: new Date().toISOString()
             }
