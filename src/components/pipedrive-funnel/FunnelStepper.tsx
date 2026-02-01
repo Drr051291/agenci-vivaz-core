@@ -7,16 +7,22 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { StageInfo, ViewMode } from './types';
+import { StageInfo, ViewMode, FunnelData } from './types';
+import { VariationBadge } from './VariationBadge';
+import { calculateVariation, calculatePointsVariation } from './comparisonUtils';
 
 interface FunnelStepperProps {
   conversions: Record<string, number>;
   stageCounts?: Record<number, number>;
-  stageArrivals?: Record<number, number>; // NEW: arrivals per stage during period
+  stageArrivals?: Record<number, number>;
   allStages?: StageInfo[];
   leadsCount?: number;
   viewMode?: ViewMode;
   loading?: boolean;
+  // Comparison data
+  comparisonData?: FunnelData | null;
+  comparisonLoading?: boolean;
+  comparisonLabel?: string;
 }
 
 const STAGE_COLORS = [
@@ -31,48 +37,65 @@ const STAGE_COLORS = [
 
 // Simplify stage name for display
 function simplifyName(name: string): string {
-  // Remove parentheses content and truncate
   const simplified = name.replace(/\s*\(.*?\)/g, '').trim();
   return simplified.length > 12 ? simplified.substring(0, 10) + '...' : simplified;
 }
 
-export function FunnelStepper({ conversions, stageCounts = {}, stageArrivals = {}, allStages = [], leadsCount = 0, viewMode = 'period', loading = false }: FunnelStepperProps) {
-  // Use ALL stages from the pipeline
+export function FunnelStepper({ 
+  conversions, 
+  stageCounts = {}, 
+  stageArrivals = {}, 
+  allStages = [], 
+  leadsCount = 0, 
+  viewMode = 'period', 
+  loading = false,
+  comparisonData,
+  comparisonLoading = false,
+  comparisonLabel,
+}: FunnelStepperProps) {
   const displayStages = allStages;
   
-  // Build transitions dynamically from actual stages
   const transitions = displayStages.slice(0, -1).map((stage, index) => ({
     from: stage,
     to: displayStages[index + 1],
     key: `${stage.id}_${displayStages[index + 1].id}`,
   }));
 
-  // Calculate total active deals for snapshot mode
   const totalActiveDeals = useMemo(() => {
     return Object.values(stageCounts).reduce((sum, count) => sum + (count || 0), 0);
   }, [stageCounts]);
 
   const isPeriodMode = viewMode === 'period';
+  const showComparison = !!comparisonData && isPeriodMode;
 
-  // Get the correct count based on view mode
+  // Calculate lead count variation
+  const leadsVariation = useMemo(() => {
+    if (!showComparison) return null;
+    return calculateVariation(leadsCount, comparisonData?.leads_count || 0);
+  }, [showComparison, leadsCount, comparisonData?.leads_count]);
+
   const getStageCount = (stageId: number): number => {
     if (isPeriodMode) {
-      // Use arrivals (how many entered this stage during the period)
       return stageArrivals[stageId] ?? stageArrivals[String(stageId) as unknown as number] ?? 0;
     } else {
-      // Use current counts (how many are in this stage now)
       return stageCounts[stageId] ?? stageCounts[String(stageId) as unknown as number] ?? 0;
     }
   };
 
-  // If no stages yet, show placeholder
+  // Get comparison stage count
+  const getComparisonStageCount = (stageId: number): number => {
+    if (!comparisonData) return 0;
+    const arrivals = comparisonData.stage_arrivals || {};
+    return arrivals[stageId] ?? arrivals[String(stageId) as unknown as number] ?? 0;
+  };
+
   const hasStages = displayStages.length > 0;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
-          {/* KPI principal - muda baseado no modo */}
+          {/* KPI principal */}
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">
               {isPeriodMode ? 'Leads no período' : 'Deals ativos'}
@@ -80,9 +103,18 @@ export function FunnelStepper({ conversions, stageCounts = {}, stageArrivals = {
             {loading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <span className="text-2xl font-bold text-primary">
-                {isPeriodMode ? leadsCount : totalActiveDeals}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-primary">
+                  {isPeriodMode ? leadsCount : totalActiveDeals}
+                </span>
+                {showComparison && !comparisonLoading && (
+                  <VariationBadge 
+                    variation={leadsVariation} 
+                    periodLabel={comparisonLabel}
+                    size="md"
+                  />
+                )}
+              </div>
             )}
           </div>
           <div className="h-8 w-px bg-border" />
@@ -108,23 +140,41 @@ export function FunnelStepper({ conversions, stageCounts = {}, stageArrivals = {
       <div className="flex items-center justify-between gap-1 overflow-x-auto pb-2">
         {hasStages ? displayStages.map((stage, index) => {
           const transition = transitions[index];
-          // Try multiple key formats for conversion lookup
           let conversionRate: number | null = null;
+          let comparisonConversionRate: number | null = null;
           
           if (transition) {
-            // First try the direct stage ID key
             conversionRate = conversions[transition.key] ?? null;
             
-            // If not found, try the named key format (lead_to_mql, etc.)
             if (conversionRate === null) {
               const fromName = stage.name.toLowerCase().split(' ')[0].split('(')[0];
               const toName = transition.to.name.toLowerCase().split(' ')[0].split('(')[0];
               const namedKey = `${fromName}_to_${toName}`;
               conversionRate = conversions[namedKey] ?? 0;
             }
+
+            // Get comparison conversion rate
+            if (showComparison && comparisonData?.conversions) {
+              comparisonConversionRate = comparisonData.conversions[transition.key] ?? null;
+              
+              if (comparisonConversionRate === null) {
+                const fromName = stage.name.toLowerCase().split(' ')[0].split('(')[0];
+                const toName = transition.to.name.toLowerCase().split(' ')[0].split('(')[0];
+                const namedKey = `${fromName}_to_${toName}`;
+                comparisonConversionRate = comparisonData.conversions[namedKey] ?? 0;
+              }
+            }
           }
           
           const isLast = index === displayStages.length - 1;
+          const stageCount = getStageCount(stage.id);
+          const comparisonStageCount = getComparisonStageCount(stage.id);
+          const stageVariation = showComparison ? calculateVariation(stageCount, comparisonStageCount) : null;
+          
+          // Calculate conversion rate variation in percentage points
+          const conversionVariation = showComparison && conversionRate !== null && comparisonConversionRate !== null
+            ? calculatePointsVariation(conversionRate, comparisonConversionRate)
+            : null;
 
           return (
             <div key={stage.id} className="flex items-center flex-1 min-w-0">
@@ -151,32 +201,46 @@ export function FunnelStepper({ conversions, stageCounts = {}, stageArrivals = {
                             {simplifyName(stage.name)}
                           </span>
                           <span className="text-[10px] font-bold opacity-90">
-                            {getStageCount(stage.id)} {isPeriodMode ? 'chegaram' : 'deals'}
+                            {stageCount} {isPeriodMode ? 'chegaram' : 'deals'}
                           </span>
+                          {showComparison && !comparisonLoading && stageVariation !== null && (
+                            <span className={cn(
+                              'text-[9px] font-medium px-1 rounded',
+                              stageVariation > 2 && 'bg-white/20',
+                              stageVariation < -2 && 'bg-black/20',
+                            )}>
+                              {stageVariation > 0 ? '+' : ''}{Math.round(stageVariation)}%
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <div className="text-xs">
+                    <div className="text-xs space-y-1">
                       <p className="font-semibold">{stage.name}</p>
                       <p className="text-muted-foreground">
                         {isPeriodMode 
-                          ? `${getStageCount(stage.id)} chegaram no período` 
-                          : `${getStageCount(stage.id)} negócios ativos`}
+                          ? `${stageCount} chegaram no período` 
+                          : `${stageCount} negócios ativos`}
                       </p>
+                      {showComparison && (
+                        <p className="text-muted-foreground">
+                          Anterior: {comparisonStageCount}
+                        </p>
+                      )}
                     </div>
                   </TooltipContent>
                 </Tooltip>
               </div>
 
-              {/* Conversion arrow between stages - only show in period mode */}
+              {/* Conversion arrow between stages */}
               {!isLast && (
                 <div className="flex flex-col items-center justify-center px-1 min-w-[50px]">
                   {loading ? (
                     <Skeleton className="h-5 w-10" />
                   ) : isPeriodMode ? (
-                    <>
+                    <div className="flex flex-col items-center">
                       <span className={cn(
                         'text-sm font-bold',
                         conversionRate && conversionRate > 0 
@@ -187,8 +251,16 @@ export function FunnelStepper({ conversions, stageCounts = {}, stageArrivals = {
                           ? `${conversionRate.toFixed(0)}%` 
                           : '—'}
                       </span>
+                      {showComparison && !comparisonLoading && conversionVariation !== null && (
+                        <VariationBadge 
+                          variation={conversionVariation}
+                          isPercentagePoints={true}
+                          size="sm"
+                          showIcon={false}
+                        />
+                      )}
                       <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                    </>
+                    </div>
                   ) : (
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   )}
@@ -197,7 +269,6 @@ export function FunnelStepper({ conversions, stageCounts = {}, stageArrivals = {
             </div>
           );
         }) : (
-          // Placeholder when loading
           Array.from({ length: 7 }).map((_, index) => (
             <div key={index} className="flex items-center flex-1 min-w-0">
               <Skeleton className="h-10 flex-1 min-w-[60px]" />
@@ -216,6 +287,14 @@ export function FunnelStepper({ conversions, stageCounts = {}, stageArrivals = {
             const namedKey = `${fromName}_to_${toName}`;
             const rate = conversions[transition.key] ?? conversions[namedKey] ?? 0;
             
+            const comparisonRate = showComparison && comparisonData?.conversions
+              ? comparisonData.conversions[transition.key] ?? comparisonData.conversions[namedKey] ?? 0
+              : null;
+            
+            const rateVariation = comparisonRate !== null 
+              ? calculatePointsVariation(rate, comparisonRate) 
+              : null;
+            
             return (
               <div 
                 key={transition.key}
@@ -227,12 +306,21 @@ export function FunnelStepper({ conversions, stageCounts = {}, stageArrivals = {
                 {loading ? (
                   <Skeleton className="h-4 w-12" />
                 ) : (
-                  <span className={cn(
-                    'text-sm font-semibold',
-                    rate > 0 ? 'text-foreground' : 'text-muted-foreground'
-                  )}>
-                    {rate.toFixed(1)}%
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      'text-sm font-semibold',
+                      rate > 0 ? 'text-foreground' : 'text-muted-foreground'
+                    )}>
+                      {rate.toFixed(1)}%
+                    </span>
+                    {showComparison && rateVariation !== null && (
+                      <VariationBadge 
+                        variation={rateVariation}
+                        isPercentagePoints={true}
+                        size="sm"
+                      />
+                    )}
+                  </div>
                 )}
               </div>
             );

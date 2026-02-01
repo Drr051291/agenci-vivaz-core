@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, ExternalLink, AlertCircle, BarChart3, TrendingUp, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -13,12 +12,19 @@ import { useCampaignTracking } from './useCampaignTracking';
 import { useLeadSourceTracking } from './useLeadSourceTracking';
 import { FunnelStepper } from './FunnelStepper';
 import { FunnelPeriodFilter } from './FunnelPeriodFilter';
-import { FunnelDetailsTable } from './FunnelDetailsTable';
-import { FunnelComingSoon } from './FunnelComingSoon';
+import { ComparisonPeriodSelector } from './ComparisonPeriodSelector';
 import { LostReasonsChart } from './LostReasonsChart';
 import { CampaignTrackingChart } from './CampaignTrackingChart';
 import { LeadSourceChart } from './LeadSourceChart';
-import { DateRange, PIPELINE_ID, PIPEDRIVE_DOMAIN, ViewMode } from './types';
+import { 
+  DateRange, 
+  PIPELINE_ID, 
+  PIPEDRIVE_DOMAIN, 
+  ViewMode, 
+  ComparisonConfig,
+  PeriodPreset 
+} from './types';
+import { getComparisonLabel, getComparisonRange } from './comparisonUtils';
 
 interface PipedriveFunnelDashboardProps {
   clientId: string;
@@ -30,13 +36,28 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
     end: endOfMonth(new Date()),
   });
   const [viewMode, setViewMode] = useState<ViewMode>('period');
+  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>('thisMonth');
+  const [comparisonConfig, setComparisonConfig] = useState<ComparisonConfig>({
+    enabled: true,
+    preset: 'auto',
+  });
 
-  const { data, loading, error, lastUpdated, refetch } = usePipedriveFunnel(dateRange);
+  const { 
+    data, 
+    comparisonData,
+    loading, 
+    comparisonLoading,
+    error, 
+    lastUpdated, 
+    refetch 
+  } = usePipedriveFunnel(dateRange, { comparisonConfig, periodPreset });
+  
   const { 
     data: trackingData, 
     loading: trackingLoading, 
     refetch: refetchTracking 
   } = useCampaignTracking(dateRange);
+  
   const { 
     data: leadSourceData, 
     snapshotData: leadSourceSnapshotData,
@@ -49,7 +70,18 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
     await Promise.all([refetch(true), refetchTracking(true), refetchLeadSource(true)]);
   };
 
+  const handleDateRangeChange = (range: DateRange, preset?: PeriodPreset) => {
+    setDateRange(range);
+    if (preset) {
+      setPeriodPreset(preset);
+    }
+  };
+
   const pipedriveUrl = `https://${PIPEDRIVE_DOMAIN}.pipedrive.com/pipeline/${PIPELINE_ID}`;
+
+  // Calculate comparison label
+  const comparisonRange = getComparisonRange(dateRange, periodPreset, comparisonConfig);
+  const comparisonLabel = getComparisonLabel(periodPreset, comparisonConfig.preset, comparisonRange);
 
   // Error state
   if (error && !loading && !data) {
@@ -93,7 +125,8 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
         <div className="flex items-center gap-2 flex-wrap">
           <FunnelPeriodFilter 
             dateRange={dateRange} 
-            onDateRangeChange={setDateRange} 
+            onDateRangeChange={handleDateRangeChange}
+            onPresetChange={setPeriodPreset}
           />
           
           <div className="flex items-center gap-2">
@@ -123,12 +156,20 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
         </div>
       </div>
 
-      {/* Last updated */}
-      {lastUpdated && (
-        <p className="text-[10px] text-muted-foreground">
-          Atualizado às {format(lastUpdated, "HH:mm", { locale: ptBR })}
-        </p>
-      )}
+      {/* Comparison Selector + Last Updated */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <ComparisonPeriodSelector
+          config={comparisonConfig}
+          onConfigChange={setComparisonConfig}
+          periodPreset={periodPreset}
+        />
+        
+        {lastUpdated && (
+          <p className="text-[10px] text-muted-foreground">
+            Atualizado às {format(lastUpdated, "HH:mm", { locale: ptBR })}
+          </p>
+        )}
+      </div>
 
       {/* View Mode Toggle */}
       <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="w-full">
@@ -154,11 +195,13 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
             allStages={data?.all_stages}
             leadsCount={leadsCount}
             viewMode={viewMode}
-            loading={loading} 
+            loading={loading}
+            comparisonData={comparisonConfig.enabled ? comparisonData : null}
+            comparisonLoading={comparisonLoading}
+            comparisonLabel={comparisonLabel}
           />
         </CardContent>
       </Card>
-
 
       {/* Lead Source Chart */}
       <LeadSourceChart 
@@ -183,8 +226,6 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
         allStages={data?.all_stages}
         loading={trackingLoading} 
       />
-
-      {/* Empty state when no data */}
 
       {/* Empty state when no data */}
       {!loading && data && leadsCount === 0 && Object.values(conversions).every(v => v === 0) && (
