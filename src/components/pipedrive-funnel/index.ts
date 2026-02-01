@@ -6,6 +6,8 @@ export { FunnelDetailsTable } from './FunnelDetailsTable';
 export { FunnelComingSoon } from './FunnelComingSoon';
 export { LostReasonsChart } from './LostReasonsChart';
 export { CampaignTrackingChart } from './CampaignTrackingChart';
+export { LeadSourceChart } from './LeadSourceChart';
 export { usePipedriveFunnel } from './usePipedriveFunnel';
 export { useCampaignTracking } from './useCampaignTracking';
+export { useLeadSourceTracking } from './useLeadSourceTracking';
 export * from './types';

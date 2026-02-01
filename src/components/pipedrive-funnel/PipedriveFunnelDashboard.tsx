@@ -10,12 +10,14 @@ import { cn } from '@/lib/utils';
 
 import { usePipedriveFunnel } from './usePipedriveFunnel';
 import { useCampaignTracking } from './useCampaignTracking';
+import { useLeadSourceTracking } from './useLeadSourceTracking';
 import { FunnelStepper } from './FunnelStepper';
 import { FunnelPeriodFilter } from './FunnelPeriodFilter';
 import { FunnelDetailsTable } from './FunnelDetailsTable';
 import { FunnelComingSoon } from './FunnelComingSoon';
 import { LostReasonsChart } from './LostReasonsChart';
 import { CampaignTrackingChart } from './CampaignTrackingChart';
+import { LeadSourceChart } from './LeadSourceChart';
 import { DateRange, PIPELINE_ID, PIPEDRIVE_DOMAIN, ViewMode } from './types';
 
 interface PipedriveFunnelDashboardProps {
@@ -35,9 +37,14 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
     loading: trackingLoading, 
     refetch: refetchTracking 
   } = useCampaignTracking(dateRange);
+  const { 
+    data: leadSourceData, 
+    loading: leadSourceLoading, 
+    refetch: refetchLeadSource 
+  } = useLeadSourceTracking(dateRange);
 
   const handleRefresh = async () => {
-    await Promise.all([refetch(true), refetchTracking(true)]);
+    await Promise.all([refetch(true), refetchTracking(true), refetchLeadSource(true)]);
   };
 
   const pipedriveUrl = `https://${PIPEDRIVE_DOMAIN}.pipedrive.com/pipeline/${PIPELINE_ID}`;
@@ -150,6 +157,13 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
         </CardContent>
       </Card>
 
+
+      {/* Lead Source Chart */}
+      <LeadSourceChart 
+        data={leadSourceData}
+        allStages={data?.all_stages}
+        loading={leadSourceLoading} 
+      />
 
       {/* Lost Reasons Chart */}
       <LostReasonsChart 
