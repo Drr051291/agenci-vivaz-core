@@ -65,6 +65,23 @@ export type ViewMode = 'period' | 'snapshot';
 
 export type TrackingLevel = 'campaign' | 'adset' | 'creative';
 
+// Comparison types
+export type ComparisonPreset = 'auto' | 'previousMonth' | 'previousQuarter' | 'sameLastYear' | 'custom' | 'off';
+
+export interface ComparisonConfig {
+  enabled: boolean;
+  preset: ComparisonPreset;
+  customRange?: DateRange;
+}
+
+export interface ComparisonData {
+  current: number;
+  previous: number;
+  variation: number | null;
+  trend: 'up' | 'down' | 'stable';
+  periodLabel: string;
+}
+
 export interface DateRange {
   start: Date;
   end: Date;

@@ -21,7 +21,8 @@ import { PeriodPreset, DateRange } from './types';
 
 interface FunnelPeriodFilterProps {
   dateRange: DateRange;
-  onDateRangeChange: (range: DateRange) => void;
+  onDateRangeChange: (range: DateRange, preset?: PeriodPreset) => void;
+  onPresetChange?: (preset: PeriodPreset) => void;
 }
 
 interface PresetConfig {
@@ -76,6 +77,7 @@ const PRESETS: PresetConfig[] = [
 export function FunnelPeriodFilter({
   dateRange,
   onDateRangeChange,
+  onPresetChange,
 }: FunnelPeriodFilterProps) {
   const [activePreset, setActivePreset] = useState<PeriodPreset>('thisMonth');
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -93,6 +95,7 @@ export function FunnelPeriodFilter({
     if (!preset) return;
 
     setActivePreset(preset.value);
+    onPresetChange?.(preset.value);
     
     if (preset.value === 'custom') {
       setCalendarOpen(true);
@@ -101,13 +104,13 @@ export function FunnelPeriodFilter({
 
     if (preset.getRange) {
       const range = preset.getRange();
-      onDateRangeChange(range);
+      onDateRangeChange(range, preset.value);
     }
   };
 
   const handleCalendarSelect = (range: { from?: Date; to?: Date } | undefined) => {
     if (range?.from && range?.to) {
-      onDateRangeChange({ start: range.from, end: range.to });
+      onDateRangeChange({ start: range.from, end: range.to }, 'custom');
       setActivePreset('custom');
       setCalendarOpen(false);
     }
