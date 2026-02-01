@@ -1,21 +1,18 @@
 
-# Plano: Gráfico de Rastreamento de Campanhas Meta Ads
+# Plano: Gráfico de Origem dos Leads por Etapa do Funil
 
 ## Objetivo
-Criar um novo gráfico que exiba a distribuição de negócios por etapa do funil, agrupados por Campanha, Conjunto de Anúncios e Criativo do Meta Ads, usando o campo personalizado "Origem - Campanha / Conjunto / Criativo" do Pipedrive.
+Criar uma nova visualização que mostra a distribuição dos leads por **origem** (Landing Page, Base Sétima, Lead Nativo) em cada etapa do funil do Pipedrive.
 
-## Entendimento do Campo
+## Regras de Classificação
 
-O campo "Origem - Campanha / Conjunto / Criativo" contém informações separadas por "/" no formato:
+| Origem | Regra de Identificação |
+|--------|------------------------|
+| **Landing Page** | Título do deal contém `[Lead Site]` |
+| **Base Sétima** | Deal possui a etiqueta (label) `BASE SETIMA` |
+| **Lead Nativo** | Todos os demais (padrão) |
 
-```text
-[Campanha] / [Conjunto] / [Criativo]
-```
-
-Exemplo da imagem:
-- **Campanha**: `[M][Lead][Nativo] - Brandspot`
-- **Conjunto**: `00 Profissionais de marketig - Novos criativos - 12/25 — ADv +`
-- **Criativo**: `ad 07 gravar mais custar menos`
+A ordem de verificação será: Landing Page > Base Sétima > Lead Nativo (fallback).
 
 ---
 
@@ -25,134 +22,137 @@ Exemplo da imagem:
 
 **Arquivo:** `supabase/functions/pipedrive-proxy/index.ts`
 
-- Adicionar nova action `get_campaign_tracking` ou estender `get_funnel_data` para incluir dados de rastreamento
-- Buscar deals com o campo personalizado "Origem - Campanha / Conjunto / Criativo" (precisa identificar o `custom_field_key` via API do Pipedrive)
-- Fazer parse do campo separando por "/" para extrair Campanha, Conjunto e Criativo
-- Agrupar contagens por etapa e por cada nível de rastreamento
-- Aplicar mesmos filtros de data e `DEALS_CREATED_AFTER`
+Adicionar nova action `get_lead_source_tracking`:
+
+1. **Buscar Labels do Pipeline**
+   - Endpoint: `/v1/dealLabels`
+   - Mapear `label_id` para `label_name`
+   - Identificar o ID da label "BASE SETIMA"
+
+2. **Buscar Deals com Campos Necessários**
+   - Endpoint: `/v1/deals` (com paginação)
+   - Campos necessários: `title`, `label_ids`, `stage_id`, `add_time`
+   - Aplicar filtros de data e `DEALS_CREATED_AFTER`
+
+3. **Classificar Cada Deal**
+   ```text
+   function classifyDealSource(deal, baseSétimaLabelId):
+     if title contains "[Lead Site]":
+       return "Landing Page"
+     if label_ids includes baseSétimaLabelId:
+       return "Base Sétima"
+     return "Lead Nativo"
+   ```
+
+4. **Agregar por Origem e Etapa**
+   - Estrutura retornada:
+   ```text
+   {
+     by_source: {
+       "Landing Page": { total: 45, by_stage: { 1: 20, 2: 15, 3: 10 } },
+       "Base Sétima": { total: 12, by_stage: { 1: 8, 2: 4 } },
+       "Lead Nativo": { total: 78, by_stage: { 1: 40, 2: 25, 3: 13 } }
+     }
+   }
+   ```
 
 ### 2. Frontend (Novo Componente)
 
-**Arquivo:** `src/components/pipedrive-funnel/CampaignTrackingChart.tsx`
+**Arquivo:** `src/components/pipedrive-funnel/LeadSourceChart.tsx`
 
-- Componente com abas para alternar entre visões:
-  - **Por Campanha**: Agrupa por campanha
-  - **Por Conjunto**: Agrupa por conjunto de anúncios
-  - **Por Criativo**: Agrupa por criativo
 - Gráfico de barras horizontais (similar ao LostReasonsChart)
-- Cada barra mostra quantidade de deals e percentual
-- Filtro por etapa do funil ou visão total
+- Cada barra representa uma origem com quantidade e percentual
+- **Tabs por Etapa**: filtrar por etapa específica ou ver total
+- Cores distintas para cada origem:
+  - Landing Page: Azul (marketing digital)
+  - Base Sétima: Roxo (relacionamento)
+  - Lead Nativo: Verde (campanhas nativas)
 
----
+### 3. Atualizações de Tipos e Hook
 
-## Detalhes Técnicos
+**Arquivo:** `src/components/pipedrive-funnel/types.ts`
+- Adicionar interface `LeadSourceData`
+- Adicionar tipo `LeadSource = 'Landing Page' | 'Base Sétima' | 'Lead Nativo'`
 
-### Identificação do Campo Personalizado
+**Arquivo:** `src/components/pipedrive-funnel/useLeadSourceTracking.ts`
+- Novo hook para buscar dados de origem dos leads
 
-Primeiro, é necessário identificar a chave do campo personalizado no Pipedrive. Campos personalizados no Pipedrive são acessados via chaves como `abc123_campo_hash`. A API de deals retorna esses campos diretamente no objeto do deal.
+### 4. Integração no Dashboard
 
-```typescript
-// Estrutura esperada do deal com campo personalizado
-interface DealWithTracking {
-  id: number
-  stage_id: number
-  add_time: string
-  // Campo personalizado (chave hash)
-  [customFieldKey: string]: string // Ex: "abc123_tracking_field"
-}
-```
-
-### Lógica de Parse do Campo
-
-```typescript
-function parseTrackingField(value: string): {
-  campaign: string
-  adSet: string  
-  creative: string
-} {
-  if (!value) {
-    return { campaign: 'Não informado', adSet: 'Não informado', creative: 'Não informado' }
-  }
-  
-  // Dividir por "/" e limpar espaços
-  const parts = value.split('/').map(p => p.trim())
-  
-  return {
-    campaign: parts[0] || 'Não informado',
-    adSet: parts[1] || 'Não informado',
-    creative: parts[2] || 'Não informado'
-  }
-}
-```
-
-### Estrutura de Dados Retornada
-
-```typescript
-interface CampaignTrackingData {
-  // Contagem total por campanha
-  by_campaign: Record<string, {
-    total: number
-    by_stage: Record<number, number>
-  }>
-  // Contagem total por conjunto
-  by_adset: Record<string, {
-    total: number
-    by_stage: Record<number, number>
-  }>
-  // Contagem total por criativo
-  by_creative: Record<string, {
-    total: number
-    by_stage: Record<number, number>
-  }>
-}
-```
-
-### Componente Frontend
-
-- Usar Recharts (BarChart horizontal) igual ao gráfico de Motivos de Perda
-- Tabs para alternar entre Campanha / Conjunto / Criativo
-- Sub-tabs para filtrar por etapa específica ou ver total
-- Exibir top 10 itens mais frequentes
-- Cores diferenciadas para cada item
-
----
-
-## Etapas de Implementação
-
-1. **Edge Function** - Identificar a chave do campo personalizado e criar lógica de busca/parse
-2. **Tipos TypeScript** - Atualizar `types.ts` com interface para dados de tracking
-3. **Hook** - Estender `usePipedriveFunnel` ou criar novo hook para dados de tracking
-4. **Componente** - Criar `CampaignTrackingChart.tsx`
-5. **Dashboard** - Integrar componente no `PipedriveFunnelDashboard.tsx`
+**Arquivo:** `src/components/pipedrive-funnel/PipedriveFunnelDashboard.tsx`
+- Adicionar o novo componente `LeadSourceChart`
 
 ---
 
 ## Visualização Final
 
-O gráfico terá uma estrutura similar a esta:
-
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│ Rastreamento de Campanhas                                   │
+│ Origem dos Leads                                            │
 ├─────────────────────────────────────────────────────────────┤
-│ [Campanha] [Conjunto] [Criativo]     ← Tabs principais      │
-│─────────────────────────────────────────────────────────────│
-│ [Total] [Lead] [MQL] [SQL] [...]     ← Sub-tabs por etapa   │
+│ [Total] [Lead] [MQL] [SQL] [...]     ← Tabs por etapa       │
 │─────────────────────────────────────────────────────────────│
 │                                                             │
-│ [M][Lead][Nativo] - Brandspot  ████████████████  45 (62%)   │
-│ [M][Lead][Stories] - XYZ       ██████████        18 (25%)   │
-│ [M][Retargeting] - ABC         ████              10 (13%)   │
+│ Lead Nativo     ██████████████████████████████  78 (58%)    │
+│ Landing Page    ███████████████                 45 (33%)    │
+│ Base Sétima     █████                           12 (9%)     │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Observação Importante
+## Etapas de Implementação
 
-Preciso primeiro identificar a **chave exata** do campo personalizado no Pipedrive. Isso pode ser feito:
-1. Buscando a lista de campos personalizados via API `/dealFields`
-2. Ou verificando a resposta de um deal que tenha esse campo preenchido
+1. **Edge Function** - Implementar action `get_lead_source_tracking` com busca de labels e classificação
+2. **Tipos TypeScript** - Adicionar interfaces para dados de origem
+3. **Hook** - Criar `useLeadSourceTracking.ts`
+4. **Componente** - Criar `LeadSourceChart.tsx`
+5. **Dashboard** - Integrar no `PipedriveFunnelDashboard.tsx`
+6. **Cache** - Usar mesma estratégia de cache TTL já existente
 
-Após identificar a chave, a implementação seguirá normalmente.
+---
+
+## Detalhes Técnicos
+
+### Endpoint de Labels do Pipedrive
+
+```text
+GET /v1/dealLabels
+
+Resposta esperada:
+{
+  "data": [
+    { "id": "uuid-1", "name": "BASE SETIMA", "color": "blue" },
+    { "id": "uuid-2", "name": "Outro Label", "color": "green" }
+  ]
+}
+```
+
+### Estrutura do Deal com Label IDs
+
+```text
+{
+  "id": 123,
+  "title": "[Lead Site] João da Silva",
+  "stage_id": 45,
+  "label_ids": ["uuid-1", "uuid-2"],
+  "add_time": "2026-01-15T10:30:00Z"
+}
+```
+
+### Lógica de Classificação
+
+```text
+1. Verificar título:
+   - Se contém "[Lead Site]" → "Landing Page"
+
+2. Se não for Landing Page, verificar labels:
+   - Buscar ID do label "BASE SETIMA" (case-insensitive)
+   - Se deal.label_ids inclui esse ID → "Base Sétima"
+
+3. Fallback:
+   - Retornar "Lead Nativo"
+```
+
+Esta funcionalidade permitirá analisar de forma clara a eficiência de cada canal de aquisição de leads em cada etapa do funil de vendas.
