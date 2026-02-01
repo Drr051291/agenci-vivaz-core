@@ -5,7 +5,9 @@ import { format } from 'date-fns';
 
 interface UseLeadSourceTrackingReturn {
   data: LeadSourceData | null;
+  snapshotData: LeadSourceData | null;
   loading: boolean;
+  snapshotLoading: boolean;
   error: string | null;
   lastUpdated: Date | null;
   refetch: (force?: boolean) => Promise<void>;
@@ -13,13 +15,17 @@ interface UseLeadSourceTrackingReturn {
 
 export function useLeadSourceTracking(dateRange: DateRange): UseLeadSourceTrackingReturn {
   const [data, setData] = useState<LeadSourceData | null>(null);
+  const [snapshotData, setSnapshotData] = useState<LeadSourceData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [snapshotLoading, setSnapshotLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRef = useRef<string>('');
+  const snapshotFetchedRef = useRef<boolean>(false);
 
+  // Fetch period data
   const fetchData = useCallback(async (force = false) => {
     const startDate = format(dateRange.start, 'yyyy-MM-dd');
     const endDate = format(dateRange.end, 'yyyy-MM-dd');
@@ -65,6 +71,44 @@ export function useLeadSourceTracking(dateRange: DateRange): UseLeadSourceTracki
     }
   }, [dateRange, data]);
 
+  // Fetch snapshot data (only once, no date filter)
+  const fetchSnapshotData = useCallback(async (force = false) => {
+    if (!force && snapshotFetchedRef.current && snapshotData) {
+      return;
+    }
+
+    setSnapshotLoading(true);
+
+    try {
+      const { data: responseData, error: fetchError } = await supabase.functions.invoke<LeadSourceResponse>(
+        'pipedrive-proxy',
+        {
+          body: {
+            action: 'get_lead_source_snapshot',
+            pipeline_id: PIPELINE_ID,
+            force,
+          },
+        }
+      );
+
+      if (fetchError) {
+        throw new Error(fetchError.message);
+      }
+
+      if (!responseData?.success) {
+        throw new Error(responseData?.error || 'Erro ao buscar snapshot de origem');
+      }
+
+      setSnapshotData(responseData.data || null);
+      snapshotFetchedRef.current = true;
+    } catch (err) {
+      console.error('Error fetching lead source snapshot data:', err);
+    } finally {
+      setSnapshotLoading(false);
+    }
+  }, [snapshotData]);
+
+  // Fetch period data on date range change
   useEffect(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -81,13 +125,20 @@ export function useLeadSourceTracking(dateRange: DateRange): UseLeadSourceTracki
     };
   }, [dateRange.start.getTime(), dateRange.end.getTime()]);
 
+  // Fetch snapshot data on mount
+  useEffect(() => {
+    fetchSnapshotData();
+  }, []);
+
   const refetch = useCallback(async (force = false) => {
-    await fetchData(force);
-  }, [fetchData]);
+    await Promise.all([fetchData(force), fetchSnapshotData(force)]);
+  }, [fetchData, fetchSnapshotData]);
 
   return {
     data,
+    snapshotData,
     loading,
+    snapshotLoading,
     error,
     lastUpdated,
     refetch,

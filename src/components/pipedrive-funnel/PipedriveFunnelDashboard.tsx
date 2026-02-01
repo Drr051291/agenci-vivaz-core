@@ -39,7 +39,9 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
   } = useCampaignTracking(dateRange);
   const { 
     data: leadSourceData, 
+    snapshotData: leadSourceSnapshotData,
     loading: leadSourceLoading, 
+    snapshotLoading: leadSourceSnapshotLoading,
     refetch: refetchLeadSource 
   } = useLeadSourceTracking(dateRange);
 
@@ -161,8 +163,11 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
       {/* Lead Source Chart */}
       <LeadSourceChart 
         data={leadSourceData}
+        snapshotData={leadSourceSnapshotData}
         allStages={data?.all_stages}
         loading={leadSourceLoading} 
+        snapshotLoading={leadSourceSnapshotLoading}
+        viewMode={viewMode}
       />
 
       {/* Lost Reasons Chart */}
