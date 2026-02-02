@@ -11,7 +11,16 @@ interface UseCampaignTrackingReturn {
   refetch: (force?: boolean) => Promise<void>;
 }
 
-export function useCampaignTracking(dateRange: DateRange): UseCampaignTrackingReturn {
+interface UseCampaignTrackingOptions {
+  pipelineId?: number;
+}
+
+export function useCampaignTracking(
+  dateRange: DateRange,
+  options: UseCampaignTrackingOptions = {}
+): UseCampaignTrackingReturn {
+  const { pipelineId = PIPELINE_ID } = options;
+  
   const [data, setData] = useState<CampaignTrackingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +32,7 @@ export function useCampaignTracking(dateRange: DateRange): UseCampaignTrackingRe
   const fetchData = useCallback(async (force = false) => {
     const startDate = format(dateRange.start, 'yyyy-MM-dd');
     const endDate = format(dateRange.end, 'yyyy-MM-dd');
-    const fetchKey = `${startDate}_${endDate}`;
+    const fetchKey = `${pipelineId}_${startDate}_${endDate}`;
 
     if (!force && fetchKey === lastFetchRef.current && data) {
       return;
@@ -38,7 +47,7 @@ export function useCampaignTracking(dateRange: DateRange): UseCampaignTrackingRe
         {
           body: {
             action: 'get_campaign_tracking',
-            pipeline_id: PIPELINE_ID,
+            pipeline_id: pipelineId,
             start_date: startDate,
             end_date: endDate,
             force,
@@ -63,7 +72,7 @@ export function useCampaignTracking(dateRange: DateRange): UseCampaignTrackingRe
     } finally {
       setLoading(false);
     }
-  }, [dateRange, data]);
+  }, [dateRange, data, pipelineId]);
 
   useEffect(() => {
     if (debounceRef.current) {

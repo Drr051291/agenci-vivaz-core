@@ -13,7 +13,16 @@ interface UseLeadSourceTrackingReturn {
   refetch: (force?: boolean) => Promise<void>;
 }
 
-export function useLeadSourceTracking(dateRange: DateRange): UseLeadSourceTrackingReturn {
+interface UseLeadSourceTrackingOptions {
+  pipelineId?: number;
+}
+
+export function useLeadSourceTracking(
+  dateRange: DateRange,
+  options: UseLeadSourceTrackingOptions = {}
+): UseLeadSourceTrackingReturn {
+  const { pipelineId = PIPELINE_ID } = options;
+  
   const [data, setData] = useState<LeadSourceData | null>(null);
   const [snapshotData, setSnapshotData] = useState<LeadSourceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,13 +32,13 @@ export function useLeadSourceTracking(dateRange: DateRange): UseLeadSourceTracki
   
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRef = useRef<string>('');
-  const snapshotFetchedRef = useRef<boolean>(false);
+  const snapshotFetchedRef = useRef<string>('');
 
   // Fetch period data
   const fetchData = useCallback(async (force = false) => {
     const startDate = format(dateRange.start, 'yyyy-MM-dd');
     const endDate = format(dateRange.end, 'yyyy-MM-dd');
-    const fetchKey = `${startDate}_${endDate}`;
+    const fetchKey = `${pipelineId}_${startDate}_${endDate}`;
 
     if (!force && fetchKey === lastFetchRef.current && data) {
       return;
@@ -44,7 +53,7 @@ export function useLeadSourceTracking(dateRange: DateRange): UseLeadSourceTracki
         {
           body: {
             action: 'get_lead_source_tracking',
-            pipeline_id: PIPELINE_ID,
+            pipeline_id: pipelineId,
             start_date: startDate,
             end_date: endDate,
             force,
@@ -69,11 +78,12 @@ export function useLeadSourceTracking(dateRange: DateRange): UseLeadSourceTracki
     } finally {
       setLoading(false);
     }
-  }, [dateRange, data]);
+  }, [dateRange, data, pipelineId]);
 
-  // Fetch snapshot data (only once, no date filter)
+  // Fetch snapshot data (only once per pipelineId, no date filter)
   const fetchSnapshotData = useCallback(async (force = false) => {
-    if (!force && snapshotFetchedRef.current && snapshotData) {
+    const snapshotKey = `${pipelineId}`;
+    if (!force && snapshotFetchedRef.current === snapshotKey && snapshotData) {
       return;
     }
 
@@ -85,7 +95,7 @@ export function useLeadSourceTracking(dateRange: DateRange): UseLeadSourceTracki
         {
           body: {
             action: 'get_lead_source_snapshot',
-            pipeline_id: PIPELINE_ID,
+            pipeline_id: pipelineId,
             force,
           },
         }
@@ -100,13 +110,13 @@ export function useLeadSourceTracking(dateRange: DateRange): UseLeadSourceTracki
       }
 
       setSnapshotData(responseData.data || null);
-      snapshotFetchedRef.current = true;
+      snapshotFetchedRef.current = snapshotKey;
     } catch (err) {
       console.error('Error fetching lead source snapshot data:', err);
     } finally {
       setSnapshotLoading(false);
     }
-  }, [snapshotData]);
+  }, [snapshotData, pipelineId]);
 
   // Fetch period data on date range change
   useEffect(() => {

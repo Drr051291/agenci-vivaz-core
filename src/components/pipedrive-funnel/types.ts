@@ -87,7 +87,28 @@ export interface DateRange {
   end: Date;
 }
 
-export const PIPELINE_ID = 9;
+// Pipeline configurations
+export interface PipelineConfig {
+  id: number;
+  name: string;
+  subtitle: string;
+}
+
+export const PIPELINES: Record<string, PipelineConfig> = {
+  brandspot: {
+    id: 9,
+    name: 'Brandspot',
+    subtitle: 'serviços_b2b',
+  },
+  threeDimension: {
+    id: 13,
+    name: '3D',
+    subtitle: 'pipeline_3d',
+  },
+};
+
+// Legacy constants for backward compatibility
+export const PIPELINE_ID = PIPELINES.brandspot.id;
 export const PIPEDRIVE_DOMAIN = 'setima';
 
 // These are the "display" labels for the 5 key stages

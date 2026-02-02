@@ -34,7 +34,13 @@ import {
 import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, AlertCircle, CheckCircle2, Loader2, Filter, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardViewerDialog } from "./DashboardViewerDialog";
-import { PipedriveFunnelDashboard } from "@/components/pipedrive-funnel";
+import { PipedriveFunnelDashboard, PIPELINES } from "@/components/pipedrive-funnel";
+
+interface ActiveFunnel {
+  id: number;
+  name: string;
+  subtitle: string;
+}
 
 interface Dashboard {
   id: string;
@@ -95,8 +101,8 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDashboardId, setSelectedDashboardId] = useState<string | null>(null);
   
-  // Pipedrive funnel view state
-  const [showPipedriveFunnel, setShowPipedriveFunnel] = useState(false);
+  // Pipedrive funnel view state - now supports multiple pipelines
+  const [activeFunnel, setActiveFunnel] = useState<ActiveFunnel | null>(null);
   
   // Form state
   const [formDialogOpen, setFormDialogOpen] = useState(false);
@@ -275,20 +281,25 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
     );
   }
 
-  // If showing Pipedrive funnel dashboard
-  if (showPipedriveFunnel) {
+  // If showing a Pipedrive funnel dashboard
+  if (activeFunnel) {
     return (
       <div className="space-y-4 p-4">
         <Button 
           variant="ghost" 
           size="sm" 
-          onClick={() => setShowPipedriveFunnel(false)}
+          onClick={() => setActiveFunnel(null)}
           className="mb-2"
         >
           <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
           Voltar para Dashboards
         </Button>
-        <PipedriveFunnelDashboard clientId={clientId} />
+        <PipedriveFunnelDashboard 
+          clientId={clientId} 
+          pipelineId={activeFunnel.id}
+          pipelineName={activeFunnel.name}
+          pipelineSubtitle={activeFunnel.subtitle}
+        />
       </div>
     );
   }
@@ -311,40 +322,76 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
         </div>
       </div>
 
-      {/* Pipedrive Funnel Card - Only visible for Sétima (c694df38-b4ec-444c-bc0d-8d8b6102b161) */}
+      {/* Pipedrive Funnel Cards - Only visible for Sétima (c694df38-b4ec-444c-bc0d-8d8b6102b161) */}
       {clientId === "c694df38-b4ec-444c-bc0d-8d8b6102b161" && (
         <div className="p-4 pb-0">
-          <Card className="hover:shadow-md transition-shadow border-blue-500/30 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
-            <CardContent className="p-6">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600">
-                      <Filter className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-base">Funil (Pipedrive) — serviços_b2b</h3>
-                      <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs mt-1">
-                        Pipeline ID 9
-                      </Badge>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Brandspot Pipeline (ID 9) */}
+            <Card className="hover:shadow-md transition-shadow border-blue-500/30 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
+              <CardContent className="p-6">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600">
+                        <Filter className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-base">Funil {PIPELINES.brandspot.name}</h3>
+                        <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs mt-1">
+                          Pipeline ID {PIPELINES.brandspot.id}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <p className="text-xs text-muted-foreground">
-                  Visualize leads, taxas de conversão e performance do funil de vendas.
-                </p>
+                  
+                  <p className="text-xs text-muted-foreground">
+                    {PIPELINES.brandspot.subtitle} — Leads, taxas de conversão e performance.
+                  </p>
 
-                <Button
-                  size="sm"
-                  onClick={() => setShowPipedriveFunnel(true)}
-                  className="w-full"
-                >
-                  Visualizar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                  <Button
+                    size="sm"
+                    onClick={() => setActiveFunnel(PIPELINES.brandspot)}
+                    className="w-full"
+                  >
+                    Visualizar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 3D Pipeline (ID 13) */}
+            <Card className="hover:shadow-md transition-shadow border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-pink-500/5">
+              <CardContent className="p-6">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600">
+                        <Filter className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-base">Funil {PIPELINES.threeDimension.name}</h3>
+                        <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 text-xs mt-1">
+                          Pipeline ID {PIPELINES.threeDimension.id}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-muted-foreground">
+                    {PIPELINES.threeDimension.subtitle} — Leads, taxas de conversão e performance.
+                  </p>
+
+                  <Button
+                    size="sm"
+                    onClick={() => setActiveFunnel(PIPELINES.threeDimension)}
+                    className="w-full bg-purple-600 hover:bg-purple-700"
+                  >
+                    Visualizar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
