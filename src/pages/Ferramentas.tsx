@@ -51,7 +51,7 @@ const tools: Tool[] = [
   {
     id: 'matriz-performance-pro',
     name: 'Matriz de Performance Pro',
-    description: 'Análise de funil com benchmarks Brasil 2025, identificação de gargalos e insights acionáveis.',
+    description: 'Custo por etapa, gargalos, CAC projetado e ações recomendadas por fase do funil.',
     icon: TrendingUp,
     status: 'active',
     path: '/ferramentas/matriz-performance-pro',

@@ -26,7 +26,7 @@ import Ferramentas from "./pages/Ferramentas";
 import ProjecaoFaturamento from "./pages/ferramentas/ProjecaoFaturamento";
 import MatrizInsideSales from "./pages/ferramentas/MatrizInsideSales";
 import MatrizEcommerce from "./pages/ferramentas/MatrizEcommerce";
-import MatrizPerformancePro from "./pages/ferramentas/MatrizPerformancePro";
+import MatrizPerformancePro from "./pages/ferramentas/MatrizPerformanceProV2";
 import PrecificacaoMercadoLivre from "./pages/ferramentas/PrecificacaoMercadoLivre";
 import PrecificacaoProduto from "./pages/ferramentas/PrecificacaoProduto";
 import DREProjetado from "./pages/ferramentas/DREProjetado";
