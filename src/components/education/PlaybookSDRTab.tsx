@@ -403,21 +403,6 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
             </CardContent>
           </Card>
 
-          {/* Playbook Sections - Atribuições without cadence text */}
-          <div className="space-y-4">
-            {sections?.map(section => (
-              <PlaybookSectionCard
-                key={section.id}
-                section={section}
-                canEdit={canEdit}
-                isEditing={editingSection === section.id}
-                onEdit={() => setEditingSection(section.id)}
-                onCancelEdit={() => setEditingSection(null)}
-                showCadenceCard={isSétima && section.title?.toLowerCase().includes('atribuiç')}
-                onNavigateToCadence={() => setActiveSection('cadence')}
-              />
-            ))}
-          </div>
         </TabsContent>
 
         {/* CRM Section */}
