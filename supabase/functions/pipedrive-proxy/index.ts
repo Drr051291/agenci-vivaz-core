@@ -1224,6 +1224,76 @@ serve(async (req) => {
         )
       }
 
+      case 'get_stage_deals': {
+        // Get list of deals in a specific stage
+        const { stage_id, view_mode, start_date, end_date } = await req.json().catch(() => ({}))
+        
+        const requestBody = await req.json().catch(() => null)
+        const stageId = requestBody?.stage_id || stage_id
+        const viewModeParam = requestBody?.view_mode || view_mode
+        const startDateParam = requestBody?.start_date || start_date
+        const endDateParam = requestBody?.end_date || end_date
+
+        if (!stageId) {
+          throw new Error('stage_id is required')
+        }
+
+        console.log(`Fetching deals for stage ${stageId}, mode: ${viewModeParam}`)
+
+        // Fetch deals from the stage
+        const dealsResponse = await fetchFromPipedrive('/api/v2/deals', {
+          pipeline_id: pipeline_id.toString(),
+          stage_id: stageId.toString(),
+          status: 'open',
+          limit: '100'
+        }) as { data?: Array<{
+          id: number
+          title: string
+          person_name?: string
+          org_name?: string
+          add_time?: string
+          status?: string
+          value?: number
+        }> }
+
+        let deals = dealsResponse?.data || []
+
+        // For period mode, filter by date range AND creation date filter
+        if (viewModeParam === 'period' && startDateParam && endDateParam) {
+          deals = deals.filter(deal => {
+            if (!deal.add_time) return false
+            const addDate = deal.add_time.split('T')[0]
+            // Must be created after the global filter AND within the period
+            return addDate >= DEALS_CREATED_AFTER && addDate >= startDateParam && addDate <= endDateParam
+          })
+        }
+
+        // Sort by add_time descending
+        deals.sort((a, b) => {
+          const dateA = a.add_time ? new Date(a.add_time).getTime() : 0
+          const dateB = b.add_time ? new Date(b.add_time).getTime() : 0
+          return dateB - dateA
+        })
+
+        // Return simplified deal list
+        const simplifiedDeals = deals.map(d => ({
+          id: d.id,
+          title: d.title,
+          person_name: d.person_name || null,
+          org_name: d.org_name || null,
+          add_time: d.add_time,
+          value: d.value || 0
+        }))
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: simplifiedDeals
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`)
     }
