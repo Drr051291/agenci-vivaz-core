@@ -36,6 +36,11 @@ import {
   Handshake,
   Trophy,
   Timer,
+  Search,
+  Send,
+  Linkedin,
+  Calendar,
+  PhoneCall,
 } from 'lucide-react';
 import {
   usePlaybookSections,
@@ -63,24 +68,16 @@ interface PlaybookSDRTabProps {
   clients?: { id: string; company_name: string }[];
 }
 
-// Sober color palette for stages
-const STAGE_COLORS = [
-  'bg-card border-border hover:border-primary/40',
-  'bg-card border-border hover:border-primary/40',
-  'bg-card border-border hover:border-primary/40',
-  'bg-card border-border hover:border-primary/40',
-  'bg-card border-border hover:border-primary/40',
-];
-
-const STAGE_BG_COLORS = [
-  'bg-muted/30 border-border',
-  'bg-muted/30 border-border',
-  'bg-muted/30 border-border',
-  'bg-muted/30 border-border',
-  'bg-muted/30 border-border',
-];
-
 const STAGE_ICONS = [Users, UserCheck, Phone, Handshake, Trophy];
+
+// Stage name mapping based on client
+const getStageDisplayName = (stageName: string, clientName?: string) => {
+  const isSétima = clientName?.toLowerCase().includes('sétima') || clientName?.toLowerCase().includes('setima');
+  if (stageName.toLowerCase() === 'sql' && isSétima) {
+    return 'Enviar Invite';
+  }
+  return stageName;
+};
 
 export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTabProps) {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(clientId || null);
@@ -100,12 +97,14 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
   const stagesTabRef = useRef<HTMLDivElement>(null);
 
   const isLoading = sectionsLoading || stagesLoading || glossaryLoading;
+  
+  // Check if Sétima client
+  const isSétima = clientName?.toLowerCase().includes('sétima') || clientName?.toLowerCase().includes('setima');
 
   // Handle navigation from funnel or glossary to stages
   const handleNavigateToStage = (stageId: string) => {
     setActiveSection('stages');
     
-    // Find the stage in the database stages
     const stageMapping: Record<string, number> = {
       'lead': 0,
       'mql': 1,
@@ -119,7 +118,6 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
       setSelectedStage(stages[stageIndex]);
     }
     
-    // Scroll to stages section after a brief delay
     setTimeout(() => {
       stagesTabRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
@@ -173,29 +171,62 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
         </div>
       )}
 
-      {/* Section Navigation */}
+      {/* Section Navigation - Updated with Templates and Cadence modules */}
       <Tabs value={activeSection} onValueChange={setActiveSection} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className={cn("grid w-full", isSétima ? "grid-cols-6" : "grid-cols-5")}>
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <Filter className="h-4 w-4" />
-            Visão Geral
+            <span className="hidden sm:inline">Visão Geral</span>
           </TabsTrigger>
           <TabsTrigger value="crm" className="flex items-center gap-2">
             <Monitor className="h-4 w-4" />
-            CRM
+            <span className="hidden sm:inline">CRM</span>
           </TabsTrigger>
           <TabsTrigger value="simulator" className="flex items-center gap-2">
             <Calculator className="h-4 w-4" />
-            Simulador
+            <span className="hidden sm:inline">Simulador</span>
           </TabsTrigger>
           <TabsTrigger value="stages" className="flex items-center gap-2">
             <Target className="h-4 w-4" />
-            Etapas
+            <span className="hidden sm:inline">Etapas</span>
           </TabsTrigger>
+          <TabsTrigger value="templates" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">Templates</span>
+          </TabsTrigger>
+          {isSétima && (
+            <TabsTrigger value="cadence" className="flex items-center gap-2">
+              <Timer className="h-4 w-4" />
+              <span className="hidden sm:inline">Cadência</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Overview Section - Visual Summary */}
         <TabsContent value="overview" className="mt-6 space-y-6">
+          {/* Visual Introduction */}
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              <div className="relative bg-gradient-to-br from-primary/5 via-background to-muted/30 p-6">
+                <div className="max-w-3xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 rounded-xl bg-primary/10">
+                      <BookOpen className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold">Playbook SDR</h2>
+                      <p className="text-sm text-muted-foreground">Guia completo do processo de vendas</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Este playbook documenta todo o processo de pré-vendas, desde a entrada do lead até a conversão em cliente.
+                    Navegue pelas seções para entender cada etapa do funil, as responsabilidades do SDR e os processos de qualificação.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Summary Cards - Three main pillars */}
           <div className="grid md:grid-cols-3 gap-4">
             {/* Funnel Card */}
@@ -216,7 +247,7 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
                   Jornada do lead da entrada até a conversão em cliente
                 </p>
                 <div className="flex items-center gap-1">
-                  {['Lead', 'MQL', 'SQL', 'Opp', 'Contrato'].map((s, i) => (
+                  {['Lead', 'MQL', isSétima ? 'Invite' : 'SQL', 'Opp', 'Contrato'].map((s, i) => (
                     <div key={s} className="flex items-center">
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{s}</span>
                       {i < 4 && <ArrowRight className="h-3 w-3 text-border mx-0.5" />}
@@ -226,7 +257,7 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
               </CardContent>
             </Card>
 
-            {/* SDR Attributions Card */}
+            {/* SDR Attributions Card - Simplified */}
             <Card className="group">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
@@ -235,8 +266,8 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
                   </div>
                 </div>
                 <h3 className="font-semibold mb-1">Atribuições do SDR</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Responsabilidades principais do pré-vendedor
+                <p className="text-sm text-muted-foreground mb-3">
+                  Responsável por qualificar leads e agendar reuniões para o time de vendas
                 </p>
                 <ul className="text-xs text-muted-foreground space-y-1.5">
                   <li className="flex items-center gap-2">
@@ -245,52 +276,71 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
-                    Seguir cadência de contato
+                    Registrar interações no CRM
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
-                    Registrar no CRM
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
-                    Agendar reuniões
+                    Agendar reuniões qualificadas
                   </li>
                 </ul>
               </CardContent>
             </Card>
 
-            {/* Cadence Card */}
-            <Card 
-              interactive
-              onClick={() => setActiveSection('stages')}
-              className="group"
-            >
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2.5 rounded-lg bg-muted">
-                    <Timer className="h-5 w-5 text-primary" />
-                  </div>
-                  <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <h3 className="font-semibold mb-1">Cadência de Contato</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Fluxo de 5 dias úteis para conversão de MQLs
-                </p>
-                <div className="flex items-center gap-2">
-                  {[1, 2, 3, 4, 5].map((day) => (
-                    <div 
-                      key={day}
-                      className={cn(
-                        "w-7 h-7 rounded flex items-center justify-center text-xs font-medium",
-                        day === 1 || day === 2 || day === 5 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      D{day}
+            {/* Cadence Card - Links to module */}
+            {isSétima ? (
+              <Card 
+                interactive
+                onClick={() => setActiveSection('cadence')}
+                className="group"
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="p-2.5 rounded-lg bg-muted">
+                      <Timer className="h-5 w-5 text-primary" />
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <h3 className="font-semibold mb-1">Cadência de Contato</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Fluxo de 5 dias úteis para conversão de MQLs
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((day) => (
+                      <div 
+                        key={day}
+                        className={cn(
+                          "w-7 h-7 rounded flex items-center justify-center text-xs font-medium",
+                          day === 1 || day === 2 || day === 5 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        D{day}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-primary mt-3 font-medium">
+                    Ver fluxo completo →
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="group">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="p-2.5 rounded-lg bg-muted">
+                      <Timer className="h-5 w-5 text-primary" />
+                    </div>
+                  </div>
+                  <h3 className="font-semibold mb-1">Tempo de Resposta</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Velocidade é essencial na qualificação de leads
+                  </p>
+                  <div className="p-3 rounded-lg bg-muted/50 border">
+                    <p className="text-2xl font-bold text-primary">5 min</p>
+                    <p className="text-xs text-muted-foreground">Tempo ideal de resposta</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Interactive Funnel Explainer */}
@@ -304,7 +354,7 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
                 Definições de Etapas
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                Clique em cada etapa para ver detalhes, templates e checklists
+                Clique em cada etapa para ver detalhes e checklists
               </p>
             </CardHeader>
             <CardContent>
@@ -314,6 +364,7 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
                   const matchingGlossary = orderedGlossary?.find(
                     g => g.key.toLowerCase().includes(stage.id)
                   );
+                  const displayName = getStageDisplayName(stage.name, clientName);
                   
                   return (
                     <motion.button
@@ -333,7 +384,7 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
                         </div>
                         <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                      <h4 className="font-semibold text-sm mb-1">{stage.name}</h4>
+                      <h4 className="font-semibold text-sm mb-1">{displayName}</h4>
                       {stage.fullName && (
                         <p className="text-[10px] text-muted-foreground mb-2">{stage.fullName}</p>
                       )}
@@ -352,7 +403,7 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
             </CardContent>
           </Card>
 
-          {/* Playbook Sections */}
+          {/* Playbook Sections - Atribuições without cadence text */}
           <div className="space-y-4">
             {sections?.map(section => (
               <PlaybookSectionCard
@@ -362,6 +413,8 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
                 isEditing={editingSection === section.id}
                 onEdit={() => setEditingSection(section.id)}
                 onCancelEdit={() => setEditingSection(null)}
+                showCadenceCard={isSétima && section.title?.toLowerCase().includes('atribuiç')}
+                onNavigateToCadence={() => setActiveSection('cadence')}
               />
             ))}
           </div>
@@ -377,7 +430,7 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
           <EmbeddedPerformanceMatrix />
         </TabsContent>
 
-        {/* Stages Section */}
+        {/* Stages Section - Refactored */}
         <TabsContent value="stages" className="mt-6 space-y-6" ref={stagesTabRef}>
           {/* Interactive Process Funnel */}
           <Card>
@@ -389,34 +442,37 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between overflow-x-auto pb-4">
-                {stages?.map((stage, index) => (
-                  <div key={stage.id} className="flex items-center flex-shrink-0">
-                    <motion.button
-                      onClick={() => setSelectedStage(selectedStage?.id === stage.id ? null : stage)}
-                      className={cn(
-                        "relative px-4 py-3 rounded-lg min-w-[120px] transition-all",
-                        "bg-card border-2 shadow-sm",
-                        selectedStage?.id === stage.id 
-                          ? "border-primary ring-1 ring-primary/20" 
-                          : "border-border hover:border-primary/40",
-                        "hover:shadow-md cursor-pointer"
+                {stages?.map((stage, index) => {
+                  const displayName = getStageDisplayName(stage.name, clientName);
+                  return (
+                    <div key={stage.id} className="flex items-center flex-shrink-0">
+                      <motion.button
+                        onClick={() => setSelectedStage(selectedStage?.id === stage.id ? null : stage)}
+                        className={cn(
+                          "relative px-4 py-3 rounded-lg min-w-[120px] transition-all",
+                          "bg-card border-2 shadow-sm",
+                          selectedStage?.id === stage.id 
+                            ? "border-primary ring-1 ring-primary/20" 
+                            : "border-border hover:border-primary/40",
+                          "hover:shadow-md cursor-pointer"
+                        )}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          {React.createElement(STAGE_ICONS[index], { className: "h-4 w-4 text-primary" })}
+                          <span className="font-semibold text-sm">{displayName}</span>
+                        </div>
+                        <span className="block text-[10px] text-muted-foreground">
+                          Etapa {index + 1}
+                        </span>
+                      </motion.button>
+                      {index < (stages?.length || 0) - 1 && (
+                        <ArrowRight className="h-5 w-5 mx-2 text-border flex-shrink-0" />
                       )}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        {React.createElement(STAGE_ICONS[index], { className: "h-4 w-4 text-primary" })}
-                        <span className="font-semibold text-sm">{stage.name}</span>
-                      </div>
-                      <span className="block text-[10px] text-muted-foreground">
-                        Etapa {index + 1}
-                      </span>
-                    </motion.button>
-                    {index < (stages?.length || 0) - 1 && (
-                      <ArrowRight className="h-5 w-5 mx-2 text-border flex-shrink-0" />
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -438,30 +494,28 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
                   onCancelEdit={() => setEditingStage(null)}
                   checkedItems={checkedItems}
                   onCheckItem={(label) => setCheckedItems(prev => ({ ...prev, [label]: !prev[label] }))}
+                  clientName={clientName}
+                  onNavigateToCadence={() => setActiveSection('cadence')}
                 />
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Contact Cadence Flow - Sétima specific */}
-          {(clientName?.toLowerCase().includes('sétima') || clientName?.toLowerCase().includes('setima')) && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Timer className="h-4 w-4 text-primary" />
-                  Cadência de Contato
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  Fluxo visual de 5 dias úteis para conversão de MQLs
+          {!selectedStage && (
+            <Card className="border-dashed">
+              <CardContent className="p-8 text-center">
+                <Target className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <h3 className="font-medium text-muted-foreground">Selecione uma etapa</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Clique em uma etapa acima para ver detalhes e checklist
                 </p>
-              </CardHeader>
-              <CardContent>
-                <ContactCadenceFlow clientName={clientName} />
               </CardContent>
             </Card>
           )}
+        </TabsContent>
 
-          {/* Templates Section */}
+        {/* Templates Module - New Separate Section */}
+        <TabsContent value="templates" className="mt-6">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -476,25 +530,20 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
               <StageTemplates />
             </CardContent>
           </Card>
-
-          {!selectedStage && (
-            <Card className="border-dashed">
-              <CardContent className="p-8 text-center">
-                <Target className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <h3 className="font-medium text-muted-foreground">Selecione uma etapa</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Clique em uma etapa acima para ver detalhes e checklist
-                </p>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
+
+        {/* Cadence Module - New Separate Section (Sétima only) */}
+        {isSétima && (
+          <TabsContent value="cadence" className="mt-6">
+            <ContactCadenceFlow clientName={clientName} />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
 }
 
-// Stage Details Component
+// Stage Details Component - Refactored with stage-specific content
 function StageDetails({
   stage,
   stageIndex,
@@ -504,6 +553,8 @@ function StageDetails({
   onCancelEdit,
   checkedItems,
   onCheckItem,
+  clientName,
+  onNavigateToCadence,
 }: {
   stage: SDRProcessStage;
   stageIndex: number;
@@ -513,6 +564,8 @@ function StageDetails({
   onCancelEdit: () => void;
   checkedItems: Record<string, boolean>;
   onCheckItem: (label: string) => void;
+  clientName?: string;
+  onNavigateToCadence?: () => void;
 }) {
   const updateStage = useUpdateProcessStage();
   const [editForm, setEditForm] = useState({
@@ -528,15 +581,72 @@ function StageDetails({
     }, { onSuccess: onCancelEdit });
   };
 
-  const copyTemplate = (content: string) => {
-    navigator.clipboard.writeText(content);
-    toast.success('Copiado para a área de transferência!');
-  };
+  const isSétima = clientName?.toLowerCase().includes('sétima') || clientName?.toLowerCase().includes('setima');
+  const stageId = stage.name?.toLowerCase();
+  const isLeadStage = stageId === 'lead';
+  const isMQLStage = stageId === 'mql';
+  const isSQLStage = stageId === 'sql';
+  const isOpportunityStage = stageId === 'oportunidade';
 
   const completedCount = stage.checklist_json?.filter((_, idx) => 
     checkedItems[`${stage.id}-${idx}`]
   ).length || 0;
   const totalCount = stage.checklist_json?.length || 0;
+
+  const displayName = getStageDisplayName(stage.name, clientName);
+
+  // Custom checklist for Lead stage - Research focused
+  const leadChecklist = [
+    { label: 'Pesquisar site da empresa', required: true },
+    { label: 'Verificar perfil da empresa no LinkedIn', required: true },
+    { label: 'Entender o que a empresa faz/vende', required: true },
+    { label: 'Identificar tamanho da empresa (funcionários, receita)', required: true },
+    { label: 'Verificar se atende critérios de MQL', required: true },
+    { label: 'Registrar informações no CRM', required: true },
+  ];
+
+  // Custom checklist for MQL stage
+  const mqlChecklist = [
+    { label: 'Lead atende critérios de qualificação', required: true },
+    { label: 'Iniciar cadência de contato', required: true },
+    { label: 'Primeira tentativa de ligação', required: true },
+    { label: 'Registrar resultado no CRM', required: true },
+  ];
+
+  // Custom checklist for SQL (Enviar Invite) stage
+  const sqlChecklist = [
+    { label: 'Conseguiu contato com o lead', required: true },
+    { label: 'Lead demonstrou interesse', required: true },
+    { label: 'Enviar convite para reunião', required: true },
+    { label: 'Confirmar agendamento', required: true },
+    { label: 'Registrar no CRM', required: true },
+  ];
+
+  // Custom opportunity checklist based on client type
+  const getOpportunityChecklist = () => {
+    if (clientName?.toLowerCase().includes('brandspot')) {
+      return [
+        { label: 'Visita ao showroom agendada', required: true },
+        { label: 'Visita confirmada pelo lead', required: true },
+        { label: 'Preparar materiais para apresentação', required: false },
+        { label: 'Registrar no CRM', required: true },
+      ];
+    } else if (clientName?.toLowerCase().includes('3d')) {
+      return [
+        { label: 'Orçamento elaborado', required: true },
+        { label: 'Orçamento enviado ao lead', required: true },
+        { label: 'Follow-up agendado', required: false },
+        { label: 'Registrar no CRM', required: true },
+      ];
+    }
+    return stage.checklist_json || [];
+  };
+
+  const activeChecklist = isLeadStage ? leadChecklist 
+    : isMQLStage ? mqlChecklist 
+    : isSQLStage ? sqlChecklist 
+    : isOpportunityStage && isSétima ? getOpportunityChecklist()
+    : stage.checklist_json || [];
 
   return (
     <Card className="border bg-card">
@@ -544,7 +654,7 @@ function StageDetails({
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             {React.createElement(STAGE_ICONS[stageIndex], { className: "h-4 w-4 text-primary" })}
-            {stage.name}
+            {displayName}
             <Badge variant="secondary" className="ml-2">Etapa {stageIndex + 1}</Badge>
           </CardTitle>
           {canEdit && !isEditing && (
@@ -567,6 +677,88 @@ function StageDetails({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Stage-specific content for Lead */}
+        {isLeadStage && (
+          <div className="p-4 rounded-lg bg-muted/30 border">
+            <div className="flex items-start gap-3">
+              <Search className="h-5 w-5 text-primary mt-0.5" />
+              <div>
+                <h4 className="font-medium text-sm">Etapa de Pesquisa e Entendimento</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nesta etapa, o objetivo é entender a empresa do lead: o que faz, tamanho, segmento e se atende aos critérios mínimos para ser considerado um MQL.
+                  Pesquise o site, LinkedIn e outras fontes para qualificar o lead.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stage-specific content for MQL - Link to Cadence */}
+        {isMQLStage && isSétima && (
+          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+            <div className="flex items-start gap-3">
+              <Timer className="h-5 w-5 text-primary mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-medium text-sm">Início da Cadência de Contato</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Quando o lead é qualificado como MQL, inicia-se a cadência de contato de 5 dias úteis.
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-3"
+                  onClick={onNavigateToCadence}
+                >
+                  <Timer className="h-4 w-4 mr-2" />
+                  Ver Cadência Completa
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stage-specific content for SQL (Enviar Invite) */}
+        {isSQLStage && isSétima && (
+          <div className="p-4 rounded-lg bg-muted/30 border">
+            <div className="flex items-start gap-3">
+              <Send className="h-5 w-5 text-primary mt-0.5" />
+              <div>
+                <h4 className="font-medium text-sm">Envio de Convite para Reunião</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Lead foi contatado com sucesso e demonstrou interesse. É hora de enviar o convite para a reunião de apresentação.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stage-specific content for Opportunity - Sétima clients */}
+        {isOpportunityStage && isSétima && (
+          <div className="p-4 rounded-lg bg-muted/30 border">
+            <div className="flex items-start gap-3">
+              <Handshake className="h-5 w-5 text-primary mt-0.5" />
+              <div className="w-full">
+                <h4 className="font-medium text-sm">Critérios de Entrada por Unidade de Negócio</h4>
+                <div className="grid md:grid-cols-2 gap-3 mt-3">
+                  <div className="p-3 rounded-lg bg-background border">
+                    <Badge variant="outline" className="mb-2">Brandspot</Badge>
+                    <p className="text-xs text-muted-foreground">
+                      Visita agendada e confirmada no showroom
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-background border">
+                    <Badge variant="outline" className="mb-2">3D</Badge>
+                    <p className="text-xs text-muted-foreground">
+                      Orçamento enviado ao lead
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Definition and Criteria */}
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2 p-3 rounded-lg bg-background/50 border">
@@ -623,18 +815,18 @@ function StageDetails({
         </div>
 
         {/* Checklist with Progress */}
-        {stage.checklist_json && stage.checklist_json.length > 0 && (
+        {activeChecklist.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                 <ClipboardList className="h-3 w-3" /> Checklist
               </h4>
-              <Badge variant={completedCount === totalCount ? "default" : "secondary"}>
-                {completedCount}/{totalCount} concluídos
+              <Badge variant={completedCount === activeChecklist.length ? "default" : "secondary"}>
+                {Object.keys(checkedItems).filter(k => k.startsWith(stage.id) && checkedItems[k]).length}/{activeChecklist.length} concluídos
               </Badge>
             </div>
             <div className="grid sm:grid-cols-2 gap-2">
-              {stage.checklist_json.map((item, idx) => (
+              {activeChecklist.map((item, idx) => (
                 <motion.button
                   key={idx}
                   onClick={() => onCheckItem(`${stage.id}-${idx}`)}
@@ -662,58 +854,28 @@ function StageDetails({
             </div>
           </div>
         )}
-
-        {/* Templates */}
-        {stage.templates_json && stage.templates_json.length > 0 && (
-          <div className="space-y-3">
-            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-              <MessageSquare className="h-3 w-3" /> Templates Rápidos
-            </h4>
-            <div className="grid md:grid-cols-2 gap-3">
-              {stage.templates_json.map((template, idx) => (
-                <motion.div 
-                  key={idx} 
-                  className="p-4 rounded-lg bg-background/50 border hover:border-primary/30 transition-all"
-                  whileHover={{ scale: 1.01 }}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {template.type === 'email' && <Mail className="h-4 w-4 text-blue-500" />}
-                      {template.type === 'whatsapp' && <Phone className="h-4 w-4 text-green-500" />}
-                      <span className="font-medium text-sm">{template.title}</span>
-                      <Badge variant="secondary" className="text-[10px]">{template.type}</Badge>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => copyTemplate(template.content)}>
-                      <Copy className="h-4 w-4 mr-1" />
-                      Copiar
-                    </Button>
-                  </div>
-                  <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-sans bg-muted/50 p-3 rounded-md max-h-32 overflow-y-auto">
-                    {template.content}
-                  </pre>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
 }
 
-// Playbook Section Card
+// Playbook Section Card - Updated to optionally show cadence card
 function PlaybookSectionCard({
   section,
   canEdit,
   isEditing,
   onEdit,
   onCancelEdit,
+  showCadenceCard,
+  onNavigateToCadence,
 }: {
   section: SDRPlaybookSection;
   canEdit: boolean;
   isEditing: boolean;
   onEdit: () => void;
   onCancelEdit: () => void;
+  showCadenceCard?: boolean;
+  onNavigateToCadence?: () => void;
 }) {
   const updateSection = useUpdatePlaybookSection();
   const [content, setContent] = useState(section.content_md || '');
@@ -724,6 +886,11 @@ function PlaybookSectionCard({
       content_md: content,
     }, { onSuccess: onCancelEdit });
   };
+
+  // Filter out cadence text from content if showing cadence card
+  const filteredContent = showCadenceCard 
+    ? content.split(/cadência/i)[0].trim()
+    : content;
 
   return (
     <Card>
@@ -751,7 +918,7 @@ function PlaybookSectionCard({
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {isEditing ? (
           <Textarea
             value={content}
@@ -762,8 +929,32 @@ function PlaybookSectionCard({
           />
         ) : (
           <div className="prose prose-sm max-w-none dark:prose-invert">
-            <ReactMarkdown>{section.content_md || 'Sem conteúdo.'}</ReactMarkdown>
+            <ReactMarkdown>{filteredContent || 'Sem conteúdo.'}</ReactMarkdown>
           </div>
+        )}
+
+        {/* Cadence Card Link */}
+        {showCadenceCard && onNavigateToCadence && (
+          <Card 
+            interactive 
+            onClick={onNavigateToCadence}
+            className="bg-muted/30"
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Timer className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm">Cadência de Contato</h4>
+                    <p className="text-xs text-muted-foreground">Fluxo visual de 5 dias úteis para MQLs</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
         )}
       </CardContent>
     </Card>
