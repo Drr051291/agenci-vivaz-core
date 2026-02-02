@@ -246,7 +246,8 @@ export function PipedriveFunnelDashboard({
       <CampaignTrackingChart 
         data={trackingData}
         allStages={data?.all_stages}
-        loading={trackingLoading} 
+        loading={trackingLoading}
+        pipelineId={pipelineId}
       />
 
       {/* Empty state when no data */}

@@ -4,12 +4,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Target, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { CampaignTrackingData, StageInfo, TrackingLevel } from './types';
+import { CampaignTrackingData, StageInfo, TrackingLevel, PIPELINES } from './types';
 
 interface CampaignTrackingChartProps {
   data?: CampaignTrackingData | null;
   allStages?: StageInfo[];
   loading?: boolean;
+  pipelineId?: number;
 }
 
 const COLORS = [
@@ -107,17 +108,49 @@ function TrackingBarChart({ data, height = 200 }: { data: ChartDataItem[]; heigh
   );
 }
 
-export function CampaignTrackingChart({ data, allStages, loading }: CampaignTrackingChartProps) {
+// Filter function based on pipeline
+function filterByPipeline(
+  dataObj: Record<string, { total: number; by_stage: Record<number, number> }>,
+  pipelineId: number
+): Record<string, { total: number; by_stage: Record<number, number> }> {
+  const isBrandspot = pipelineId === PIPELINES.brandspot.id;
+  const is3D = pipelineId === PIPELINES.threeDimension.id;
+  
+  return Object.fromEntries(
+    Object.entries(dataObj).filter(([name]) => {
+      const lowerName = name.toLowerCase();
+      
+      if (isBrandspot) {
+        // Brandspot: only show campaigns with "brandspot" in name
+        return lowerName.includes('brandspot');
+      } else if (is3D) {
+        // 3D: show campaigns with "setima", "sétima", "3d", or "cgi"
+        return lowerName.includes('setima') || 
+               lowerName.includes('sétima') || 
+               lowerName.includes('3d') || 
+               lowerName.includes('cgi');
+      }
+      
+      // Default: show all
+      return true;
+    })
+  );
+}
+
+export function CampaignTrackingChart({ data, allStages, loading, pipelineId = PIPELINES.brandspot.id }: CampaignTrackingChartProps) {
   const [activeLevel, setActiveLevel] = useState<TrackingLevel>('campaign');
   const [activeStage, setActiveStage] = useState<string>('total');
 
   const getDataForLevel = (level: TrackingLevel) => {
     if (!data) return {};
+    let levelData: Record<string, { total: number; by_stage: Record<number, number> }>;
     switch (level) {
-      case 'campaign': return data.by_campaign;
-      case 'adset': return data.by_adset;
-      case 'creative': return data.by_creative;
+      case 'campaign': levelData = data.by_campaign; break;
+      case 'adset': levelData = data.by_adset; break;
+      case 'creative': levelData = data.by_creative; break;
     }
+    // Apply pipeline filter
+    return filterByPipeline(levelData, pipelineId);
   };
 
   const chartData = useMemo(() => {
@@ -226,9 +259,9 @@ export function CampaignTrackingChart({ data, allStages, loading }: CampaignTrac
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Target className="h-4 w-4 text-primary" />
-            Rastreamento de Campanhas (Meta Ads)
+            Rastreamento de Campanhas
           </CardTitle>
           <span className="text-xs text-muted-foreground">
             {totalDeals} negócio{totalDeals !== 1 ? 's' : ''}
