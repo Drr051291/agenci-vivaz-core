@@ -45,11 +45,13 @@ import {
   FunnelOutputsV2,
   ConversionRate,
   Projection,
+  ScenarioType,
   BENCHMARKS,
   PROJECTION_SCENARIOS,
   calculateFunnelV2,
   getBottlenecks,
   getStageActions,
+  getScenarioConfig,
   formatCurrency,
   formatPercent,
   formatNumber,
@@ -89,19 +91,20 @@ export default function MatrizPerformanceProV2() {
   });
   
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [selectedScenario, setSelectedScenario] = useState<'conservador' | 'realista' | 'agressivo'>('realista');
+  const [selectedScenario, setSelectedScenario] = useState<ScenarioType>('realista');
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [diagnosticName, setDiagnosticName] = useState('');
 
-  // Calculations
-  const outputs = useMemo(() => calculateFunnelV2(inputs), [inputs]);
+  // Calculations - now pass scenario to enable cascading projections
+  const outputs = useMemo(() => calculateFunnelV2(inputs, selectedScenario), [inputs, selectedScenario]);
   const bottlenecks = useMemo(() => getBottlenecks(outputs.conversions), [outputs.conversions]);
   const selectedProjection = useMemo(() => 
     outputs.projections?.find(p => p.scenario === selectedScenario) ?? null,
     [outputs.projections, selectedScenario]
   );
+  const scenarioConfig = useMemo(() => getScenarioConfig(selectedScenario), [selectedScenario]);
 
   // Check if required fields are filled
   const requiredFields = [
@@ -188,7 +191,7 @@ export default function MatrizPerformanceProV2() {
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, y, { align: "center" });
+      doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')} | Cenário: ${selectedScenario.charAt(0).toUpperCase() + selectedScenario.slice(1)}`, pageWidth / 2, y, { align: "center" });
       y += 15;
 
       // Dados do Funil
@@ -202,10 +205,10 @@ export default function MatrizPerformanceProV2() {
       const funnelData = [
         `Investimento: ${formatCurrency(inputs.investimento)}`,
         `Leads: ${formatNumber(inputs.leads)}`,
-        `MQL: ${formatNumber(inputs.mql)}`,
-        `SQL: ${formatNumber(inputs.sql)}`,
-        `Oportunidades: ${formatNumber(inputs.oportunidades)}`,
-        inputs.contratos !== undefined ? `Contratos: ${formatNumber(inputs.contratos)}` : 'Contratos: Projetado',
+        `MQL: ${formatNumber(outputs.projectedStages.mql.value)}${outputs.projectedStages.mql.isProjected ? ' (proj.)' : ''}`,
+        `SQL: ${formatNumber(outputs.projectedStages.sql.value)}${outputs.projectedStages.sql.isProjected ? ' (proj.)' : ''}`,
+        `Oportunidades: ${formatNumber(outputs.projectedStages.oportunidades.value)}${outputs.projectedStages.oportunidades.isProjected ? ' (proj.)' : ''}`,
+        `Contratos: ${formatNumber(outputs.projectedStages.contratos.value)}${outputs.projectedStages.contratos.isProjected ? ' (proj.)' : ''}`,
       ];
       funnelData.forEach(line => {
         doc.text(line, 14, y);
@@ -222,15 +225,26 @@ export default function MatrizPerformanceProV2() {
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       doc.text(`CPL: ${formatCurrency(outputs.costs.cpl)}`, 14, y); y += 6;
-      doc.text(`Custo/MQL: ${formatCurrency(outputs.costs.custoMql)}`, 14, y); y += 6;
-      doc.text(`Custo/SQL: ${formatCurrency(outputs.costs.custoSql)}`, 14, y); y += 6;
-      doc.text(`Custo/Opp: ${formatCurrency(outputs.costs.custoOpp)}`, 14, y); y += 6;
-      if (outputs.costs.custoContrato) {
-        doc.text(`CAC (real): ${formatCurrency(outputs.costs.custoContrato)}`, 14, y);
-      } else if (selectedProjection) {
-        doc.text(`CAC projetado (${selectedProjection.label}): ${formatCurrency(selectedProjection.cacProjetado)}`, 14, y);
-      }
+      doc.text(`Custo/MQL: ${formatCurrency(outputs.projectedStages.mql.isProjected ? outputs.projectedCosts.custoMql : outputs.costs.custoMql)}${outputs.projectedStages.mql.isProjected ? ' (proj.)' : ''}`, 14, y); y += 6;
+      doc.text(`Custo/SQL: ${formatCurrency(outputs.projectedStages.sql.isProjected ? outputs.projectedCosts.custoSql : outputs.costs.custoSql)}${outputs.projectedStages.sql.isProjected ? ' (proj.)' : ''}`, 14, y); y += 6;
+      doc.text(`Custo/Opp: ${formatCurrency(outputs.projectedStages.oportunidades.isProjected ? outputs.projectedCosts.custoOpp : outputs.costs.custoOpp)}${outputs.projectedStages.oportunidades.isProjected ? ' (proj.)' : ''}`, 14, y); y += 6;
+      doc.text(`CAC: ${formatCurrency(outputs.projectedStages.contratos.isProjected ? outputs.projectedCosts.custoContrato : outputs.costs.custoContrato)}${outputs.projectedStages.contratos.isProjected ? ' (proj.)' : ''}`, 14, y);
       y += 10;
+
+      // Leads para 1 Contrato
+      if (outputs.leadsForContract) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Leads para 1 Contrato", 14, y);
+        y += 8;
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Leads necessários: ${formatNumber(outputs.leadsForContract.leadsNeeded)}`, 14, y); y += 6;
+        doc.text(`Investimento estimado: ${formatCurrency(outputs.leadsForContract.investmentNeeded)}`, 14, y); y += 6;
+        doc.text(`Cálculo: ${outputs.leadsForContract.conversionPath}`, 14, y);
+        y += 10;
+      }
 
       // Taxas de Conversão
       doc.setFontSize(12);
@@ -241,13 +255,14 @@ export default function MatrizPerformanceProV2() {
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       outputs.conversions.forEach(conv => {
-        const status = STATUS_CONFIG[conv.status];
-        doc.text(`${status.icon} ${conv.label}: ${formatPercent(conv.rate)} (Meta: ${conv.benchmark.min}-${conv.benchmark.max}%)`, 14, y);
+        const status = conv.isProjected ? '🟣' : STATUS_CONFIG[conv.status].icon;
+        const projLabel = conv.isProjected ? ' (proj.)' : '';
+        doc.text(`${status} ${conv.label}: ${formatPercent(conv.rate)}${projLabel} (Meta: ${conv.benchmark.min}-${conv.benchmark.max}%)`, 14, y);
         y += 6;
       });
       y += 5;
 
-      // Gargalos
+      // Gargalos (only from real data)
       if (bottlenecks.length > 0) {
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
@@ -302,11 +317,33 @@ export default function MatrizPerformanceProV2() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Scenario Selector */}
+              <div className="flex items-center gap-1.5">
+                <Label className="text-xs text-muted-foreground">Cenário:</Label>
+                <Select value={selectedScenario} onValueChange={(v) => setSelectedScenario(v as ScenarioType)}>
+                  <SelectTrigger className="h-8 w-[130px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="conservador">Conservador</SelectItem>
+                    <SelectItem value="realista">Realista</SelectItem>
+                    <SelectItem value="agressivo">Agressivo</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">Projeções usam o benchmark do cenário selecionado para calcular etapas sem dados.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSaveDialogOpen(true)}
-                disabled={missingFields.length > 0}
+                disabled={!outputs.hasValidData}
               >
                 <Save className="h-4 w-4 mr-1" />
                 Salvar
@@ -315,7 +352,7 @@ export default function MatrizPerformanceProV2() {
                 variant="outline"
                 size="sm"
                 onClick={handleExportPDF}
-                disabled={isExporting || missingFields.length > 0}
+                disabled={isExporting || !outputs.hasValidData}
               >
                 {isExporting ? (
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -541,18 +578,30 @@ export default function MatrizPerformanceProV2() {
                   </div>
                 ) : (
                   <>
-                    {/* Funnel Visual */}
+                    {/* Funnel Visual - using projected stages */}
                     <div className="space-y-1">
                       {/* Funnel Stages */}
-                      {['Leads', 'MQL', 'SQL', 'Oportunidades', 'Contratos'].map((stage, idx) => {
-                        const values = [inputs.leads, inputs.mql, inputs.sql, inputs.oportunidades, inputs.contratos ?? selectedProjection?.contratosProjetados ?? 0];
+                      {[
+                        { stage: 'Leads', data: outputs.projectedStages.leads },
+                        { stage: 'MQL', data: outputs.projectedStages.mql },
+                        { stage: 'SQL', data: outputs.projectedStages.sql },
+                        { stage: 'Oportunidades', data: outputs.projectedStages.oportunidades },
+                        { stage: 'Contratos', data: outputs.projectedStages.contratos },
+                      ].map((item, idx) => {
+                        const values = [
+                          outputs.projectedStages.leads.value,
+                          outputs.projectedStages.mql.value,
+                          outputs.projectedStages.sql.value,
+                          outputs.projectedStages.oportunidades.value,
+                          outputs.projectedStages.contratos.value,
+                        ];
                         const maxValue = Math.max(...values.filter(v => v > 0));
-                        const value = values[idx];
+                        const value = item.data.value;
                         const width = maxValue > 0 ? Math.max(20, (value / maxValue) * 100) : 100;
-                        const isProjected = idx === 4 && inputs.contratos === undefined;
+                        const isProjected = item.data.isProjected;
                         
                         return (
-                          <div key={stage} className="space-y-0.5">
+                          <div key={item.stage} className="space-y-0.5">
                             <div 
                               className={cn(
                                 "h-10 rounded flex items-center justify-between px-3 transition-all",
@@ -561,17 +610,20 @@ export default function MatrizPerformanceProV2() {
                                 idx === 2 && "bg-violet-500",
                                 idx === 3 && "bg-purple-500",
                                 idx === 4 && "bg-fuchsia-500",
-                                isProjected && "opacity-75 border-2 border-dashed border-fuchsia-300"
+                                isProjected && "opacity-70 border-2 border-dashed"
                               )}
                               style={{ width: `${width}%` }}
                             >
                               <span className="text-xs font-medium text-white truncate">
-                                {stage}
+                                {item.stage}
                                 {isProjected && (
-                                  <span className="opacity-75 ml-1">(proj.)</span>
+                                  <span className="opacity-80 ml-1 text-[10px]">(proj.)</span>
                                 )}
                               </span>
-                              <span className="text-sm font-bold text-white">
+                              <span className={cn(
+                                "text-sm font-bold text-white",
+                                isProjected && "opacity-90"
+                              )}>
                                 {formatNumber(value)}
                               </span>
                             </div>
@@ -579,12 +631,20 @@ export default function MatrizPerformanceProV2() {
                             {idx < 4 && outputs.conversions[idx] && (
                               <div className="flex items-center gap-1.5 pl-2 py-0.5">
                                 <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-[10px] text-muted-foreground">
+                                <span className={cn(
+                                  "text-[10px]",
+                                  outputs.conversions[idx].isProjected 
+                                    ? "text-purple-600 font-medium" 
+                                    : "text-muted-foreground"
+                                )}>
                                   {formatPercent(outputs.conversions[idx].rate)}
+                                  {outputs.conversions[idx].isProjected && " (proj.)"}
                                 </span>
-                                <span className="text-[10px]">
-                                  {STATUS_CONFIG[outputs.conversions[idx].status].icon}
-                                </span>
+                                {!outputs.conversions[idx].isProjected && (
+                                  <span className="text-[10px]">
+                                    {STATUS_CONFIG[outputs.conversions[idx].status].icon}
+                                  </span>
+                                )}
                                 <span className="text-[10px] text-muted-foreground">
                                   (Meta: {outputs.conversions[idx].benchmark.min}-{outputs.conversions[idx].benchmark.max}%)
                                 </span>
@@ -605,29 +665,29 @@ export default function MatrizPerformanceProV2() {
                       </p>
                       <div className="grid grid-cols-5 gap-1 text-center">
                         {[
-                          { label: 'CPL', value: outputs.costs.cpl },
-                          { label: 'Custo/MQL', value: outputs.costs.custoMql },
-                          { label: 'Custo/SQL', value: outputs.costs.custoSql },
-                          { label: 'Custo/Opp', value: outputs.costs.custoOpp },
+                          { label: 'CPL', value: outputs.costs.cpl, isProjected: false },
+                          { label: 'Custo/MQL', value: outputs.projectedStages.mql.isProjected ? outputs.projectedCosts.custoMql : outputs.costs.custoMql, isProjected: outputs.projectedStages.mql.isProjected },
+                          { label: 'Custo/SQL', value: outputs.projectedStages.sql.isProjected ? outputs.projectedCosts.custoSql : outputs.costs.custoSql, isProjected: outputs.projectedStages.sql.isProjected },
+                          { label: 'Custo/Opp', value: outputs.projectedStages.oportunidades.isProjected ? outputs.projectedCosts.custoOpp : outputs.costs.custoOpp, isProjected: outputs.projectedStages.oportunidades.isProjected },
                           { 
-                            label: inputs.contratos !== undefined ? 'CAC' : 'CAC (proj)', 
-                            value: outputs.costs.custoContrato ?? selectedProjection?.cacProjetado ?? null,
-                            isProjected: inputs.contratos === undefined
+                            label: outputs.projectedStages.contratos.isProjected ? 'CAC (proj.)' : 'CAC', 
+                            value: outputs.projectedStages.contratos.isProjected ? outputs.projectedCosts.custoContrato : outputs.costs.custoContrato,
+                            isProjected: outputs.projectedStages.contratos.isProjected
                           },
                         ].map((item, i) => (
                           <div 
                             key={item.label} 
                             className={cn(
                               "p-2 rounded-lg border",
-                              'isProjected' in item && item.isProjected 
-                                ? "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800"
+                              item.isProjected 
+                                ? "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 border-dashed"
                                 : "bg-muted/50"
                             )}
                           >
                             <p className="text-[10px] text-muted-foreground truncate">{item.label}</p>
                             <p className={cn(
                               "text-xs font-bold",
-                              'isProjected' in item && item.isProjected && "text-purple-600"
+                              item.isProjected && "text-purple-600"
                             )}>
                               {formatCurrency(item.value)}
                             </p>
@@ -635,8 +695,47 @@ export default function MatrizPerformanceProV2() {
                         ))}
                       </div>
 
+                      {/* Leads para 1 Contrato */}
+                      {outputs.leadsForContract && (
+                        <div className={cn(
+                          "p-3 rounded-lg border",
+                          outputs.leadsForContract.usesRealConversion
+                            ? "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800"
+                            : "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 border-dashed"
+                        )}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-xs font-medium flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                Leads p/ 1 contrato
+                                {!outputs.leadsForContract.usesRealConversion && (
+                                  <span className="text-[10px] text-purple-600">(proj.)</span>
+                                )}
+                              </p>
+                              <p className="text-lg font-bold text-primary">
+                                {formatNumber(outputs.leadsForContract.leadsNeeded)}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] text-muted-foreground">
+                                Investimento estimado
+                              </p>
+                              <p className={cn(
+                                "text-sm font-bold",
+                                outputs.leadsForContract.usesRealConversion ? "text-blue-600" : "text-purple-600"
+                              )}>
+                                {formatCurrency(outputs.leadsForContract.investmentNeeded)}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Cálculo: {outputs.leadsForContract.conversionPath}
+                          </p>
+                        </div>
+                      )}
+
                       {/* Largest Cost Step */}
-                      {outputs.largestCostStep && outputs.largestCostStep.delta !== null && (
+                      {outputs.largestCostStep && outputs.largestCostStep.delta !== null && outputs.largestCostStep.delta > 0 && (
                         <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
                           <TrendingUp className="h-4 w-4 text-red-500" />
                           <div className="flex-1">
@@ -689,20 +788,34 @@ export default function MatrizPerformanceProV2() {
 
                     {/* Conversion Table */}
                     <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Etapa | Real | Meta | Status</p>
+                      <p className="text-xs font-medium text-muted-foreground">Etapa | Conversão | Meta | Status</p>
                       <div className="space-y-1">
                         {outputs.conversions.map(conv => {
-                          const config = STATUS_CONFIG[conv.status];
+                          const config = conv.isProjected 
+                            ? { ...STATUS_CONFIG.no_data, icon: '🟣', bg: 'bg-purple-50 dark:bg-purple-950/30' }
+                            : STATUS_CONFIG[conv.status];
                           return (
                             <div 
                               key={conv.key} 
                               className={cn(
                                 "grid grid-cols-12 gap-2 items-center p-2 rounded text-xs",
-                                config.bg
+                                config.bg,
+                                conv.isProjected && "border border-dashed border-purple-200 dark:border-purple-800"
                               )}
                             >
-                              <span className="col-span-4 font-medium truncate">{conv.labelShort}</span>
-                              <span className="col-span-3 text-right font-bold">{formatPercent(conv.rate)}</span>
+                              <span className={cn(
+                                "col-span-4 font-medium truncate",
+                                conv.isProjected && "text-purple-600"
+                              )}>
+                                {conv.labelShort}
+                                {conv.isProjected && <span className="text-[9px] ml-0.5">(proj.)</span>}
+                              </span>
+                              <span className={cn(
+                                "col-span-3 text-right font-bold",
+                                conv.isProjected && "text-purple-600"
+                              )}>
+                                {formatPercent(conv.rate)}
+                              </span>
                               <span className="col-span-3 text-right text-muted-foreground">
                                 {conv.benchmark.min}-{conv.benchmark.max}%
                               </span>
@@ -714,10 +827,11 @@ export default function MatrizPerformanceProV2() {
                     </div>
 
                     {/* Status Legend */}
-                    <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground pt-2">
+                    <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground pt-2">
                       <span>🟢 ≥ Média</span>
                       <span>🟡 Entre mín. e média</span>
                       <span>🔴 {'<'} Mínimo</span>
+                      <span>🟣 Projetado</span>
                     </div>
                   </>
                 )}
@@ -846,22 +960,38 @@ export default function MatrizPerformanceProV2() {
                       )}
 
                       {/* Summary if projecting */}
-                      {selectedProjection && (
-                        <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800">
+                      {outputs.projectedStages.contratos.isProjected && (
+                        <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 border-dashed">
                           <p className="text-xs font-medium text-purple-700 dark:text-purple-400 flex items-center gap-1 mb-2">
                             <Zap className="h-3 w-3" />
-                            Resumo — Cenário {selectedProjection.label}
+                            Resumo Projetado — Cenário {selectedScenario.charAt(0).toUpperCase() + selectedScenario.slice(1)}
                           </p>
                           <div className="grid grid-cols-2 gap-2 text-xs">
                             <div>
                               <p className="text-muted-foreground">Contratos projetados</p>
-                              <p className="font-bold text-purple-600">{selectedProjection.contratosProjetados}</p>
+                              <p className="font-bold text-purple-600">{formatNumber(outputs.projectedStages.contratos.value)}</p>
                             </div>
                             <div>
                               <p className="text-muted-foreground">CAC projetado</p>
-                              <p className="font-bold text-purple-600">{formatCurrency(selectedProjection.cacProjetado)}</p>
+                              <p className="font-bold text-purple-600">{formatCurrency(outputs.projectedCosts.custoContrato)}</p>
                             </div>
+                            {outputs.leadsForContract && (
+                              <>
+                                <div>
+                                  <p className="text-muted-foreground">Leads p/ 1 contrato</p>
+                                  <p className="font-bold text-purple-600">{formatNumber(outputs.leadsForContract.leadsNeeded)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Invest. p/ 1 contrato</p>
+                                  <p className="font-bold text-purple-600">{formatCurrency(outputs.leadsForContract.investmentNeeded)}</p>
+                                </div>
+                              </>
+                            )}
                           </div>
+                          <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
+                            <Info className="h-3 w-3" />
+                            Projeções usam o benchmark do cenário selecionado.
+                          </p>
                         </div>
                       )}
                     </div>
