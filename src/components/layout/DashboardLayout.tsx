@@ -15,6 +15,7 @@ import {
   DollarSign,
   Wrench,
   Sparkles,
+  GraduationCap,
 } from "lucide-react";
 import logoVivaz from "@/assets/logo-vivaz.png";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ const adminMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: false, disabled: false, comingSoon: false },
   { title: "Clientes", url: "/clientes", icon: Users, adminOnly: false, disabled: false, comingSoon: false },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign, adminOnly: false, disabled: false, comingSoon: false },
+  { title: "Educação & Processos", url: "/educacao", icon: GraduationCap, adminOnly: false, disabled: false, comingSoon: false },
   { title: "Ferramentas", url: "/ferramentas", icon: Wrench, adminOnly: true, disabled: false, comingSoon: false },
   { title: "Usuários", url: "/usuarios", icon: UserCog, adminOnly: true, disabled: false, comingSoon: false },
 ];

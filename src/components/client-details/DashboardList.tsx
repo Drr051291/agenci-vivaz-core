@@ -31,10 +31,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, AlertCircle, CheckCircle2, Loader2, Filter, ArrowRight } from "lucide-react";
+import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, AlertCircle, CheckCircle2, Loader2, Filter, ArrowRight, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardViewerDialog } from "./DashboardViewerDialog";
 import { PipedriveFunnelDashboard, PIPELINES } from "@/components/pipedrive-funnel";
+import { useNavigate } from "react-router-dom";
 
 interface ActiveFunnel {
   id: number;
@@ -96,6 +97,7 @@ const extractUrlFromIframe = (input: string): string => {
 };
 
 export function DashboardList({ clientId, clientName }: DashboardListProps) {
+  const navigate = useNavigate();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -392,6 +394,38 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
             </Card>
           </>
         )}
+
+        {/* Education & Processes Card */}
+        <Card className="hover:shadow-md transition-all hover:border-primary/50 group">
+          <CardContent className="p-5">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-600">
+                  <GraduationCap className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-sm truncate">Educação & Processos</h3>
+                  <Badge variant="secondary" className="text-xs mt-1">
+                    Biblioteca + Playbook
+                  </Badge>
+                </div>
+              </div>
+              
+              <p className="text-xs text-muted-foreground line-clamp-2">
+                Recursos de treinamento e documentação de processos SDR para este cliente.
+              </p>
+
+              <Button
+                size="sm"
+                onClick={() => navigate(`/educacao?client=${clientId}`)}
+                className="w-full mt-1"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Visualizar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Reportei/Pipedrive Embed Dashboards */}
         {dashboards.map((dashboard) => {

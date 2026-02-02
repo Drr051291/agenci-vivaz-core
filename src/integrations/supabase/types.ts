@@ -698,6 +698,197 @@ export type Database = {
           },
         ]
       }
+      edu_categories: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          id: string
+          name: string
+          scope: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          scope?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edu_categories_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edu_resource_tags: {
+        Row: {
+          resource_id: string
+          tag_id: string
+        }
+        Insert: {
+          resource_id: string
+          tag_id: string
+        }
+        Update: {
+          resource_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edu_resource_tags_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "edu_resources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edu_resource_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "edu_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edu_resources: {
+        Row: {
+          category_id: string | null
+          client_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          duration_minutes: number | null
+          file_path: string | null
+          id: string
+          level: string | null
+          scope: string
+          title: string
+          type: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          file_path?: string | null
+          id?: string
+          level?: string | null
+          scope?: string
+          title: string
+          type: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          file_path?: string | null
+          id?: string
+          level?: string | null
+          scope?: string
+          title?: string
+          type?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edu_resources_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "edu_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edu_resources_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edu_resources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edu_tags: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      glossary_terms: {
+        Row: {
+          client_id: string | null
+          definition_md: string | null
+          id: string
+          key: string
+          rules_md: string | null
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          definition_md?: string | null
+          id?: string
+          key: string
+          rules_md?: string | null
+          scope?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          definition_md?: string | null
+          id?: string
+          key?: string
+          rules_md?: string | null
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "glossary_terms_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_calendar_events: {
         Row: {
           calendar_id: string
@@ -2201,6 +2392,97 @@ export type Database = {
             columns: ["integration_id"]
             isOneToOne: false
             referencedRelation: "reportei_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sdr_playbook_sections: {
+        Row: {
+          client_id: string | null
+          content_md: string | null
+          id: string
+          order_index: number
+          scope: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          content_md?: string | null
+          id?: string
+          order_index?: number
+          scope?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          content_md?: string | null
+          id?: string
+          order_index?: number
+          scope?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sdr_playbook_sections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sdr_process_stages: {
+        Row: {
+          checklist_json: Json | null
+          client_id: string | null
+          definition_md: string | null
+          entry_criteria_md: string | null
+          exit_criteria_md: string | null
+          id: string
+          name: string
+          objections_json: Json | null
+          order_index: number
+          scope: string
+          templates_json: Json | null
+          updated_at: string
+        }
+        Insert: {
+          checklist_json?: Json | null
+          client_id?: string | null
+          definition_md?: string | null
+          entry_criteria_md?: string | null
+          exit_criteria_md?: string | null
+          id?: string
+          name: string
+          objections_json?: Json | null
+          order_index?: number
+          scope?: string
+          templates_json?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          checklist_json?: Json | null
+          client_id?: string | null
+          definition_md?: string | null
+          entry_criteria_md?: string | null
+          exit_criteria_md?: string | null
+          id?: string
+          name?: string
+          objections_json?: Json | null
+          order_index?: number
+          scope?: string
+          templates_json?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sdr_process_stages_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
