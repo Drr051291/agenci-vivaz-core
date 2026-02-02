@@ -299,20 +299,7 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
       </div>
 
       {/* Performance Reports - Saved by Admin */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-4 w-4 text-primary" />
-            Relatórios de Performance
-          </CardTitle>
-          <CardDescription>
-            Snapshots imutáveis gerados pela Matriz de Performance Pro
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PerformanceReportsList clientId={clientId} />
-        </CardContent>
-      </Card>
+      <PerformanceReportsList clientId={clientId} canDelete />
 
       {/* Matrix Diagnostics - All Tool Types */}
       {matrixDiagnostics.length > 0 && (
