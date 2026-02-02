@@ -574,9 +574,13 @@ function classifyDealSource(
   deal: { title?: string; label?: string | number | null },
   baseSetimaLabelId: string | number | null
 ): LeadSource {
-  // Priority 1: Landing Page - title contains "[Lead Site]"
-  if (deal.title && deal.title.includes('[Lead Site]')) {
-    return 'Landing Page'
+  // Priority 1: Landing Page - title contains "[Lead Site]" OR starts with "Lead Site"
+  // Pattern 1: "[Lead Site]" - used in Brandspot (Pipeline 9)
+  // Pattern 2: "Lead Site" at start - used in 3D (Pipeline 13)
+  if (deal.title) {
+    if (deal.title.includes('[Lead Site]') || deal.title.startsWith('Lead Site')) {
+      return 'Landing Page'
+    }
   }
   
   // Priority 2: Base Sétima - has the specific label
