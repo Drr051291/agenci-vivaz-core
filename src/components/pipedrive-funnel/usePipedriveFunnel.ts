@@ -24,6 +24,7 @@ interface UsePipedriveFunnelReturn {
 interface UsePipedriveFunnelOptions {
   comparisonConfig?: ComparisonConfig;
   periodPreset?: PeriodPreset;
+  pipelineId?: number;
 }
 
 export function usePipedriveFunnel(
@@ -32,7 +33,8 @@ export function usePipedriveFunnel(
 ): UsePipedriveFunnelReturn {
   const { 
     comparisonConfig = { enabled: true, preset: 'auto' }, 
-    periodPreset = 'thisMonth' 
+    periodPreset = 'thisMonth',
+    pipelineId = PIPELINE_ID,
   } = options;
 
   const [data, setData] = useState<FunnelData | null>(null);
@@ -59,7 +61,7 @@ export function usePipedriveFunnel(
       {
         body: {
           action: 'get_funnel_data',
-          pipeline_id: PIPELINE_ID,
+          pipeline_id: pipelineId,
           start_date: startDate,
           end_date: endDate,
           force,
@@ -76,7 +78,7 @@ export function usePipedriveFunnel(
     }
 
     return responseData.data || null;
-  }, []);
+  }, [pipelineId]);
 
   const fetchFunnelData = useCallback(async (force = false) => {
     const startDate = format(dateRange.start, 'yyyy-MM-dd');

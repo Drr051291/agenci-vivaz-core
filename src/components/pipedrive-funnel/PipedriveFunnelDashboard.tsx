@@ -22,15 +22,24 @@ import {
   PIPEDRIVE_DOMAIN, 
   ViewMode, 
   ComparisonConfig,
-  PeriodPreset 
+  PeriodPreset,
+  PIPELINES,
 } from './types';
 import { getComparisonLabel, getComparisonRange } from './comparisonUtils';
 
 interface PipedriveFunnelDashboardProps {
   clientId: string;
+  pipelineId?: number;
+  pipelineName?: string;
+  pipelineSubtitle?: string;
 }
 
-export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardProps) {
+export function PipedriveFunnelDashboard({ 
+  clientId, 
+  pipelineId = PIPELINE_ID,
+  pipelineName = PIPELINES.brandspot.name,
+  pipelineSubtitle = PIPELINES.brandspot.subtitle,
+}: PipedriveFunnelDashboardProps) {
   const [dateRange, setDateRange] = useState<DateRange>({
     start: startOfMonth(new Date()),
     end: endOfMonth(new Date()),
@@ -50,13 +59,13 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
     error, 
     lastUpdated, 
     refetch 
-  } = usePipedriveFunnel(dateRange, { comparisonConfig, periodPreset });
+  } = usePipedriveFunnel(dateRange, { comparisonConfig, periodPreset, pipelineId });
   
   const { 
     data: trackingData, 
     loading: trackingLoading, 
     refetch: refetchTracking 
-  } = useCampaignTracking(dateRange);
+  } = useCampaignTracking(dateRange, { pipelineId });
   
   const { 
     data: leadSourceData, 
@@ -64,7 +73,7 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
     loading: leadSourceLoading, 
     snapshotLoading: leadSourceSnapshotLoading,
     refetch: refetchLeadSource 
-  } = useLeadSourceTracking(dateRange);
+  } = useLeadSourceTracking(dateRange, { pipelineId });
 
   const handleRefresh = async () => {
     await Promise.all([refetch(true), refetchTracking(true), refetchLeadSource(true)]);
@@ -77,7 +86,7 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
     }
   };
 
-  const pipedriveUrl = `https://${PIPEDRIVE_DOMAIN}.pipedrive.com/pipeline/${PIPELINE_ID}`;
+  const pipedriveUrl = `https://${PIPEDRIVE_DOMAIN}.pipedrive.com/pipeline/${pipelineId}`;
 
   // Calculate comparison label
   const comparisonRange = getComparisonRange(dateRange, periodPreset, comparisonConfig);
@@ -115,10 +124,10 @@ export function PipedriveFunnelDashboard({ clientId }: PipedriveFunnelDashboardP
         <div>
           <div className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Funil de Vendas (Pipedrive)</h2>
+            <h2 className="text-lg font-semibold">Funil de Vendas — {pipelineName}</h2>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Pipeline: serviços_b2b (ID {PIPELINE_ID})
+            Pipeline: {pipelineSubtitle} (ID {pipelineId})
           </p>
         </div>
 
