@@ -1226,13 +1226,11 @@ serve(async (req) => {
 
       case 'get_stage_deals': {
         // Get list of deals in a specific stage
-        const { stage_id, view_mode, start_date, end_date } = await req.json().catch(() => ({}))
-        
-        const requestBody = await req.json().catch(() => null)
-        const stageId = requestBody?.stage_id || stage_id
-        const viewModeParam = requestBody?.view_mode || view_mode
-        const startDateParam = requestBody?.start_date || start_date
-        const endDateParam = requestBody?.end_date || end_date
+        const requestBody = await req.json().catch(() => ({}))
+        const stageId = requestBody?.stage_id
+        const viewModeParam = requestBody?.view_mode
+        const startDateParam = requestBody?.start_date
+        const endDateParam = requestBody?.end_date
 
         if (!stageId) {
           throw new Error('stage_id is required')
