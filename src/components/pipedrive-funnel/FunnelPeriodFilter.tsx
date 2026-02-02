@@ -6,8 +6,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, ChevronDown, Check } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PeriodPreset, DateRange } from './types';
@@ -101,6 +108,7 @@ export function FunnelPeriodFilter({
 }: FunnelPeriodFilterProps) {
   const [activePreset, setActivePreset] = useState<PeriodPreset>('thisMonth');
   const [isOpen, setIsOpen] = useState(false);
+  const [showCustomDialog, setShowCustomDialog] = useState(false);
   const [tempRange, setTempRange] = useState<{ from?: Date; to?: Date }>({ 
     from: dateRange.start, 
     to: dateRange.end 
@@ -108,26 +116,36 @@ export function FunnelPeriodFilter({
 
   const displayLabel = useMemo(() => {
     if (activePreset === 'custom') {
-      return `${format(dateRange.start, 'dd/MM', { locale: ptBR })} - ${format(dateRange.end, 'dd/MM/yy', { locale: ptBR })}`;
+      return `${format(dateRange.start, 'dd/MM/yy', { locale: ptBR })} - ${format(dateRange.end, 'dd/MM/yy', { locale: ptBR })}`;
     }
     const preset = PRESETS.find(p => p.value === activePreset);
     return preset?.label || 'Selecione';
   }, [activePreset, dateRange]);
 
   const handlePresetClick = (preset: PresetConfig) => {
-    setActivePreset(preset.value);
-    onPresetChange?.(preset.value);
-    
     if (preset.value === 'custom') {
-      // Keep popover open for custom selection
+      setIsOpen(false);
       setTempRange({ from: dateRange.start, to: dateRange.end });
+      setShowCustomDialog(true);
       return;
     }
 
+    setActivePreset(preset.value);
+    onPresetChange?.(preset.value);
+    
     if (preset.getRange) {
       const range = preset.getRange();
       onDateRangeChange(range, preset.value);
-      setIsOpen(false);
+    }
+    setIsOpen(false);
+  };
+
+  const handleApplyCustomRange = () => {
+    if (tempRange.from && tempRange.to) {
+      onDateRangeChange({ start: tempRange.from, end: tempRange.to }, 'custom');
+      setActivePreset('custom');
+      onPresetChange?.('custom');
+      setShowCustomDialog(false);
     }
   };
 
@@ -137,92 +155,103 @@ export function FunnelPeriodFilter({
     }
   };
 
-  const handleApplyCustomRange = () => {
-    if (tempRange.from && tempRange.to) {
-      onDateRangeChange({ start: tempRange.from, end: tempRange.to }, 'custom');
-      setActivePreset('custom');
-      setIsOpen(false);
-    }
-  };
-
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-muted-foreground">Período:</span>
-      
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
-        <PopoverTrigger asChild>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-8 text-xs gap-1.5 min-w-[160px] justify-start"
-          >
-            <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
-            {displayLabel}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
-          <div className="flex">
-            {/* Presets sidebar */}
-            <div className="border-r bg-muted/30 p-2 space-y-1 min-w-[140px]">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-2 py-1">
-                Atalhos
-              </p>
+    <>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">Período:</span>
+        
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+          <PopoverTrigger asChild>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 text-xs gap-1.5 min-w-[160px] justify-between"
+            >
+              <div className="flex items-center gap-1.5">
+                <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                {displayLabel}
+              </div>
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[200px] p-1" align="start" sideOffset={4}>
+            <div className="flex flex-col">
               {PRESETS.map((preset) => (
-                <Button
+                <button
                   key={preset.value}
-                  variant={activePreset === preset.value ? 'secondary' : 'ghost'}
-                  size="sm"
+                  onClick={() => handlePresetClick(preset)}
                   className={cn(
-                    "w-full justify-start text-xs h-7",
+                    "flex items-center justify-between w-full px-3 py-2 text-sm rounded-md transition-colors text-left",
+                    "hover:bg-muted",
                     activePreset === preset.value && "bg-primary/10 text-primary font-medium"
                   )}
-                  onClick={() => handlePresetClick(preset)}
                 >
-                  {preset.label}
-                </Button>
+                  <span>{preset.label}</span>
+                  {activePreset === preset.value && (
+                    <Check className="h-4 w-4 text-primary" />
+                  )}
+                </button>
               ))}
             </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Custom Date Range Dialog */}
+      <Dialog open={showCustomDialog} onOpenChange={setShowCustomDialog}>
+        <DialogContent className="sm:max-w-[650px]">
+          <DialogHeader>
+            <DialogTitle>Selecionar período personalizado</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <Calendar
+              mode="range"
+              defaultMonth={tempRange.from || dateRange.start}
+              selected={tempRange.from && tempRange.to ? { from: tempRange.from, to: tempRange.to } : undefined}
+              onSelect={handleCalendarSelect}
+              numberOfMonths={2}
+              locale={ptBR}
+              className="pointer-events-auto rounded-md border"
+            />
             
-            {/* Calendar area */}
-            <div className="p-3">
-              <Calendar
-                mode="range"
-                defaultMonth={dateRange.start}
-                selected={tempRange.from && tempRange.to ? { from: tempRange.from, to: tempRange.to } : undefined}
-                onSelect={handleCalendarSelect}
-                numberOfMonths={2}
-                locale={ptBR}
-                className="pointer-events-auto"
-              />
-              
-              {/* Footer with apply button */}
-              <div className="flex items-center justify-between border-t pt-3 mt-3">
-                <div className="text-xs text-muted-foreground">
-                  {tempRange.from && tempRange.to ? (
-                    <>
-                      <span className="font-medium">{format(tempRange.from, 'dd MMM yyyy', { locale: ptBR })}</span>
-                      <span className="mx-1">→</span>
-                      <span className="font-medium">{format(tempRange.to, 'dd MMM yyyy', { locale: ptBR })}</span>
-                    </>
-                  ) : tempRange.from ? (
-                    <span>Selecione a data final</span>
-                  ) : (
-                    <span>Selecione o período</span>
-                  )}
+            {/* Selected range display */}
+            <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Início:</span>
+                  <span className="font-medium">
+                    {tempRange.from 
+                      ? format(tempRange.from, 'dd MMM yyyy', { locale: ptBR })
+                      : '—'}
+                  </span>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={handleApplyCustomRange}
-                  disabled={!tempRange.from || !tempRange.to}
-                  className="h-7 text-xs"
-                >
-                  Aplicar
-                </Button>
+                <div className="text-muted-foreground">→</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Fim:</span>
+                  <span className="font-medium">
+                    {tempRange.to 
+                      ? format(tempRange.to, 'dd MMM yyyy', { locale: ptBR })
+                      : '—'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </PopoverContent>
-      </Popover>
-    </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCustomDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleApplyCustomRange}
+              disabled={!tempRange.from || !tempRange.to}
+            >
+              Aplicar período
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
