@@ -395,37 +395,7 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
           </>
         )}
 
-        {/* Education & Processes Card */}
-        <Card className="hover:shadow-md transition-all hover:border-primary/50 group">
-          <CardContent className="p-5">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-600">
-                  <GraduationCap className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm truncate">Educação & Processos</h3>
-                  <Badge variant="secondary" className="text-xs mt-1">
-                    Biblioteca + Playbook
-                  </Badge>
-                </div>
-              </div>
-              
-              <p className="text-xs text-muted-foreground line-clamp-2">
-                Recursos de treinamento e documentação de processos SDR para este cliente.
-              </p>
-
-              <Button
-                size="sm"
-                onClick={() => navigate(`/educacao?client=${clientId}`)}
-                className="w-full mt-1"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Visualizar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Education card removed - now available as dedicated tab in client menu */}
 
         {/* Reportei/Pipedrive Embed Dashboards */}
         {dashboards.map((dashboard) => {

@@ -13,8 +13,10 @@ import { ClientMeetings } from "@/components/client-details/ClientMeetings";
 import { ClientDashboardsNew } from "@/components/client-details/ClientDashboardsNew";
 import { ClientFinancial } from "@/components/client-details/ClientFinancial";
 import { ClientPerformance } from "@/components/client-details/ClientPerformance";
+import { ClientEducation } from "@/components/client-details/ClientEducation";
 import { ClientAIAgent } from "@/components/client-details/ClientAIAgent";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { GraduationCap } from "lucide-react";
 
 interface Client {
   id: string;
@@ -133,12 +135,16 @@ export default function ClientDetails() {
 
         {/* Tabs com foco no conteúdo */}
         <Tabs value={activeTab} onValueChange={(value) => setSearchParams({ tab: value })} className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="tasks">Atividades</TabsTrigger>
             <TabsTrigger value="meetings">Reuniões</TabsTrigger>
             <TabsTrigger value="dashboards">Dashboards</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
+            <TabsTrigger value="education" className="flex items-center gap-1">
+              <GraduationCap className="h-3 w-3" />
+              Educação
+            </TabsTrigger>
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
             <TabsTrigger value="ai" className="flex items-center gap-1">
               <Bot className="h-3 w-3" />
@@ -164,6 +170,10 @@ export default function ClientDetails() {
 
           <TabsContent value="performance" className="mt-4">
             <ClientPerformance clientId={client.id} />
+          </TabsContent>
+
+          <TabsContent value="education" className="mt-4">
+            <ClientEducation clientId={client.id} clientName={client.company_name} />
           </TabsContent>
 
           <TabsContent value="financial" className="mt-4">
