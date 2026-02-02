@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Users, Pencil, Share2, Trash2, CheckSquare, RefreshCw, Calendar, Check, FileText, Rocket, ClipboardList, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { getMeetingSlug } from "@/hooks/useSlugResolver";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +41,7 @@ interface MeetingMinute {
   action_items?: string[];
   created_at: string;
   share_token?: string;
+  slug?: string;
   linked_dashboards?: string[];
   linked_tasks?: string[];
   is_synced?: boolean;
@@ -47,6 +49,7 @@ interface MeetingMinute {
 
 interface ClientMeetingsProps {
   clientId: string;
+  clientSlug?: string;
 }
 
 interface Dashboard {
@@ -55,7 +58,7 @@ interface Dashboard {
   dashboard_type: string;
 }
 
-export function ClientMeetings({ clientId }: ClientMeetingsProps) {
+export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
   const navigate = useNavigate();
   const [meetings, setMeetings] = useState<MeetingMinute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,7 +185,9 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
 
       setTemplateDialogOpen(false);
       toast.success("Reunião criada! Redirecionando para edição...");
-      navigate(`/clientes/${clientId}/reunioes/${newMeeting.id}?mode=edit`);
+      const slug = await getMeetingSlug(newMeeting.id);
+      const clientPath = clientSlug || clientId;
+      navigate(`/clientes/${clientPath}/reunioes/${slug}?mode=edit`);
     } catch (error) {
       console.error("Erro ao criar reunião:", error);
       toast.error("Erro ao criar reunião");
@@ -224,20 +229,26 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       }
 
       toast.success("Reunião importada! Redirecionando para edição...");
-      navigate(`/clientes/${clientId}/reunioes/${newMeeting.id}?mode=edit`);
+      const slug = await getMeetingSlug(newMeeting.id);
+      const clientPath = clientSlug || clientId;
+      navigate(`/clientes/${clientPath}/reunioes/${slug}?mode=edit`);
     } catch (error) {
       console.error("Erro ao importar evento:", error);
       toast.error("Erro ao importar evento");
     }
   };
 
-  const handleViewMeeting = (meetingId: string) => {
-    navigate(`/clientes/${clientId}/reunioes/${meetingId}?mode=view`);
+  const handleViewMeeting = async (meetingId: string) => {
+    const slug = await getMeetingSlug(meetingId);
+    const clientPath = clientSlug || clientId;
+    navigate(`/clientes/${clientPath}/reunioes/${slug}?mode=view`);
   };
 
-  const handleEditMeeting = (meetingId: string, e: React.MouseEvent) => {
+  const handleEditMeeting = async (meetingId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/clientes/${clientId}/reunioes/${meetingId}?mode=edit`);
+    const slug = await getMeetingSlug(meetingId);
+    const clientPath = clientSlug || clientId;
+    navigate(`/clientes/${clientPath}/reunioes/${slug}?mode=edit`);
   };
 
   const handleShare = (meeting: MeetingMinute) => {
@@ -381,7 +392,9 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
 
       toast.success("Reunião duplicada com sucesso!");
       fetchMeetings();
-      navigate(`/clientes/${clientId}/reunioes/${newMeeting.id}?mode=edit`);
+      const slug = await getMeetingSlug(newMeeting.id);
+      const clientPath = clientSlug || clientId;
+      navigate(`/clientes/${clientPath}/reunioes/${slug}?mode=edit`);
     } catch (error) {
       console.error("Erro ao duplicar reunião:", error);
       toast.error("Erro ao duplicar reunião");
@@ -522,6 +535,7 @@ export function ClientMeetings({ clientId }: ClientMeetingsProps) {
       {selectedMeeting && (
         <ShareMeetingDialog
           shareToken={selectedMeeting.share_token || ""}
+          meetingSlug={selectedMeeting.slug}
           meetingTitle={selectedMeeting.title}
           open={shareDialogOpen}
           onOpenChange={setShareDialogOpen}

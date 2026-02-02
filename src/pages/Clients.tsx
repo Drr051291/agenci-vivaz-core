@@ -56,6 +56,7 @@ interface Client {
   contact_phone: string | null;
   contact_email: string | null;
   sales_channels: string[] | null;
+  slug?: string | null;
 }
 
 const SALES_CHANNELS = [
@@ -683,7 +684,7 @@ const Clients = () => {
                 <Card
                   interactive
                   className="h-full group"
-                  onClick={() => navigate(`/clientes/${client.id}`)}
+                  onClick={() => navigate(`/clientes/${client.slug || client.id}`)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">

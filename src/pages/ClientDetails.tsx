@@ -17,6 +17,7 @@ import { ClientEducation } from "@/components/client-details/ClientEducation";
 import { ClientAIAgent } from "@/components/client-details/ClientAIAgent";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { GraduationCap } from "lucide-react";
+import { useClientSlugResolver } from "@/hooks/useSlugResolver";
 
 interface Client {
   id: string;
@@ -36,12 +37,14 @@ interface Client {
 }
 
 export default function ClientDetails() {
-  const { id } = useParams<{ id: string }>();
+  const { id: slugOrId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [client, setClient] = useState<Client | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const activeTab = searchParams.get("tab") || "tasks";
+  
+  const { clientId, clientSlug, loading: slugLoading, error: slugError } = useClientSlugResolver(slugOrId);
 
   usePageMeta({
     title: client ? `${client.company_name}` : "Detalhes do Cliente",
@@ -49,18 +52,33 @@ export default function ClientDetails() {
     keywords: "cliente, detalhes, atividades, reuniões, financeiro, vivaz",
   });
 
+  // Redirect to slug-based URL if using UUID
   useEffect(() => {
-    if (id) {
+    if (clientSlug && slugOrId !== clientSlug) {
+      navigate(`/clientes/${clientSlug}?${searchParams.toString()}`, { replace: true });
+    }
+  }, [clientSlug, slugOrId, navigate, searchParams]);
+
+  useEffect(() => {
+    if (clientId) {
       fetchClient();
     }
-  }, [id]);
+  }, [clientId]);
+
+  useEffect(() => {
+    if (slugError) {
+      toast.error("Cliente não encontrado");
+      navigate("/clientes");
+    }
+  }, [slugError, navigate]);
 
   const fetchClient = async () => {
+    if (!clientId) return;
     try {
       const { data, error } = await supabase
         .from("clients")
         .select("*")
-        .eq("id", id)
+        .eq("id", clientId)
         .single();
 
       if (error) throw error;
@@ -70,9 +88,11 @@ export default function ClientDetails() {
       toast.error("Erro ao carregar detalhes do cliente");
       navigate("/clientes");
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
+  
+  const loading = slugLoading || dataLoading;
 
   const getSegmentColor = (segment: string) => {
     const colors = {
@@ -161,7 +181,7 @@ export default function ClientDetails() {
           </TabsContent>
 
           <TabsContent value="meetings" className="mt-4">
-            <ClientMeetings clientId={client.id} />
+            <ClientMeetings clientId={client.id} clientSlug={clientSlug || undefined} />
           </TabsContent>
 
           <TabsContent value="dashboards" className="mt-4">

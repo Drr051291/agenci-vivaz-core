@@ -16,6 +16,7 @@ interface ShareMeetingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   shareToken: string;
+  meetingSlug?: string;
   meetingTitle: string;
 }
 
@@ -23,11 +24,15 @@ export function ShareMeetingDialog({
   open,
   onOpenChange,
   shareToken,
+  meetingSlug,
   meetingTitle,
 }: ShareMeetingDialogProps) {
   const [copied, setCopied] = useState(false);
 
-  const shareUrl = `https://hub.vivazagencia.com.br/reunioes/${shareToken}`;
+  // Use slug if available, otherwise fallback to share_token
+  const shareUrl = meetingSlug 
+    ? `https://hub.vivazagencia.com.br/reunioes/${meetingSlug}`
+    : `https://hub.vivazagencia.com.br/reunioes/${shareToken}`;
 
   const handleCopy = async () => {
     try {

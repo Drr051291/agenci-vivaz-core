@@ -30,6 +30,7 @@ import {
 } from "@/components/meetings";
 import { MeetingActionPlan, ActionPlanItem } from "@/components/meetings/MeetingActionPlan";
 import { RetrovisorSection, DiagnosisPickerSection, EnhancedSidebar, SendToTasksButton } from "@/components/meetings/v2";
+import { useClientSlugResolver, useMeetingSlugResolver, getClientSlug } from "@/hooks/useSlugResolver";
 
 interface Task {
   id: string;
@@ -110,12 +111,12 @@ const DEFAULT_SECTIONS: MeetingSections = {
 };
 
 export default function MeetingEditor() {
-  const { clientId, meetingId } = useParams();
+  const { clientId: clientSlugOrId, meetingId: meetingSlugOrId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "view";
   const isEditMode = mode === "edit";
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [currentSection, setCurrentSection] = useState(0);
@@ -128,6 +129,26 @@ export default function MeetingEditor() {
   const [isSynced, setIsSynced] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const { isConnected, updateMeetingInCalendar, syncMeetingToCalendar, getMeetingSyncStatus } = useMeetingCalendarSync();
+  
+  // Resolve slugs to IDs
+  const { clientId, clientSlug, loading: clientLoading, error: clientError } = useClientSlugResolver(clientSlugOrId);
+  const { meetingId, meetingSlug, loading: meetingLoading, error: meetingError } = useMeetingSlugResolver(clientId, meetingSlugOrId);
+  
+  const loading = clientLoading || meetingLoading || dataLoading;
+  
+  // Redirect to slug-based URL if using UUIDs
+  useEffect(() => {
+    if (clientSlug && meetingSlug && (clientSlugOrId !== clientSlug || meetingSlugOrId !== meetingSlug)) {
+      navigate(`/clientes/${clientSlug}/reunioes/${meetingSlug}?${searchParams.toString()}`, { replace: true });
+    }
+  }, [clientSlug, meetingSlug, clientSlugOrId, meetingSlugOrId, navigate, searchParams]);
+  
+  useEffect(() => {
+    if (clientError || meetingError) {
+      toast.error("Reunião não encontrada");
+      navigate(`/clientes/${clientSlugOrId || ''}`);
+    }
+  }, [clientError, meetingError, navigate, clientSlugOrId]);
   
   const [meetingData, setMeetingData] = useState({
     meeting_date: "",
@@ -349,9 +370,9 @@ export default function MeetingEditor() {
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       toast.error("Erro ao carregar reunião");
-      navigate(`/clientes/${clientId}`);
+      navigate(`/clientes/${clientSlug || clientSlugOrId}`);
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -815,7 +836,7 @@ export default function MeetingEditor() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => navigate(`/clientes/${clientId}?tab=meetings`)}
+                onClick={() => navigate(`/clientes/${clientSlug || clientSlugOrId}?tab=meetings`)}
                 className="rounded-full"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -883,7 +904,7 @@ export default function MeetingEditor() {
                   Salvar
                 </Button>
               ) : (
-                <Button onClick={() => navigate(`/clientes/${clientId}/reunioes/${meetingId}?mode=edit`)} size="sm">
+                <Button onClick={() => navigate(`/clientes/${clientSlug || clientSlugOrId}/reunioes/${meetingSlug || meetingSlugOrId}?mode=edit`)} size="sm">
                   <Pencil className="h-4 w-4 mr-1.5" />
                   Editar
                 </Button>

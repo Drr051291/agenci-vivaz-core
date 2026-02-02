@@ -21,6 +21,7 @@ interface MeetingMinute {
   linked_dashboards: string[] | null;
   linked_tasks: string[] | null;
   share_token: string | null;
+  slug: string | null;
 }
 
 interface Dashboard {
@@ -85,8 +86,9 @@ export default function ClientMeetings() {
   };
 
   const handleOpenPublicLink = (meeting: MeetingMinute) => {
-    if (meeting.share_token) {
-      window.open(`https://hub.vivazagencia.com.br/reunioes/${meeting.share_token}`, '_blank');
+    const linkPath = meeting.slug || meeting.share_token;
+    if (linkPath) {
+      window.open(`https://hub.vivazagencia.com.br/reunioes/${linkPath}`, '_blank');
     } else {
       toast.error("Link público não disponível para esta reunião");
     }

@@ -393,6 +393,7 @@ export type Database = {
           notes: string | null
           sales_channels: string[] | null
           segment: string
+          slug: string | null
           status: string
           updated_at: string
           user_id: string | null
@@ -412,6 +413,7 @@ export type Database = {
           notes?: string | null
           sales_channels?: string[] | null
           segment?: string
+          slug?: string | null
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -431,6 +433,7 @@ export type Database = {
           notes?: string | null
           sales_channels?: string[] | null
           segment?: string
+          slug?: string | null
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -1508,6 +1511,7 @@ export type Database = {
           project_id: string | null
           responsible_id: string | null
           share_token: string | null
+          slug: string | null
           status: string | null
           tags: string[] | null
           template_id: string | null
@@ -1536,6 +1540,7 @@ export type Database = {
           project_id?: string | null
           responsible_id?: string | null
           share_token?: string | null
+          slug?: string | null
           status?: string | null
           tags?: string[] | null
           template_id?: string | null
@@ -1564,6 +1569,7 @@ export type Database = {
           project_id?: string | null
           responsible_id?: string | null
           share_token?: string | null
+          slug?: string | null
           status?: string | null
           tags?: string[] | null
           template_id?: string | null
@@ -2750,6 +2756,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_slug: { Args: { input_text: string }; Returns: string }
       get_user_client_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
