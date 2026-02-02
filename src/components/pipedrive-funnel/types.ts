@@ -59,7 +59,7 @@ export interface LeadSourceResponse {
   error?: string;
 }
 
-export type PeriodPreset = 'today' | 'thisWeek' | 'last7Days' | 'last14Days' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'custom';
+export type PeriodPreset = 'today' | 'yesterday' | 'thisWeek' | 'last7Days' | 'last14Days' | 'last30Days' | 'last90Days' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'lastYear' | 'custom';
 
 export type ViewMode = 'period' | 'snapshot';
 
