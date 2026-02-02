@@ -340,22 +340,64 @@ export function MeetingPresentationView({
                   Retrovisor
                   <Badge variant="secondary" className="text-xs font-normal">Últimos 7 dias</Badge>
                 </h2>
-                <div className="space-y-2">
-                  {recentTasks.slice(0, 10).map((task) => {
-                    const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.pendente;
-                    return (
-                      <div key={task.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                        <Badge variant="outline" className={cn("text-xs", statusConfig.className)}>
-                          {statusConfig.label}
-                        </Badge>
-                        <span className="flex-1 text-sm">{task.title}</span>
-                        {task.profiles?.full_name && (
-                          <span className="text-xs text-muted-foreground">{task.profiles.full_name.split(" ")[0]}</span>
-                        )}
+                
+                {/* Atividades Pendentes */}
+                {(() => {
+                  const pendingTasks = recentTasks.filter(t => t.status !== 'concluido' && t.status !== 'completed');
+                  if (pendingTasks.length === 0) return null;
+                  return (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-amber-700 mb-2 flex items-center gap-1">
+                        ⏳ Pendentes ({pendingTasks.length})
+                      </p>
+                      <div className="space-y-2">
+                        {pendingTasks.slice(0, 8).map((task) => {
+                          const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.pendente;
+                          return (
+                            <div key={task.id} className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200/50 dark:border-amber-800/30">
+                              <Badge variant="outline" className={cn("text-xs", statusConfig.className)}>
+                                {statusConfig.label}
+                              </Badge>
+                              <span className="flex-1 text-sm">{task.title}</span>
+                              {task.profiles?.full_name && (
+                                <span className="text-xs text-muted-foreground">{task.profiles.full_name.split(" ")[0]}</span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Atividades Concluídas */}
+                {(() => {
+                  const completedTasks = recentTasks.filter(t => t.status === 'concluido' || t.status === 'completed');
+                  if (completedTasks.length === 0) return null;
+                  return (
+                    <div>
+                      <p className="text-sm font-medium text-green-700 mb-2 flex items-center gap-1">
+                        ✓ Concluídas ({completedTasks.length})
+                      </p>
+                      <div className="space-y-2">
+                        {completedTasks.slice(0, 8).map((task) => {
+                          const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.concluido;
+                          return (
+                            <div key={task.id} className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200/50 dark:border-green-800/30">
+                              <Badge variant="outline" className={cn("text-xs", statusConfig.className)}>
+                                {statusConfig.label}
+                              </Badge>
+                              <span className="flex-1 text-sm line-through text-muted-foreground">{task.title}</span>
+                              {task.profiles?.full_name && (
+                                <span className="text-xs text-muted-foreground">{task.profiles.full_name.split(" ")[0]}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}
