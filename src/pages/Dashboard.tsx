@@ -66,6 +66,7 @@ interface RecentClient {
   segment: string;
   status: string;
   updated_at: string;
+  slug?: string | null;
 }
 
 const Dashboard = () => {
@@ -161,7 +162,7 @@ const Dashboard = () => {
           // Recent clients
           supabase
             .from("clients")
-            .select("id, company_name, segment, status, updated_at")
+            .select("id, company_name, segment, status, updated_at, slug")
             .order("updated_at", { ascending: false })
             .limit(5)
         ]);
@@ -626,7 +627,7 @@ const Dashboard = () => {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
-                      onClick={() => navigate(`/clientes/${client.id}`)}
+                      onClick={() => navigate(`/clientes/${client.slug || client.id}`)}
                     >
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">

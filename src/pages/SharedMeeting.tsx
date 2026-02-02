@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -71,6 +71,7 @@ interface RecentTask {
 
 export default function SharedMeeting() {
   const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
   const [meeting, setMeeting] = useState<MeetingMinute | null>(null);
   const [sections, setSections] = useState<MeetingSection[]>([]);
   const [metrics, setMetrics] = useState<MeetingMetric[]>([]);
@@ -93,14 +94,40 @@ export default function SharedMeeting() {
 
   const fetchMeetingData = async () => {
     try {
-      // Fetch meeting
-      const { data: meetingData, error: meetingError } = await supabase
+      // Try to find by slug first, then by share_token
+      let meetingData = null;
+      let meetingError = null;
+      
+      // First try by slug
+      const { data: slugData, error: slugError } = await supabase
         .from("meeting_minutes")
         .select("*")
-        .eq("share_token", token)
+        .eq("slug", token)
         .single();
+      
+      if (slugData) {
+        meetingData = slugData;
+      } else {
+        // Fallback to share_token for backwards compatibility
+        const { data: tokenData, error: tokenError } = await supabase
+          .from("meeting_minutes")
+          .select("*")
+          .eq("share_token", token)
+          .single();
+        
+        if (tokenError) {
+          throw tokenError;
+        }
+        meetingData = tokenData;
+        
+        // Redirect to slug URL if available
+        if (meetingData?.slug && meetingData.slug !== token) {
+          navigate(`/reunioes/${meetingData.slug}`, { replace: true });
+          return;
+        }
+      }
 
-      if (meetingError) throw meetingError;
+      if (!meetingData) throw new Error("Meeting not found");
       setMeeting(meetingData);
 
       // Fetch all related data in parallel
