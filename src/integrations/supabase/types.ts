@@ -2062,6 +2062,69 @@ export type Database = {
           },
         ]
       }
+      performance_reports: {
+        Row: {
+          benchmarks_json: Json
+          client_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          inputs_json: Json
+          outputs_json: Json
+          period_end: string | null
+          period_label: string | null
+          period_start: string | null
+          scenario: string
+          source_tool: string
+          title: string
+        }
+        Insert: {
+          benchmarks_json?: Json
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inputs_json?: Json
+          outputs_json?: Json
+          period_end?: string | null
+          period_label?: string | null
+          period_start?: string | null
+          scenario: string
+          source_tool?: string
+          title: string
+        }
+        Update: {
+          benchmarks_json?: Json
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inputs_json?: Json
+          outputs_json?: Json
+          period_end?: string | null
+          period_label?: string | null
+          period_start?: string | null
+          scenario?: string
+          source_tool?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_reports_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       performance_simulation_scenarios: {
         Row: {
           benchmark_data: Json | null
