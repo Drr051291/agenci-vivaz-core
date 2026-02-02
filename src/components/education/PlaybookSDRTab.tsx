@@ -1,16 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import {
   Select,
   SelectContent,
@@ -21,7 +15,6 @@ import {
 import {
   CheckCircle2,
   Circle,
-  ChevronRight,
   Copy,
   MessageSquare,
   Mail,
@@ -29,16 +22,19 @@ import {
   Edit2,
   Save,
   X,
-  Info,
   Target,
   ArrowRight,
   ClipboardList,
   FileText,
-  HelpCircle,
   Filter,
   Calculator,
   Monitor,
   BookOpen,
+  ExternalLink,
+  Users,
+  UserCheck,
+  Handshake,
+  Trophy,
 } from 'lucide-react';
 import {
   usePlaybookSections,
@@ -54,9 +50,10 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FunnelExplainer } from './FunnelExplainer';
+import { FunnelExplainer, FUNNEL_STAGES } from './FunnelExplainer';
 import { PipedriveExamples } from './PipedriveExamples';
 import { EmbeddedPerformanceMatrix } from './EmbeddedPerformanceMatrix';
+import { StageTemplates } from './StageTemplates';
 
 interface PlaybookSDRTabProps {
   clientId?: string;
@@ -80,6 +77,8 @@ const STAGE_BG_COLORS = [
   'bg-green-500/10 border-green-500/30',
 ];
 
+const STAGE_ICONS = [Users, UserCheck, Phone, Handshake, Trophy];
+
 export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTabProps) {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(clientId || null);
   const effectiveClientId = clientId || selectedClientId;
@@ -94,8 +93,44 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editingStage, setEditingStage] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState('overview');
+  
+  const stagesTabRef = useRef<HTMLDivElement>(null);
 
   const isLoading = sectionsLoading || stagesLoading || glossaryLoading;
+
+  // Handle navigation from funnel or glossary to stages
+  const handleNavigateToStage = (stageId: string) => {
+    setActiveSection('stages');
+    
+    // Find the stage in the database stages
+    const stageMapping: Record<string, number> = {
+      'lead': 0,
+      'mql': 1,
+      'sql': 2,
+      'oportunidade': 3,
+      'contrato': 4,
+    };
+    
+    const stageIndex = stageMapping[stageId];
+    if (stages && stages[stageIndex]) {
+      setSelectedStage(stages[stageIndex]);
+    }
+    
+    // Scroll to stages section after a brief delay
+    setTimeout(() => {
+      stagesTabRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  // Order glossary terms to match funnel order
+  const orderedGlossary = glossary?.sort((a, b) => {
+    const order = ['lead', 'mql', 'sql', 'oportunidade', 'contrato'];
+    const aIndex = order.findIndex(o => a.key.toLowerCase().includes(o));
+    const bIndex = order.findIndex(o => b.key.toLowerCase().includes(o));
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  });
 
   if (isLoading) {
     return (
@@ -142,9 +177,9 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
             <Filter className="h-4 w-4" />
             Visão Geral
           </TabsTrigger>
-          <TabsTrigger value="examples" className="flex items-center gap-2">
+          <TabsTrigger value="crm" className="flex items-center gap-2">
             <Monitor className="h-4 w-4" />
-            Exemplos CRM
+            CRM
           </TabsTrigger>
           <TabsTrigger value="simulator" className="flex items-center gap-2">
             <Calculator className="h-4 w-4" />
@@ -159,41 +194,61 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
         {/* Overview Section */}
         <TabsContent value="overview" className="mt-6 space-y-6">
           {/* Interactive Funnel Explainer */}
-          <FunnelExplainer />
+          <FunnelExplainer onStageClick={handleNavigateToStage} />
 
-          {/* Glossary Section */}
+          {/* Glossary Section - Clickable Cards */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-primary" />
                 Definições de Etapas
               </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Clique em cada etapa para ver detalhes, templates e checklists
+              </p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {glossary?.map(term => (
-                  <motion.div 
-                    key={term.id} 
-                    className="p-3 rounded-lg bg-muted/50 border hover:border-primary/30 transition-all"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <h4 className="font-semibold text-sm capitalize flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary" />
-                      {term.key}
-                    </h4>
-                    <div className="text-xs text-muted-foreground mt-1 prose prose-sm">
-                      <ReactMarkdown>{term.definition_md || ''}</ReactMarkdown>
-                    </div>
-                    {term.rules_md && (
-                      <div className="mt-2 pt-2 border-t">
-                        <span className="text-[10px] text-primary font-medium">Regras específicas:</span>
-                        <div className="text-xs text-muted-foreground prose prose-sm">
-                          <ReactMarkdown>{term.rules_md}</ReactMarkdown>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                {FUNNEL_STAGES.map((stage, index) => {
+                  const Icon = STAGE_ICONS[index];
+                  const matchingGlossary = orderedGlossary?.find(
+                    g => g.key.toLowerCase().includes(stage.id)
+                  );
+                  
+                  return (
+                    <motion.button
+                      key={stage.id}
+                      onClick={() => handleNavigateToStage(stage.id)}
+                      className={cn(
+                        "p-4 rounded-lg border-2 text-left transition-all",
+                        "hover:shadow-md hover:scale-[1.02] cursor-pointer group",
+                        stage.bgColor,
+                        stage.borderColor
+                      )}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className={cn("p-2 rounded-lg", stage.bgColor)}>
+                          <Icon className={cn("h-4 w-4", stage.textColor)} />
                         </div>
+                        <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                    )}
-                  </motion.div>
-                ))}
+                      <h4 className="font-semibold text-sm mb-1">{stage.name}</h4>
+                      {stage.fullName && (
+                        <p className="text-[10px] text-muted-foreground mb-2">{stage.fullName}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {matchingGlossary?.definition_md || stage.description}
+                      </p>
+                      <div className="mt-2 pt-2 border-t border-border/50">
+                        <span className="text-[10px] text-primary font-medium">
+                          Ver detalhes →
+                        </span>
+                      </div>
+                    </motion.button>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -213,8 +268,8 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
           </div>
         </TabsContent>
 
-        {/* Examples Section */}
-        <TabsContent value="examples" className="mt-6">
+        {/* CRM Section */}
+        <TabsContent value="crm" className="mt-6">
           <PipedriveExamples />
         </TabsContent>
 
@@ -224,7 +279,7 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
         </TabsContent>
 
         {/* Stages Section */}
-        <TabsContent value="stages" className="mt-6 space-y-6">
+        <TabsContent value="stages" className="mt-6 space-y-6" ref={stagesTabRef}>
           {/* Interactive Process Funnel */}
           <Card>
             <CardHeader className="pb-2">
@@ -285,13 +340,29 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
             )}
           </AnimatePresence>
 
+          {/* Templates Section */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-primary" />
+                Banco de Templates
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Templates para WhatsApp, LinkedIn e Email organizados por tipo de interação
+              </p>
+            </CardHeader>
+            <CardContent>
+              <StageTemplates />
+            </CardContent>
+          </Card>
+
           {!selectedStage && (
             <Card className="border-dashed">
               <CardContent className="p-8 text-center">
                 <Target className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                 <h3 className="font-medium text-muted-foreground">Selecione uma etapa</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Clique em uma etapa acima para ver detalhes, checklist e templates
+                  Clique em uma etapa acima para ver detalhes e checklist
                 </p>
               </CardContent>
             </Card>
@@ -475,7 +546,7 @@ function StageDetails({
         {stage.templates_json && stage.templates_json.length > 0 && (
           <div className="space-y-3">
             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-              <MessageSquare className="h-3 w-3" /> Templates
+              <MessageSquare className="h-3 w-3" /> Templates Rápidos
             </h4>
             <div className="grid md:grid-cols-2 gap-3">
               {stage.templates_json.map((template, idx) => (
@@ -502,33 +573,6 @@ function StageDetails({
                 </motion.div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Objections */}
-        {stage.objections_json && stage.objections_json.length > 0 && (
-          <div className="space-y-3">
-            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-              <HelpCircle className="h-3 w-3" /> Objeções e Respostas
-            </h4>
-            <Accordion type="single" collapsible className="w-full">
-              {stage.objections_json.map((obj, idx) => (
-                <AccordionItem key={idx} value={`obj-${idx}`} className="border rounded-lg mb-2 px-3 bg-background/50">
-                  <AccordionTrigger className="text-sm py-3 hover:no-underline">
-                    <span className="text-left flex items-center gap-2">
-                      <span className="text-red-500">❌</span>
-                      "{obj.objection}"
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-sm pb-3">
-                    <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
-                      <span className="text-green-500 mt-0.5">✅</span>
-                      <span>{obj.response}</span>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
           </div>
         )}
       </CardContent>
@@ -565,7 +609,7 @@ function PlaybookSectionCard({
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Info className="h-4 w-4 text-primary" />
+            <FileText className="h-4 w-4 text-primary" />
             {section.title}
           </CardTitle>
           {canEdit && !isEditing && (

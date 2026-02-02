@@ -13,7 +13,7 @@ export function ClientEducation({ clientId, clientName }: ClientEducationProps) 
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Educação & Processos</h2>
+          <h2 className="text-lg font-semibold">Trilhas e Processos</h2>
           <p className="text-sm text-muted-foreground">
             Recursos de treinamento e documentação de processos para {clientName || 'este cliente'}
           </p>
