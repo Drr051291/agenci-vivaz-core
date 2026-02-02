@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -16,13 +18,12 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { GitCompareArrows, CalendarIcon } from 'lucide-react';
+import { GitCompareArrows } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
   ComparisonPreset, 
   ComparisonConfig, 
-  DateRange, 
   PeriodPreset 
 } from './types';
 import { getAutoComparisonDescription } from './comparisonUtils';
@@ -46,7 +47,8 @@ export function ComparisonPeriodSelector({
   periodPreset,
   className,
 }: ComparisonPeriodSelectorProps) {
-  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [showCustomDialog, setShowCustomDialog] = useState(false);
+  const [tempRange, setTempRange] = useState<{ from?: Date; to?: Date }>({});
 
   const autoDescription = getAutoComparisonDescription(periodPreset);
 
@@ -70,11 +72,11 @@ export function ComparisonPeriodSelector({
     const preset = value as ComparisonPreset;
     
     if (preset === 'custom') {
-      setCalendarOpen(true);
-      onConfigChange({
-        ...config,
-        preset: 'custom',
+      setTempRange({ 
+        from: config.customRange?.start, 
+        to: config.customRange?.end 
       });
+      setShowCustomDialog(true);
       return;
     }
 
@@ -86,13 +88,19 @@ export function ComparisonPeriodSelector({
   };
 
   const handleCalendarSelect = (range: { from?: Date; to?: Date } | undefined) => {
-    if (range?.from && range?.to) {
+    if (range) {
+      setTempRange(range);
+    }
+  };
+
+  const handleApplyCustomRange = () => {
+    if (tempRange.from && tempRange.to) {
       onConfigChange({
         ...config,
         preset: 'custom',
-        customRange: { start: range.from, end: range.to },
+        customRange: { start: tempRange.from, end: tempRange.to },
       });
-      setCalendarOpen(false);
+      setShowCustomDialog(false);
     }
   };
 
@@ -113,25 +121,25 @@ export function ComparisonPeriodSelector({
   };
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
-      <div className="flex items-center gap-1.5">
-        <Switch 
-          id="comparison-toggle"
-          checked={config.enabled}
-          onCheckedChange={handleToggle}
-          className="h-4 w-7"
-        />
-        <Label 
-          htmlFor="comparison-toggle" 
-          className="text-xs text-muted-foreground cursor-pointer flex items-center gap-1"
-        >
-          <GitCompareArrows className="h-3 w-3" />
-          Comparar
-        </Label>
-      </div>
+    <>
+      <div className={cn('flex items-center gap-2', className)}>
+        <div className="flex items-center gap-1.5">
+          <Switch 
+            id="comparison-toggle"
+            checked={config.enabled}
+            onCheckedChange={handleToggle}
+            className="h-4 w-7"
+          />
+          <Label 
+            htmlFor="comparison-toggle" 
+            className="text-xs text-muted-foreground cursor-pointer flex items-center gap-1"
+          >
+            <GitCompareArrows className="h-3 w-3" />
+            Comparar
+          </Label>
+        </div>
 
-      {config.enabled && (
-        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+        {config.enabled && (
           <Select 
             value={config.preset} 
             onValueChange={handlePresetChange}
@@ -163,26 +171,71 @@ export function ComparisonPeriodSelector({
               ))}
             </SelectContent>
           </Select>
+        )}
+      </div>
+
+      {/* Custom Date Range Dialog */}
+      <Dialog open={showCustomDialog} onOpenChange={setShowCustomDialog}>
+        <DialogContent className="sm:max-w-[650px]">
+          <DialogHeader>
+            <DialogTitle>Período de comparação personalizado</DialogTitle>
+          </DialogHeader>
           
-          {/* Calendar popover for custom dates */}
-          <PopoverTrigger asChild>
-            <span className="hidden" />
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="range"
-              defaultMonth={config.customRange?.start}
-              selected={config.customRange ? { 
-                from: config.customRange.start, 
-                to: config.customRange.end 
-              } : undefined}
-              onSelect={handleCalendarSelect}
-              numberOfMonths={2}
-              locale={ptBR}
-            />
-          </PopoverContent>
-        </Popover>
-      )}
-    </div>
+          <div className="py-4 space-y-4">
+            <div className="flex justify-center border rounded-lg p-2">
+              <Calendar
+                mode="range"
+                defaultMonth={tempRange.from}
+                selected={tempRange.from && tempRange.to ? { from: tempRange.from, to: tempRange.to } : tempRange.from ? { from: tempRange.from, to: undefined } : undefined}
+                onSelect={handleCalendarSelect}
+                numberOfMonths={2}
+                locale={ptBR}
+                classNames={{
+                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                  month: "space-y-4",
+                  day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground rounded-md cursor-pointer",
+                }}
+                className="p-3 pointer-events-auto"
+              />
+            </div>
+            
+            {/* Selected range display */}
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Início:</span>
+                  <span className="font-medium">
+                    {tempRange.from 
+                      ? format(tempRange.from, 'dd MMM yyyy', { locale: ptBR })
+                      : '—'}
+                  </span>
+                </div>
+                <div className="text-muted-foreground">→</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Fim:</span>
+                  <span className="font-medium">
+                    {tempRange.to 
+                      ? format(tempRange.to, 'dd MMM yyyy', { locale: ptBR })
+                      : '—'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCustomDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleApplyCustomRange}
+              disabled={!tempRange.from || !tempRange.to}
+            >
+              Aplicar período
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
