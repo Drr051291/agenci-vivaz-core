@@ -1,199 +1,114 @@
 
-# Plano: Dashboard de Funil para Pipeline 13 (3D)
+# Plano: Melhorias no Modulo Educacao e Processos
 
-## Objetivo
-Criar uma cópia do dashboard do Pipeline 9 (Brandspot) para o Pipeline 13 (3D), seguindo exatamente as mesmas regras e visualizações. A solução será parametrizada para permitir reutilização e manutenção simplificada.
+## Resumo das Alteracoes
 
----
-
-## Estratégia de Implementação
-
-Em vez de duplicar todo o código, vamos **parametrizar** os componentes existentes para receber o `pipelineId` como prop. Isso garante que:
-- Ambos os dashboards evoluam juntos em otimizações futuras
-- Menor duplicação de código
-- Manutenção centralizada
+O objetivo e tornar o modulo de Educacao e Processos mais integrado e visualmente rico, adicionando-o como uma aba dedicada em todos os clientes e aprimorando o Playbook SDR com elementos interativos.
 
 ---
 
-## Mudanças Necessárias
+## 1. Nova Aba "Educacao" no Menu de Detalhes do Cliente
 
-### 1. Atualizar Tipos e Constantes
+**O que sera feito:**
+- Adicionar uma nova aba "Educacao" no componente `ClientDetails.tsx`
+- Posicionar antes da aba "Financeiro" (entre Performance e Financeiro)
+- A aba exibira o conteudo filtrado pelo cliente atual (global + especifico)
 
-**Arquivo:** `src/components/pipedrive-funnel/types.ts`
-
-Adicionar configurações para múltiplos pipelines:
-
+**Estrutura das abas apos a mudanca:**
 ```text
-PIPELINES = {
-  brandspot: {
-    id: 9,
-    name: 'Brandspot',
-    subtitle: 'serviços_b2b'
-  },
-  threeDimension: {
-    id: 13,
-    name: '3D',
-    subtitle: 'pipeline_3d'  // Verificar nome real no Pipedrive
-  }
-}
-```
-
-### 2. Parametrizar Hooks
-
-Modificar todos os hooks para receber `pipelineId` como parâmetro:
-
-**`usePipedriveFunnel.ts`**
-- Adicionar parâmetro `pipelineId: number`
-- Usar este valor ao chamar a edge function
-
-**`useCampaignTracking.ts`**
-- Adicionar parâmetro `pipelineId: number`
-
-**`useLeadSourceTracking.ts`**
-- Adicionar parâmetro `pipelineId: number`
-
-### 3. Parametrizar Dashboard Principal
-
-**Arquivo:** `src/components/pipedrive-funnel/PipedriveFunnelDashboard.tsx`
-
-Atualizar props:
-
-```text
-interface PipedriveFunnelDashboardProps {
-  clientId: string;
-  pipelineId: number;      // NOVO
-  pipelineName?: string;   // NOVO: "Brandspot" ou "3D"
-  pipelineSubtitle?: string; // NOVO
-}
-```
-
-- O componente passará o `pipelineId` para todos os hooks
-- Header exibirá o nome do pipeline dinamicamente
-
-### 4. Atualizar DashboardList
-
-**Arquivo:** `src/components/client-details/DashboardList.tsx`
-
-Adicionar card para Pipeline 13 (3D) ao lado do card existente do Pipeline 9:
-
-```text
-{/* Cards de Funil - Sétima */}
-{clientId === "c694df38-b4ec-444c-bc0d-8d8b6102b161" && (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
-    {/* Card Brandspot (Pipeline 9) */}
-    <Card>
-      <h3>Funil Brandspot</h3>
-      <Badge>Pipeline ID 9</Badge>
-      <Button onClick={() => openFunnel(9, 'Brandspot')}>
-        Visualizar
-      </Button>
-    </Card>
-    
-    {/* Card 3D (Pipeline 13) */}
-    <Card>
-      <h3>Funil 3D</h3>
-      <Badge>Pipeline ID 13</Badge>
-      <Button onClick={() => openFunnel(13, '3D')}>
-        Visualizar
-      </Button>
-    </Card>
-  </div>
-)}
-```
-
-### 5. Estado de Navegação
-
-Atualizar estado do DashboardList para gerenciar qual pipeline está ativo:
-
-```text
-// Estado atual
-const [showPipedriveFunnel, setShowPipedriveFunnel] = useState(false);
-
-// Novo estado
-const [activeFunnel, setActiveFunnel] = useState<{
-  pipelineId: number;
-  name: string;
-  subtitle: string;
-} | null>(null);
+Visao Geral | Atividades | Reunioes | Dashboards | Performance | Educacao | Financeiro | Vivaz AI
 ```
 
 ---
 
-## Componentes Afetados
+## 2. Remover Card de Educacao do DashboardList (Setima e outros)
 
-| Arquivo | Mudança |
-|---------|---------|
-| `types.ts` | Adicionar configuração de múltiplos pipelines |
-| `usePipedriveFunnel.ts` | Adicionar param `pipelineId` |
-| `useCampaignTracking.ts` | Adicionar param `pipelineId` |
-| `useLeadSourceTracking.ts` | Adicionar param `pipelineId` |
-| `PipedriveFunnelDashboard.tsx` | Adicionar props `pipelineId`, `pipelineName` |
-| `DashboardList.tsx` | Adicionar card do Pipeline 13 e gerenciar navegação |
+**O que sera feito:**
+- Remover o card "Educacao & Processos" da listagem de dashboards em `DashboardList.tsx`
+- Isso evita duplicidade, ja que agora existe uma aba dedicada
+- O acesso sera exclusivamente pela nova aba do menu
 
 ---
 
-## Visualização Final
+## 3. Playbook SDR Interativo e Visual (Nova Versao)
+
+**Novas Secoes e Componentes:**
+
+### 3.1 Secao "Como Funciona o Funil" (Nova)
+- Introducao explicativa sobre o funil de vendas SDR
+- Diagrama visual interativo mostrando o fluxo Lead - MQL - SQL - Oportunidade - Contrato
+- Cards clicaveis com animacoes de hover
+
+### 3.2 Screenshots de Exemplo do Pipedrive
+- Copiar as imagens enviadas para o projeto (`src/assets/pipedrive/`)
+- Exibir em uma galeria/carousel dentro do Playbook
+- Legendas explicativas para cada screenshot
+- Indicadores visuais mostrando onde cada etapa aparece no CRM
+
+### 3.3 Ferramenta Matriz de Performance Pro Embedada
+- Nova secao "Simulador de Funil" integrada ao Playbook
+- Versao simplificada/embedada da ferramenta de diagnostico
+- Permite que o usuario visualize benchmarks e simule cenarios
+- Inputs simplificados com resultados visuais imediatos
+
+### 3.4 Elementos Visuais Aprimorados
+- Funil com gradientes e animacoes de transicao
+- Progress indicators para cada etapa
+- Badges de status (Lead, MQL, SQL, etc.) com cores consistentes
+- Tooltips informativos em cada elemento
+- Accordions expandiveis para templates e objecoes
+- Cards de checklist interativos com feedback visual
+
+---
+
+## Arquivos a Serem Modificados
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/pages/ClientDetails.tsx` | Adicionar aba "Educacao" e componente correspondente |
+| `src/components/client-details/DashboardList.tsx` | Remover card "Educacao & Processos" |
+| `src/components/client-details/ClientEducation.tsx` | **Novo** - Wrapper para exibir PlaybookSDRTab filtrado por cliente |
+| `src/components/education/PlaybookSDRTab.tsx` | Refatorar com nova estrutura visual e interativa |
+| `src/components/education/FunnelExplainer.tsx` | **Novo** - Secao explicativa do funil com diagrama |
+| `src/components/education/PipedriveExamples.tsx` | **Novo** - Galeria de screenshots do Pipedrive |
+| `src/components/education/EmbeddedPerformanceMatrix.tsx` | **Novo** - Versao embedada do simulador |
+| `src/assets/pipedrive/` | **Novo** - Diretorio com imagens de exemplo |
+
+---
+
+## Secao Tecnica
+
+### Estrutura do Novo PlaybookSDRTab
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│ Dashboards do Cliente Sétima                                │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────────────┐   ┌─────────────────────┐         │
-│  │ 🔵 Funil Brandspot  │   │ 🟣 Funil 3D         │         │
-│  │ Pipeline ID 9       │   │ Pipeline ID 13      │         │
-│  │ [Visualizar]        │   │ [Visualizar]        │         │
-│  └─────────────────────┘   └─────────────────────┘         │
-│                                                             │
-│  ┌─ Dashboards Embarcados ──────────────────────┐          │
-│  │  • Reportei Dashboard                        │          │
-│  │  • Pipedrive Insights                        │          │
-│  └──────────────────────────────────────────────┘          │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+PlaybookSDRTab
+  +-- FunnelExplainer (diagrama interativo + explicacao)
+  +-- PipedriveExamples (galeria de screenshots)
+  +-- InteractiveFunnelStages (etapas clicaveis - existente, aprimorado)
+  +-- EmbeddedPerformanceMatrix (simulador embedado)
+  +-- GlossarySection (definicoes - existente)
+  +-- PlaybookSections (conteudo markdown - existente)
 ```
 
----
+### Componente EmbeddedPerformanceMatrix
 
-## Considerações sobre Diferenças entre Pipelines
+Versao simplificada da Matriz de Performance Pro com:
+- Inputs apenas para: Leads, MQL, SQL, Oportunidades, Contratos
+- Selector de setor (usando benchmarks existentes)
+- Visualizacao de taxas de conversao vs benchmark
+- Indicadores visuais de status (verde/amarelo/vermelho)
+- Sem funcionalidades de salvar/exportar (apenas visualizacao)
 
-### O que será igual (compartilhado)
-- Lógica de cálculo de conversão
-- Visualização do funil (FunnelStepper)
-- Gráfico de Motivos de Perda
-- Gráfico de Rastreamento de Campanhas
-- Sistema de comparação de períodos
-- Filtros de data
-- Toggle Período/Snapshot
+### Imagens do Pipedrive
 
-### O que pode variar (específico de cada pipeline)
-- **Etapas do funil**: A edge function já busca as etapas dinamicamente por pipeline
-- **Labels/Etiquetas**: A lógica de "BASE SETIMA" é específica, mas o código é flexível
-- **Origem dos Leads**: Depende das convenções de nomenclatura usadas no pipeline 13
-
-### Notas sobre "Origem dos Leads"
-A classificação atual usa:
-1. `[Lead Site]` no título → Landing Page
-2. Label `BASE SETIMA` → Base Sétima
-3. Fallback → Lead Nativo
-
-Se o pipeline 13 usar convenções diferentes, podemos adicionar configuração específica posteriormente. Por enquanto, assumimos as mesmas regras.
+As imagens serao copiadas para `src/assets/pipedrive/` e importadas como modulos ES6 para garantir otimizacao e bundling adequado.
 
 ---
 
-## Etapas de Implementação
+## Resultado Esperado
 
-1. **Tipos e Constantes** - Adicionar config de pipelines
-2. **Hooks** - Parametrizar com `pipelineId`
-3. **Dashboard** - Adicionar props de pipeline
-4. **DashboardList** - Adicionar card do Pipeline 13
-5. **Testes** - Validar ambos os dashboards funcionando
-
----
-
-## Benefícios da Abordagem Parametrizada
-
-- **Manutenção única**: Correções e melhorias aplicam-se automaticamente a ambos os pipelines
-- **Escalabilidade**: Fácil adicionar novos pipelines no futuro
-- **Consistência**: Garantia de que ambos os dashboards têm as mesmas funcionalidades
-- **Menos código**: Sem duplicação de componentes ou hooks
+1. Todos os clientes terao acesso a aba "Educacao" no menu de detalhes
+2. O Playbook SDR sera muito mais visual e interativo
+3. Usuarios poderao ver exemplos reais do Pipedrive
+4. A ferramenta de diagnostico estara embedada para analises rapidas
+5. Experiencia unificada e consistente em toda a plataforma
