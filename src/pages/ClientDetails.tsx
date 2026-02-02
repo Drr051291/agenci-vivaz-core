@@ -143,7 +143,7 @@ export default function ClientDetails() {
             <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="education" className="flex items-center gap-1">
               <GraduationCap className="h-3 w-3" />
-              Educação
+              Trilhas
             </TabsTrigger>
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
             <TabsTrigger value="ai" className="flex items-center gap-1">

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Users, 
   UserCheck, 
@@ -16,15 +15,27 @@ import {
   Handshake, 
   Trophy,
   ArrowRight,
-  Info,
   TrendingUp,
   Filter,
-  ChevronDown,
-  ChevronUp,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const FUNNEL_STAGES = [
+interface FunnelStage {
+  id: string;
+  name: string;
+  fullName?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  bgColor: string;
+  textColor: string;
+  borderColor: string;
+  description: string;
+  benchmarkRange: string;
+  tips: string[];
+}
+
+const FUNNEL_STAGES: FunnelStage[] = [
   {
     id: 'lead',
     name: 'Lead',
@@ -89,10 +100,11 @@ const FUNNEL_STAGES = [
   },
 ];
 
-export function FunnelExplainer() {
-  const [expandedStage, setExpandedStage] = useState<string | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
+interface FunnelExplainerProps {
+  onStageClick?: (stageId: string) => void;
+}
 
+export function FunnelExplainer({ onStageClick }: FunnelExplainerProps) {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
@@ -101,53 +113,33 @@ export function FunnelExplainer() {
             <Filter className="h-5 w-5 text-primary" />
             Como Funciona o Funil de Vendas
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowDetails(!showDetails)}
-            className="text-xs"
-          >
-            {showDetails ? (
-              <>
-                <ChevronUp className="h-4 w-4 mr-1" />
-                Ocultar detalhes
-              </>
-            ) : (
-              <>
-                <ChevronDown className="h-4 w-4 mr-1" />
-                Ver detalhes
-              </>
-            )}
-          </Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          O funil SDR representa a jornada do lead até a conversão em cliente
+          O funil SDR representa a jornada do lead até a conversão. Clique em cada etapa para ver detalhes.
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Visual Funnel */}
         <div className="relative">
-          {/* Funnel Visual */}
           <div className="flex items-stretch gap-0 overflow-x-auto pb-4">
             <TooltipProvider delayDuration={200}>
               {FUNNEL_STAGES.map((stage, index) => {
                 const Icon = stage.icon;
-                const isExpanded = expandedStage === stage.id;
-                const width = 100 - (index * 12); // Decreasing widths for funnel effect
+                const width = 100 - (index * 12);
                 
                 return (
                   <div key={stage.id} className="flex items-center flex-shrink-0">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <motion.button
-                          onClick={() => setExpandedStage(isExpanded ? null : stage.id)}
+                          onClick={() => onStageClick?.(stage.id)}
                           className={cn(
                             "relative flex flex-col items-center justify-center",
                             "px-4 py-4 rounded-xl transition-all duration-300",
                             "bg-gradient-to-br text-white shadow-lg",
                             stage.color,
-                            isExpanded && "ring-2 ring-offset-2 ring-primary scale-105 z-10",
-                            "hover:scale-105 hover:shadow-xl cursor-pointer"
+                            "hover:scale-105 hover:shadow-xl cursor-pointer",
+                            "group"
                           )}
                           style={{ 
                             minWidth: `${Math.max(100, width + 20)}px`,
@@ -163,11 +155,13 @@ export function FunnelExplainer() {
                           {stage.fullName && (
                             <span className="text-[10px] opacity-80">{stage.fullName}</span>
                           )}
+                          <ExternalLink className="h-3 w-3 absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </motion.button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="max-w-xs">
                         <p className="font-semibold">{stage.name}</p>
                         <p className="text-xs text-muted-foreground">{stage.description}</p>
+                        <p className="text-xs text-primary mt-1">Clique para ver detalhes →</p>
                       </TooltipContent>
                     </Tooltip>
                     
@@ -184,125 +178,53 @@ export function FunnelExplainer() {
               })}
             </TooltipProvider>
           </div>
-
-          {/* Expanded Stage Details */}
-          <AnimatePresence>
-            {expandedStage && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                {FUNNEL_STAGES.filter(s => s.id === expandedStage).map(stage => {
-                  const Icon = stage.icon;
-                  return (
-                    <div
-                      key={stage.id}
-                      className={cn(
-                        "p-4 rounded-lg border mt-4",
-                        stage.bgColor,
-                        stage.borderColor
-                      )}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={cn("p-2 rounded-lg", stage.bgColor)}>
-                          <Icon className={cn("h-5 w-5", stage.textColor)} />
-                        </div>
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold">{stage.name}</h4>
-                            {stage.fullName && (
-                              <Badge variant="secondary" className="text-xs">
-                                {stage.fullName}
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{stage.description}</p>
-                          
-                          <div className="flex items-center gap-2 mt-2">
-                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">
-                              Taxa de conversão esperada: <strong>{stage.benchmarkRange}</strong>
-                            </span>
-                          </div>
-
-                          <div className="mt-3 pt-3 border-t border-border/50">
-                            <h5 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                              <Info className="h-3 w-3" /> Dicas
-                            </h5>
-                            <ul className="space-y-1">
-                              {stage.tips.map((tip, idx) => (
-                                <li key={idx} className="text-xs flex items-start gap-2">
-                                  <span className={cn("mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0", stage.textColor.replace('text-', 'bg-'))} />
-                                  {tip}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
-        {/* Additional Details */}
-        <AnimatePresence>
-          {showDetails && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-4"
-            >
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-lg bg-muted/50 border">
-                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                    <Users className="h-4 w-4 text-primary" />
-                    Papel do SDR
-                  </h4>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>• Qualificar leads rapidamente</li>
-                    <li>• Seguir cadência de contato</li>
-                    <li>• Registrar interações no CRM</li>
-                    <li>• Agendar reuniões com closers</li>
-                  </ul>
-                </div>
-                
-                <div className="p-4 rounded-lg bg-muted/50 border">
-                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                    Métricas Importantes
-                  </h4>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>• Taxa de conversão por etapa</li>
-                    <li>• Tempo médio em cada estágio</li>
-                    <li>• Volume de leads qualificados</li>
-                    <li>• Motivos de perda</li>
-                  </ul>
-                </div>
-                
-                <div className="p-4 rounded-lg bg-muted/50 border">
-                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                    <Trophy className="h-4 w-4 text-primary" />
-                    Boas Práticas
-                  </h4>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>• Responder em até 5 minutos</li>
-                    <li>• Usar templates padronizados</li>
-                    <li>• Documentar todas as interações</li>
-                    <li>• Fazer follow-up consistente</li>
-                  </ul>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Quick Info Cards */}
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="p-4 rounded-lg bg-muted/50 border">
+            <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              Papel do SDR
+            </h4>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>• Qualificar leads rapidamente</li>
+              <li>• Seguir cadência de contato</li>
+              <li>• Registrar interações no CRM</li>
+              <li>• Agendar reuniões com closers</li>
+            </ul>
+          </div>
+          
+          <div className="p-4 rounded-lg bg-muted/50 border">
+            <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Métricas Importantes
+            </h4>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>• Taxa de conversão por etapa</li>
+              <li>• Tempo médio em cada estágio</li>
+              <li>• Volume de leads qualificados</li>
+              <li>• Motivos de perda</li>
+            </ul>
+          </div>
+          
+          <div className="p-4 rounded-lg bg-muted/50 border">
+            <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-primary" />
+              Boas Práticas
+            </h4>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>• Responder em até 5 minutos</li>
+              <li>• Usar templates padronizados</li>
+              <li>• Documentar todas as interações</li>
+              <li>• Fazer follow-up consistente</li>
+            </ul>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
 }
+
+export { FUNNEL_STAGES };
+export type { FunnelStage };
