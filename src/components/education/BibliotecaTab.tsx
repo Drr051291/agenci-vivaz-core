@@ -42,6 +42,7 @@ import { useEffect } from 'react';
 interface BibliotecaTabProps {
   clientId?: string;
   clientName?: string;
+  allowClientUpload?: boolean;
 }
 
 const TYPE_ICONS = {
@@ -75,8 +76,10 @@ function useDebounceValue<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-export function BibliotecaTab({ clientId, clientName }: BibliotecaTabProps) {
-  const canEdit = useCanEditEducation();
+export function BibliotecaTab({ clientId, clientName, allowClientUpload = false }: BibliotecaTabProps) {
+  const canEditHook = useCanEditEducation();
+  // If allowClientUpload is true, clients can also add resources
+  const canEdit = canEditHook || allowClientUpload;
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebounceValue(searchInput, 400);
   

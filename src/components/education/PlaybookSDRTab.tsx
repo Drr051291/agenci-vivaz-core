@@ -66,6 +66,7 @@ interface PlaybookSDRTabProps {
   clientId?: string;
   clientName?: string;
   clients?: { id: string; company_name: string }[];
+  readOnly?: boolean;
 }
 
 const STAGE_ICONS = [Users, UserCheck, Phone, Handshake, Trophy];
@@ -79,14 +80,16 @@ const getStageDisplayName = (stageName: string, clientName?: string) => {
   return stageName;
 };
 
-export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTabProps) {
+export function PlaybookSDRTab({ clientId, clientName, clients, readOnly = false }: PlaybookSDRTabProps) {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(clientId || null);
   const effectiveClientId = clientId || selectedClientId;
   
   const { data: sections, isLoading: sectionsLoading } = usePlaybookSections(effectiveClientId || undefined);
   const { data: stages, isLoading: stagesLoading } = useProcessStages(effectiveClientId || undefined);
   const { data: glossary, isLoading: glossaryLoading } = useGlossary(effectiveClientId || undefined);
-  const canEdit = useCanEditEducation();
+  const canEditHook = useCanEditEducation();
+  // If readOnly is true, override canEdit to false
+  const canEdit = readOnly ? false : canEditHook;
   
   const [selectedStage, setSelectedStage] = useState<SDRProcessStage | null>(null);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});

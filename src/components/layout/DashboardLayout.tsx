@@ -51,6 +51,7 @@ const clientMenuItems = [
   { title: "Atividades", url: "/area-cliente/atividades", icon: CheckSquare, adminOnly: false, disabled: false },
   { title: "Performance", url: "/area-cliente/performance", icon: BarChart3, adminOnly: false, disabled: false },
   { title: "Dashboards", url: "/area-cliente/dashboards", icon: BarChart3, adminOnly: false, disabled: false },
+  { title: "Trilhas e Processos", url: "/area-cliente/trilhas", icon: GraduationCap, adminOnly: false, disabled: false },
   { title: "Vivaz AI", url: "/area-cliente/vivaz-ai", icon: Sparkles, adminOnly: false, disabled: true, comingSoon: true },
 ];
 
