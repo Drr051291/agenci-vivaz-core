@@ -204,17 +204,23 @@ export function FunnelPeriodFilter({
             <DialogTitle>Selecionar período personalizado</DialogTitle>
           </DialogHeader>
           
-          <div className="py-4">
-            <Calendar
-              mode="range"
-              defaultMonth={tempRange.from || dateRange.start}
-              selected={tempRange.from && tempRange.to ? { from: tempRange.from, to: tempRange.to } : undefined}
-              onSelect={handleCalendarSelect}
-              numberOfMonths={2}
-              locale={ptBR}
-              className="pointer-events-auto rounded-md border"
-            />
-            
+          <div className="py-4 space-y-4">
+            <div className="flex justify-center border rounded-lg p-2">
+              <Calendar
+                mode="range"
+                defaultMonth={tempRange.from || dateRange.start}
+                selected={tempRange.from && tempRange.to ? { from: tempRange.from, to: tempRange.to } : tempRange.from ? { from: tempRange.from, to: undefined } : undefined}
+                onSelect={handleCalendarSelect}
+                numberOfMonths={2}
+                locale={ptBR}
+                classNames={{
+                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                  month: "space-y-4",
+                  day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground rounded-md cursor-pointer",
+                }}
+                className="p-3 pointer-events-auto"
+              />
+            </div>
             {/* Selected range display */}
             <div className="mt-4 p-3 bg-muted/50 rounded-lg">
               <div className="flex items-center justify-between text-sm">
