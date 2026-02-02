@@ -30,6 +30,7 @@ import PrecificacaoMercadoLivre from "./pages/ferramentas/PrecificacaoMercadoLiv
 import PrecificacaoProduto from "./pages/ferramentas/PrecificacaoProduto";
 import DREProjetado from "./pages/ferramentas/DREProjetado";
 import Notifications from "./pages/Notifications";
+import EducacaoProcessos from "./pages/EducacaoProcessos";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
           <Route path="/ferramentas/precificacao-mercado-livre" element={<PrecificacaoMercadoLivre />} />
           <Route path="/ferramentas/precificacao-produto" element={<PrecificacaoProduto />} />
           <Route path="/ferramentas/dre-projetado" element={<DREProjetado />} />
+          <Route path="/educacao" element={<EducacaoProcessos />} />
           <Route path="/notificacoes" element={<Notifications />} />
           <Route path="/reunioes/:token" element={<SharedMeeting />} />
           <Route path="/google-calendar/callback" element={<GoogleCalendarCallback />} />
