@@ -194,17 +194,17 @@ export function TargetVsActualPanel({
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
+    <Card className="border-dashed">
+      <CardHeader className="pb-2 pt-4 px-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-primary" />
-            <CardTitle className="text-base">Meta vs Realizado</CardTitle>
+            <Target className="h-3.5 w-3.5 text-primary" />
+            <CardTitle className="text-sm font-medium">Meta vs Realizado</CardTitle>
           </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Badge variant="outline" className="text-[10px] cursor-help">
+                <Badge variant="secondary" className="text-[9px] cursor-help font-normal">
                   Benchmark: Serviços Complexos
                 </Badge>
               </TooltipTrigger>
@@ -218,8 +218,8 @@ export function TargetVsActualPanel({
           </TooltipProvider>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <CardContent className="px-4 pb-4 pt-2">
+        <div className="grid grid-cols-3 gap-3">
           {metrics.map((metric) => {
             const styles = getStatusStyles(metric.status);
             const StatusIcon = styles.icon;
@@ -231,45 +231,42 @@ export function TargetVsActualPanel({
               <div
                 key={metric.key}
                 className={cn(
-                  'rounded-lg border p-4 transition-colors',
+                  'rounded-md border p-3 transition-colors',
                   styles.bg,
                   styles.border
                 )}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium">{metric.label}</span>
-                  <StatusIcon className={cn('h-4 w-4', styles.text)} />
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium">{metric.shortLabel}</span>
+                  <StatusIcon className={cn('h-3.5 w-3.5', styles.text)} />
                 </div>
                 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {/* Actual value */}
                   <div className="flex items-baseline justify-between">
-                    <span className="text-xs text-muted-foreground">Realizado</span>
-                    <span className={cn('text-xl font-bold', styles.text)}>
+                    <span className="text-[10px] text-muted-foreground">Real</span>
+                    <span className={cn('text-lg font-bold', styles.text)}>
                       {formatPercent(metric.actual)}
                     </span>
                   </div>
                   
                   {/* Target range */}
                   <div className="flex items-baseline justify-between">
-                    <span className="text-xs text-muted-foreground">Meta</span>
-                    <span className="text-sm font-medium">
-                      {metric.target.min}% — {metric.target.max}%
+                    <span className="text-[10px] text-muted-foreground">Meta</span>
+                    <span className="text-xs font-medium">
+                      {metric.target.min}–{metric.target.max}%
                     </span>
                   </div>
                   
                   {/* Difference badge */}
                   {diff !== null && (
-                    <div className="pt-1 flex justify-end">
-                      <Badge 
-                        variant="secondary" 
-                        className={cn(
-                          'text-[10px]',
-                          diff >= 0 ? 'bg-emerald-500/20 text-emerald-700' : 'bg-red-500/20 text-red-700'
-                        )}
-                      >
-                        {diff >= 0 ? '+' : ''}{diff.toFixed(1)}pp vs média
-                      </Badge>
+                    <div className="pt-0.5 flex justify-end">
+                      <span className={cn(
+                        'text-[9px] font-medium',
+                        diff >= 0 ? 'text-emerald-600' : 'text-red-600'
+                      )}>
+                        {diff >= 0 ? '+' : ''}{diff.toFixed(1)}pp
+                      </span>
                     </div>
                   )}
                 </div>
@@ -278,16 +275,14 @@ export function TargetVsActualPanel({
           })}
         </div>
 
-        {/* Volume indicator */}
-        <div className="mt-4 pt-4 border-t">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Volume no período ({viewMode === 'snapshot' ? 'Snapshot' : 'Fluxo'})</span>
-            <div className="flex gap-4">
-              <span>Leads: <strong className="text-foreground">{leadValue}</strong></span>
-              <span>MQL: <strong className="text-foreground">{mqlValue}</strong></span>
-              <span>SQL: <strong className="text-foreground">{sqlValue}</strong></span>
-              <span>Opp: <strong className="text-foreground">{oppValue}</strong></span>
-            </div>
+        {/* Volume indicator - more compact */}
+        <div className="mt-3 pt-2 border-t flex items-center justify-between text-[10px] text-muted-foreground">
+          <span>{viewMode === 'snapshot' ? 'Cenário Atual' : 'Fluxo do Período'}</span>
+          <div className="flex gap-3">
+            <span>L: <strong className="text-foreground">{leadValue}</strong></span>
+            <span>MQL: <strong className="text-foreground">{mqlValue}</strong></span>
+            <span>SQL: <strong className="text-foreground">{sqlValue}</strong></span>
+            <span>Opp: <strong className="text-foreground">{oppValue}</strong></span>
           </div>
         </div>
       </CardContent>

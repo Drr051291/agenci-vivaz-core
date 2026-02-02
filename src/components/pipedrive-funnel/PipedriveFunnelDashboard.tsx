@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, ExternalLink, AlertCircle, BarChart3, TrendingUp, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -119,101 +120,99 @@ export function PipedriveFunnelDashboard({
   const leadsCount = data?.leads_count || 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Funil de Vendas — {pipelineName}</h2>
+    <div className="space-y-4">
+      {/* Compact Header Bar */}
+      <div className="flex items-center justify-between gap-3 pb-3 border-b">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <BarChart3 className="h-4 w-4 text-primary shrink-0" />
+            <h2 className="text-base font-semibold truncate">{pipelineName}</h2>
+            <Badge variant="outline" className="text-[10px] shrink-0 hidden sm:inline-flex">
+              {pipelineSubtitle}
+            </Badge>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Pipeline: {pipelineSubtitle} (ID {pipelineId})
-          </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 shrink-0">
           <FunnelPeriodFilter 
             dateRange={dateRange} 
             onDateRangeChange={handleDateRangeChange}
             onPresetChange={setPeriodPreset}
           />
           
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRefresh}
-              disabled={loading}
-              className="h-7"
-            >
-              <RefreshCw className={cn('h-3 w-3 mr-1', loading && 'animate-spin')} />
-              Atualizar
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="h-7"
-            >
-              <a href={pipedriveUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-3 w-3 mr-1" />
-                Pipedrive
-              </a>
-            </Button>
-          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleRefresh}
+            disabled={loading}
+            className="h-8 w-8"
+            title="Atualizar"
+          >
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            asChild
+            className="h-8 w-8"
+            title="Abrir no Pipedrive"
+          >
+            <a href={pipedriveUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </Button>
         </div>
       </div>
 
-      {/* Comparison Selector + Last Updated */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <ComparisonPeriodSelector
-          config={comparisonConfig}
-          onConfigChange={setComparisonConfig}
-          periodPreset={periodPreset}
-        />
+      {/* Controls Row - Compact */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          {/* View Mode Toggle - Inline */}
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+            <TabsList className="h-8">
+              <TabsTrigger value="period" className="h-7 px-3 text-xs gap-1.5">
+                <TrendingUp className="h-3 w-3" />
+                Fluxo do Período
+              </TabsTrigger>
+              <TabsTrigger value="snapshot" className="h-7 px-3 text-xs gap-1.5">
+                <Users className="h-3 w-3" />
+                Cenário Atual
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <ComparisonPeriodSelector
+            config={comparisonConfig}
+            onConfigChange={setComparisonConfig}
+            periodPreset={periodPreset}
+          />
+        </div>
         
         {lastUpdated && (
-          <p className="text-[10px] text-muted-foreground">
-            Atualizado às {format(lastUpdated, "HH:mm", { locale: ptBR })}
-          </p>
+          <span className="text-[10px] text-muted-foreground">
+            {format(lastUpdated, "HH:mm", { locale: ptBR })}
+          </span>
         )}
       </div>
 
-      {/* View Mode Toggle */}
-      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="period" className="gap-2">
-            <TrendingUp className="h-3.5 w-3.5" />
-            Fluxo do Período
-          </TabsTrigger>
-          <TabsTrigger value="snapshot" className="gap-2">
-            <Users className="h-3.5 w-3.5" />
-            Snapshot Atual
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {/* Funnel Visualization */}
-      <Card>
-        <CardContent className="pt-6">
-          <FunnelStepper 
-            conversions={conversions} 
-            stageCounts={stageCounts}
-            stageArrivals={stageArrivals}
-            allStages={data?.all_stages}
-            leadsCount={leadsCount}
-            viewMode={viewMode}
-            loading={loading}
-            comparisonData={comparisonConfig.enabled ? comparisonData : null}
-            comparisonLoading={comparisonLoading}
-            comparisonLabel={comparisonLabel}
-            pipelineId={pipelineId}
-            dateRange={dateRange}
-          />
-        </CardContent>
-      </Card>
+      {/* Funnel Visualization - Direct, no card wrapper for cleaner look */}
+      <div className="border rounded-lg p-4 bg-card">
+        <FunnelStepper 
+          conversions={conversions} 
+          stageCounts={stageCounts}
+          stageArrivals={stageArrivals}
+          allStages={data?.all_stages}
+          leadsCount={leadsCount}
+          viewMode={viewMode}
+          loading={loading}
+          comparisonData={comparisonConfig.enabled ? comparisonData : null}
+          comparisonLoading={comparisonLoading}
+          comparisonLabel={comparisonLabel}
+          pipelineId={pipelineId}
+          dateRange={dateRange}
+        />
+      </div>
 
       {/* Target vs Actual Panel */}
       <TargetVsActualPanel

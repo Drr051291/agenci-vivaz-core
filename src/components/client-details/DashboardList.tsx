@@ -281,18 +281,18 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
     );
   }
 
-  // If showing a Pipedrive funnel dashboard
+  // If showing a Pipedrive funnel dashboard - maximized view
   if (activeFunnel) {
     return (
-      <div className="space-y-4 p-4">
+      <div className="space-y-2">
         <Button 
           variant="ghost" 
           size="sm" 
           onClick={() => setActiveFunnel(null)}
-          className="mb-2"
+          className="h-7 text-xs text-muted-foreground hover:text-foreground"
         >
-          <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
-          Voltar para Dashboards
+          <ArrowRight className="h-3 w-3 mr-1.5 rotate-180" />
+          Voltar
         </Button>
         <PipedriveFunnelDashboard 
           clientId={clientId} 
