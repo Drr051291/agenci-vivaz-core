@@ -18,6 +18,7 @@ import {
   UserPlus,
   Timer,
   Ban,
+  ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,10 +37,11 @@ interface CadenceStep {
     icon: React.ComponentType<{ className?: string }>;
     label: string;
     nextStep?: string;
-    color: string;
+    type: 'success' | 'continue' | 'lost';
   }[];
   isDecision?: boolean;
   isFinal?: boolean;
+  isMandatoryDecision?: boolean;
 }
 
 const CADENCE_STEPS: CadenceStep[] = [
@@ -90,13 +92,13 @@ const CADENCE_STEPS: CadenceStep[] = [
         icon: UserCheck,
         label: 'Conseguiu contato',
         nextStep: 'decision',
-        color: 'text-green-500',
+        type: 'success',
       },
       {
         icon: Clock,
         label: 'Sem resposta',
         nextStep: 'day1-linkedin',
-        color: 'text-amber-500',
+        type: 'continue',
       },
     ],
     isDecision: true,
@@ -104,8 +106,8 @@ const CADENCE_STEPS: CadenceStep[] = [
   {
     id: 'decision',
     day: 1,
-    title: 'Resultado do Contato',
-    description: 'Definir próximo passo baseado na conversa',
+    title: 'Decisão Obrigatória',
+    description: 'Ao conseguir contato, uma dessas ações DEVE ser tomada',
     actions: [
       {
         icon: Calendar,
@@ -123,12 +125,13 @@ const CADENCE_STEPS: CadenceStep[] = [
         detail: 'Se não há interesse ou fit',
       },
     ],
+    isMandatoryDecision: true,
   },
   {
     id: 'day1-linkedin',
     day: 1,
-    title: 'Dia 1 — LinkedIn',
-    description: 'Iniciar conexão profissional em paralelo',
+    title: 'Dia 1 — LinkedIn (Sem Contato)',
+    description: 'Se não conseguiu contato, iniciar conexão profissional',
     actions: [
       {
         icon: Linkedin,
@@ -170,13 +173,13 @@ const CADENCE_STEPS: CadenceStep[] = [
         icon: UserCheck,
         label: 'Conseguiu contato',
         nextStep: 'decision',
-        color: 'text-green-500',
+        type: 'success',
       },
       {
         icon: Timer,
         label: 'Sem resposta',
         nextStep: 'wait',
-        color: 'text-amber-500',
+        type: 'continue',
       },
     ],
     isDecision: true,
@@ -222,13 +225,13 @@ const CADENCE_STEPS: CadenceStep[] = [
         icon: UserCheck,
         label: 'Conseguiu contato',
         nextStep: 'decision',
-        color: 'text-green-500',
+        type: 'success',
       },
       {
         icon: Ban,
         label: 'Sem resposta',
         nextStep: 'lost',
-        color: 'text-destructive',
+        type: 'lost',
       },
     ],
     isDecision: true,
@@ -260,13 +263,13 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1,
+      staggerChildren: 0.08,
     },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 15 },
   visible: { opacity: 1, y: 0 },
 };
 
@@ -288,7 +291,7 @@ export function ContactCadenceFlow({ clientName }: ContactCadenceFlowProps) {
             Fluxo de 5 dias úteis para conversão de MQLs {clientName && `(${clientName})`}
           </p>
         </div>
-        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+        <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border">
           5 dias úteis
         </Badge>
       </div>
@@ -296,26 +299,26 @@ export function ContactCadenceFlow({ clientName }: ContactCadenceFlowProps) {
       {/* Timeline Legend */}
       <div className="flex flex-wrap gap-4 p-4 bg-muted/30 rounded-lg border">
         <div className="flex items-center gap-2 text-sm">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
+          <div className="w-3 h-3 rounded-full bg-muted-foreground/50" />
           <span>Ação</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <div className="w-3 h-3 rounded-full bg-amber-500" />
-          <span>Decisão</span>
+          <div className="w-3 h-3 rounded-full bg-primary/60" />
+          <span>Decisão Obrigatória</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <div className="w-3 h-3 rounded-full bg-green-500" />
+          <div className="w-3 h-3 rounded-full bg-success/60" />
           <span>Sucesso</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <div className="w-3 h-3 rounded-full bg-destructive" />
+          <div className="w-3 h-3 rounded-full bg-destructive/60" />
           <span>Encerramento</span>
         </div>
       </div>
 
       {/* Flow Cards */}
       <motion.div 
-        className="relative space-y-4"
+        className="relative space-y-3"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -324,65 +327,70 @@ export function ContactCadenceFlow({ clientName }: ContactCadenceFlowProps) {
           <motion.div key={step.id} variants={itemVariants}>
             {/* Connector */}
             {index > 0 && (
-              <div className="flex justify-center -mt-2 mb-2">
-                <ArrowDown className="h-6 w-6 text-muted-foreground/50" />
+              <div className="flex justify-center -mt-1 mb-1">
+                <ArrowDown className="h-5 w-5 text-border" />
               </div>
             )}
 
             <Card className={cn(
-              "relative overflow-hidden transition-all duration-300 hover:shadow-md",
-              step.isFinal && "border-destructive/30 bg-destructive/5",
-              step.id === 'qualification' && "border-primary/30 bg-primary/5",
-              step.id === 'decision' && "border-green-500/30 bg-green-500/5",
-              step.id === 'wait' && "border-amber-500/30 bg-amber-500/5"
+              "relative overflow-hidden transition-all duration-200",
+              step.isFinal && "border-destructive/40",
+              step.id === 'qualification' && "border-primary/40",
+              step.isMandatoryDecision && "border-primary/50 bg-primary/5",
+              step.id === 'wait' && "border-muted-foreground/30"
             )}>
               {/* Day Badge */}
               {step.day > 0 && (
                 <div className="absolute top-3 right-3">
-                  <Badge variant="secondary" className="font-mono">
+                  <Badge variant="secondary" className="font-mono text-xs">
                     Dia {step.day}
                   </Badge>
                 </div>
               )}
 
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   {step.isFinal ? (
-                    <XCircle className="h-5 w-5 text-destructive" />
+                    <XCircle className="h-4 w-4 text-destructive" />
                   ) : step.id === 'qualification' ? (
-                    <Target className="h-5 w-5 text-primary" />
-                  ) : step.id === 'decision' ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    <Target className="h-4 w-4 text-primary" />
+                  ) : step.isMandatoryDecision ? (
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
                   ) : step.id === 'wait' ? (
-                    <Clock className="h-5 w-5 text-amber-500" />
+                    <Clock className="h-4 w-4 text-muted-foreground" />
                   ) : (
-                    <Phone className="h-5 w-5 text-primary" />
+                    <Phone className="h-4 w-4 text-muted-foreground" />
                   )}
                   {step.title}
+                  {step.isMandatoryDecision && (
+                    <Badge variant="default" className="text-[10px] ml-2">
+                      Obrigatório
+                    </Badge>
+                  )}
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">{step.description}</p>
+                <p className="text-xs text-muted-foreground">{step.description}</p>
               </CardHeader>
 
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 pb-4">
                 {/* Actions Grid */}
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {step.actions.map((action, actionIndex) => {
                     const ActionIcon = action.icon;
                     return (
                       <div 
                         key={actionIndex}
-                        className="flex items-start gap-3 p-3 rounded-lg bg-background border hover:border-primary/30 transition-colors"
+                        className="flex items-start gap-2 p-2.5 rounded-lg bg-background border hover:border-primary/30 transition-colors"
                       >
-                        <div className="p-2 rounded-lg bg-primary/10">
-                          <ActionIcon className="h-4 w-4 text-primary" />
+                        <div className="p-1.5 rounded bg-muted">
+                          <ActionIcon className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{action.label}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="font-medium text-xs">{action.label}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
                             {action.detail}
                           </p>
                           {action.tool && (
-                            <Badge variant="outline" className="mt-2 text-[10px]">
+                            <Badge variant="outline" className="mt-1.5 text-[9px] h-4">
                               {action.tool}
                             </Badge>
                           )}
@@ -394,9 +402,9 @@ export function ContactCadenceFlow({ clientName }: ContactCadenceFlowProps) {
 
                 {/* Outcomes */}
                 {step.outcomes && (
-                  <div className="pt-3 border-t">
-                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                      Possíveis Resultados
+                  <div className="pt-2 border-t">
+                    <p className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                      Resultado
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {step.outcomes.map((outcome, outcomeIndex) => {
@@ -404,12 +412,22 @@ export function ContactCadenceFlow({ clientName }: ContactCadenceFlowProps) {
                         return (
                           <div 
                             key={outcomeIndex}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border"
+                            className={cn(
+                              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs",
+                              outcome.type === 'success' && "bg-success/10 border-success/30",
+                              outcome.type === 'continue' && "bg-muted/50 border-border",
+                              outcome.type === 'lost' && "bg-destructive/10 border-destructive/30"
+                            )}
                           >
-                            <OutcomeIcon className={cn("h-4 w-4", outcome.color)} />
-                            <span className="text-sm">{outcome.label}</span>
+                            <OutcomeIcon className={cn(
+                              "h-3.5 w-3.5",
+                              outcome.type === 'success' && "text-success",
+                              outcome.type === 'continue' && "text-muted-foreground",
+                              outcome.type === 'lost' && "text-destructive"
+                            )} />
+                            <span>{outcome.label}</span>
                             {outcome.nextStep && (
-                              <ArrowDown className="h-3 w-3 text-muted-foreground ml-1" />
+                              <ArrowRight className="h-3 w-3 text-muted-foreground ml-0.5" />
                             )}
                           </div>
                         );
@@ -424,14 +442,15 @@ export function ContactCadenceFlow({ clientName }: ContactCadenceFlowProps) {
       </motion.div>
 
       {/* Summary */}
-      <Card className="bg-muted/30 border-dashed">
+      <Card className="bg-muted/20 border-dashed">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+            <AlertTriangle className="h-4 w-4 text-muted-foreground mt-0.5" />
             <div>
               <p className="font-medium text-sm">Regras da Cadência</p>
-              <ul className="text-sm text-muted-foreground mt-2 space-y-1">
+              <ul className="text-xs text-muted-foreground mt-2 space-y-1">
                 <li>• A cadência acontece em <strong>5 dias úteis</strong> (segunda a sexta)</li>
+                <li>• <strong>Conseguiu contato?</strong> → Obrigatório: Retorno, SQL ou Perdido</li>
                 <li>• Todas as atividades devem ser registradas no <strong>Pipedrive</strong></li>
                 <li>• Ligações são feitas pelo <strong>api4com</strong></li>
                 <li>• Após 5 dias sem contato, marcar como <strong>Perdido</strong></li>

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -63,20 +63,21 @@ interface PlaybookSDRTabProps {
   clients?: { id: string; company_name: string }[];
 }
 
+// Sober color palette for stages
 const STAGE_COLORS = [
-  'from-blue-500 to-blue-600',
-  'from-cyan-500 to-cyan-600',
-  'from-teal-500 to-teal-600',
-  'from-emerald-500 to-emerald-600',
-  'from-green-500 to-green-600',
+  'bg-card border-border hover:border-primary/40',
+  'bg-card border-border hover:border-primary/40',
+  'bg-card border-border hover:border-primary/40',
+  'bg-card border-border hover:border-primary/40',
+  'bg-card border-border hover:border-primary/40',
 ];
 
 const STAGE_BG_COLORS = [
-  'bg-blue-500/10 border-blue-500/30',
-  'bg-cyan-500/10 border-cyan-500/30',
-  'bg-teal-500/10 border-teal-500/30',
-  'bg-emerald-500/10 border-emerald-500/30',
-  'bg-green-500/10 border-green-500/30',
+  'bg-muted/30 border-border',
+  'bg-muted/30 border-border',
+  'bg-muted/30 border-border',
+  'bg-muted/30 border-border',
+  'bg-muted/30 border-border',
 ];
 
 const STAGE_ICONS = [Users, UserCheck, Phone, Handshake, Trophy];
@@ -193,8 +194,105 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
           </TabsTrigger>
         </TabsList>
 
-        {/* Overview Section */}
+        {/* Overview Section - Visual Summary */}
         <TabsContent value="overview" className="mt-6 space-y-6">
+          {/* Summary Cards - Three main pillars */}
+          <div className="grid md:grid-cols-3 gap-4">
+            {/* Funnel Card */}
+            <Card 
+              interactive
+              onClick={() => setActiveSection('stages')}
+              className="group"
+            >
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="p-2.5 rounded-lg bg-muted">
+                    <Filter className="h-5 w-5 text-primary" />
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <h3 className="font-semibold mb-1">Funil de Vendas</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Jornada do lead da entrada até a conversão em cliente
+                </p>
+                <div className="flex items-center gap-1">
+                  {['Lead', 'MQL', 'SQL', 'Opp', 'Contrato'].map((s, i) => (
+                    <div key={s} className="flex items-center">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{s}</span>
+                      {i < 4 && <ArrowRight className="h-3 w-3 text-border mx-0.5" />}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SDR Attributions Card */}
+            <Card className="group">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="p-2.5 rounded-lg bg-muted">
+                    <ClipboardList className="h-5 w-5 text-primary" />
+                  </div>
+                </div>
+                <h3 className="font-semibold mb-1">Atribuições do SDR</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Responsabilidades principais do pré-vendedor
+                </p>
+                <ul className="text-xs text-muted-foreground space-y-1.5">
+                  <li className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                    Qualificar leads rapidamente
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                    Seguir cadência de contato
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                    Registrar no CRM
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                    Agendar reuniões
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Cadence Card */}
+            <Card 
+              interactive
+              onClick={() => setActiveSection('stages')}
+              className="group"
+            >
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="p-2.5 rounded-lg bg-muted">
+                    <Timer className="h-5 w-5 text-primary" />
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <h3 className="font-semibold mb-1">Cadência de Contato</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Fluxo de 5 dias úteis para conversão de MQLs
+                </p>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((day) => (
+                    <div 
+                      key={day}
+                      className={cn(
+                        "w-7 h-7 rounded flex items-center justify-center text-xs font-medium",
+                        day === 1 || day === 2 || day === 5 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      D{day}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Interactive Funnel Explainer */}
           <FunnelExplainer onStageClick={handleNavigateToStage} />
 
@@ -222,17 +320,16 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
                       key={stage.id}
                       onClick={() => handleNavigateToStage(stage.id)}
                       className={cn(
-                        "p-4 rounded-lg border-2 text-left transition-all",
-                        "hover:shadow-md hover:scale-[1.02] cursor-pointer group",
-                        stage.bgColor,
-                        stage.borderColor
+                        "p-4 rounded-lg border text-left transition-all",
+                        "hover:shadow-md hover:border-primary/40 cursor-pointer group",
+                        "bg-card"
                       )}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <div className={cn("p-2 rounded-lg", stage.bgColor)}>
-                          <Icon className={cn("h-4 w-4", stage.textColor)} />
+                        <div className="p-2 rounded-lg bg-muted">
+                          <Icon className="h-4 w-4 text-primary" />
                         </div>
                         <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
@@ -298,21 +395,25 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
                       onClick={() => setSelectedStage(selectedStage?.id === stage.id ? null : stage)}
                       className={cn(
                         "relative px-4 py-3 rounded-lg min-w-[120px] transition-all",
-                        "bg-gradient-to-br text-white shadow-md",
-                        STAGE_COLORS[index % STAGE_COLORS.length],
-                        selectedStage?.id === stage.id && "ring-2 ring-offset-2 ring-primary scale-105",
-                        "hover:scale-105 hover:shadow-lg cursor-pointer"
+                        "bg-card border-2 shadow-sm",
+                        selectedStage?.id === stage.id 
+                          ? "border-primary ring-1 ring-primary/20" 
+                          : "border-border hover:border-primary/40",
+                        "hover:shadow-md cursor-pointer"
                       )}
-                      whileHover={{ scale: 1.05 }}
+                      whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <span className="font-semibold text-sm">{stage.name}</span>
-                      <span className="block text-[10px] opacity-80 mt-0.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        {React.createElement(STAGE_ICONS[index], { className: "h-4 w-4 text-primary" })}
+                        <span className="font-semibold text-sm">{stage.name}</span>
+                      </div>
+                      <span className="block text-[10px] text-muted-foreground">
                         Etapa {index + 1}
                       </span>
                     </motion.button>
                     {index < (stages?.length || 0) - 1 && (
-                      <ArrowRight className="h-5 w-5 mx-2 text-muted-foreground flex-shrink-0" />
+                      <ArrowRight className="h-5 w-5 mx-2 text-border flex-shrink-0" />
                     )}
                   </div>
                 ))}
@@ -438,11 +539,11 @@ function StageDetails({
   const totalCount = stage.checklist_json?.length || 0;
 
   return (
-    <Card className={cn("border-2", STAGE_BG_COLORS[stageIndex % STAGE_BG_COLORS.length])}>
+    <Card className="border bg-card">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <div className={cn("w-3 h-3 rounded-full bg-gradient-to-br", STAGE_COLORS[stageIndex % STAGE_COLORS.length])} />
+            {React.createElement(STAGE_ICONS[stageIndex], { className: "h-4 w-4 text-primary" })}
             {stage.name}
             <Badge variant="secondary" className="ml-2">Etapa {stageIndex + 1}</Badge>
           </CardTitle>

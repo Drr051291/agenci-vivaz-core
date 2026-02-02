@@ -28,7 +28,6 @@ import {
   FileText,
   BarChart3,
   Clock,
-  Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -42,7 +41,6 @@ interface CRMFeatureCard {
   icon: React.ComponentType<{ className?: string }>;
   description: string;
   details: string[];
-  color: string;
 }
 
 const CRM_FEATURES: CRMFeatureCard[] = [
@@ -57,7 +55,6 @@ const CRM_FEATURES: CRMFeatureCard[] = [
       'Nome da empresa e CNPJ',
       'Website e redes sociais',
     ],
-    color: 'bg-blue-500/10 border-blue-500/30 text-blue-600',
   },
   {
     id: 'custom-fields',
@@ -70,7 +67,6 @@ const CRM_FEATURES: CRMFeatureCard[] = [
       'Segmento de atuação',
       'Origem do lead (campanha/canal)',
     ],
-    color: 'bg-purple-500/10 border-purple-500/30 text-purple-600',
   },
   {
     id: 'activities',
@@ -83,7 +79,6 @@ const CRM_FEATURES: CRMFeatureCard[] = [
       'Reuniões agendadas',
       'Notas e observações',
     ],
-    color: 'bg-teal-500/10 border-teal-500/30 text-teal-600',
   },
   {
     id: 'next-actions',
@@ -96,7 +91,6 @@ const CRM_FEATURES: CRMFeatureCard[] = [
       'Follow-up estruturado',
       'Integração com calendário',
     ],
-    color: 'bg-orange-500/10 border-orange-500/30 text-orange-600',
   },
   {
     id: 'notes',
@@ -109,7 +103,6 @@ const CRM_FEATURES: CRMFeatureCard[] = [
       'Interesses específicos',
       'Próximos passos acordados',
     ],
-    color: 'bg-green-500/10 border-green-500/30 text-green-600',
   },
   {
     id: 'documents',
@@ -122,7 +115,6 @@ const CRM_FEATURES: CRMFeatureCard[] = [
       'Apresentações',
       'Materiais de apoio',
     ],
-    color: 'bg-rose-500/10 border-rose-500/30 text-rose-600',
   },
 ];
 
@@ -153,7 +145,7 @@ export function PipedriveExamples() {
   return (
     <div className="space-y-6">
       {/* Introduction Card */}
-      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+      <Card className="bg-muted/30 border">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-xl bg-primary/10">
@@ -174,7 +166,7 @@ export function PipedriveExamples() {
         </CardContent>
       </Card>
 
-      {/* Carousel Section */}
+      {/* Carousel Section with Browser Frame */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -195,26 +187,41 @@ export function PipedriveExamples() {
                     animate={{ opacity: 1 }}
                     className="space-y-3"
                   >
+                    {/* Browser Frame */}
                     <div 
-                      className="relative group cursor-pointer"
+                      className="relative bg-muted/30 rounded-lg border shadow-sm p-2 cursor-pointer group"
                       onClick={() => handleZoom(item.title, item.image)}
                     >
-                      <img
-                        src={item.image}
-                        alt={item.title}
-                        className="w-full max-h-[400px] object-contain rounded-lg border shadow-sm transition-transform group-hover:shadow-lg"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-lg">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="shadow-lg"
-                        >
-                          <ZoomIn className="h-4 w-4 mr-2" />
-                          Ampliar
-                        </Button>
+                      {/* Browser Header */}
+                      <div className="bg-muted/50 rounded-t h-8 flex items-center px-3 gap-2 mb-2">
+                        <div className="flex gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/60" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-green-400/60" />
+                        </div>
+                        <span className="text-xs text-muted-foreground ml-2">Pipedrive CRM</span>
+                      </div>
+                      
+                      {/* Image Container */}
+                      <div className="relative bg-background rounded-b overflow-hidden">
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="w-full max-h-[350px] object-contain"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="shadow-lg"
+                          >
+                            <ZoomIn className="h-4 w-4 mr-2" />
+                            Ampliar
+                          </Button>
+                        </div>
                       </div>
                     </div>
+                    
                     <div className="text-center">
                       <h3 className="font-semibold">{item.title}</h3>
                       <p className="text-sm text-muted-foreground">{item.description}</p>
@@ -229,7 +236,7 @@ export function PipedriveExamples() {
         </CardContent>
       </Card>
 
-      {/* Feature Cards Grid */}
+      {/* Feature Cards Grid - Neutral styling */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-primary" />
@@ -245,14 +252,14 @@ export function PipedriveExamples() {
             return (
               <motion.div
                 key={feature.id}
-                whileHover={{ scale: 1.02 }}
+                whileHover={{ scale: 1.01 }}
                 className="h-full"
               >
-                <Card className={cn("h-full border-2 transition-all hover:shadow-md", feature.color.split(' ')[0], feature.color.split(' ')[1])}>
+                <Card className="h-full border hover:border-primary/30 transition-all hover:shadow-sm">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <div className={cn("p-2 rounded-lg", feature.color.split(' ')[0])}>
-                        <Icon className={cn("h-5 w-5", feature.color.split(' ')[2])} />
+                      <div className="p-2 rounded-lg bg-muted">
+                        <Icon className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1 space-y-2">
                         <h4 className="font-semibold text-sm">{feature.title}</h4>
@@ -260,7 +267,7 @@ export function PipedriveExamples() {
                         <ul className="space-y-1 mt-2">
                           {feature.details.map((detail, idx) => (
                             <li key={idx} className="text-xs flex items-center gap-1.5">
-                              <span className={cn("w-1.5 h-1.5 rounded-full", feature.color.split(' ')[0].replace('/10', ''))} />
+                              <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
                               {detail}
                             </li>
                           ))}

@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
@@ -26,10 +25,6 @@ interface FunnelStage {
   name: string;
   fullName?: string;
   icon: React.ComponentType<{ className?: string }>;
-  color: string;
-  bgColor: string;
-  textColor: string;
-  borderColor: string;
   description: string;
   benchmarkRange: string;
   tips: string[];
@@ -40,10 +35,6 @@ const FUNNEL_STAGES: FunnelStage[] = [
     id: 'lead',
     name: 'Lead',
     icon: Users,
-    color: 'from-blue-500 to-blue-600',
-    bgColor: 'bg-blue-500/10',
-    textColor: 'text-blue-600',
-    borderColor: 'border-blue-500/30',
     description: 'Todo contato que entra no CRM via formulário, landing page ou prospecção.',
     benchmarkRange: '100%',
     tips: ['Origem do lead deve ser rastreada', 'Responda em até 5 minutos para 21x mais conversão'],
@@ -53,10 +44,6 @@ const FUNNEL_STAGES: FunnelStage[] = [
     name: 'MQL',
     fullName: 'Marketing Qualified Lead',
     icon: UserCheck,
-    color: 'from-cyan-500 to-cyan-600',
-    bgColor: 'bg-cyan-500/10',
-    textColor: 'text-cyan-600',
-    borderColor: 'border-cyan-500/30',
     description: 'Lead que passou pela qualificação inicial de marketing (fit + interesse).',
     benchmarkRange: '15-35%',
     tips: ['Critérios variam por cliente', 'Verificar faturamento, segmento e interesse'],
@@ -66,10 +53,6 @@ const FUNNEL_STAGES: FunnelStage[] = [
     name: 'SQL',
     fullName: 'Sales Qualified Lead',
     icon: Phone,
-    color: 'from-teal-500 to-teal-600',
-    bgColor: 'bg-teal-500/10',
-    textColor: 'text-teal-600',
-    borderColor: 'border-teal-500/30',
     description: 'Lead qualificado para vendas — reunião agendada ou call confirmado.',
     benchmarkRange: '15-30%',
     tips: ['Reunião deve estar agendada', 'SDR fez handoff para closer'],
@@ -78,10 +61,6 @@ const FUNNEL_STAGES: FunnelStage[] = [
     id: 'oportunidade',
     name: 'Oportunidade',
     icon: Handshake,
-    color: 'from-emerald-500 to-emerald-600',
-    bgColor: 'bg-emerald-500/10',
-    textColor: 'text-emerald-600',
-    borderColor: 'border-emerald-500/30',
     description: 'Proposta enviada ou demonstração realizada — negociação em andamento.',
     benchmarkRange: '50-70%',
     tips: ['Proposta comercial enviada', 'Follow-up estruturado'],
@@ -90,10 +69,6 @@ const FUNNEL_STAGES: FunnelStage[] = [
     id: 'contrato',
     name: 'Contrato',
     icon: Trophy,
-    color: 'from-green-500 to-green-600',
-    bgColor: 'bg-green-500/10',
-    textColor: 'text-green-600',
-    borderColor: 'border-green-500/30',
     description: 'Negócio fechado — contrato assinado e cliente convertido.',
     benchmarkRange: '12-28%',
     tips: ['Contrato assinado', 'Onboarding iniciado'],
@@ -119,7 +94,7 @@ export function FunnelExplainer({ onStageClick }: FunnelExplainerProps) {
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Visual Funnel */}
+        {/* Visual Funnel - Sober colors */}
         <div className="relative">
           <div className="flex items-stretch gap-0 overflow-x-auto pb-4">
             <TooltipProvider delayDuration={200}>
@@ -136,26 +111,24 @@ export function FunnelExplainer({ onStageClick }: FunnelExplainerProps) {
                           className={cn(
                             "relative flex flex-col items-center justify-center",
                             "px-4 py-4 rounded-xl transition-all duration-300",
-                            "bg-gradient-to-br text-white shadow-lg",
-                            stage.color,
-                            "hover:scale-105 hover:shadow-xl cursor-pointer",
+                            "bg-card border-2 border-border shadow-sm",
+                            "hover:border-primary/50 hover:shadow-md cursor-pointer",
                             "group"
                           )}
                           style={{ 
                             minWidth: `${Math.max(100, width + 20)}px`,
-                            clipPath: index === FUNNEL_STAGES.length - 1 
-                              ? undefined 
-                              : 'polygon(0 0, 90% 0, 100% 50%, 90% 100%, 0 100%, 10% 50%)'
                           }}
-                          whileHover={{ scale: 1.05 }}
+                          whileHover={{ scale: 1.03, y: -2 }}
                           whileTap={{ scale: 0.98 }}
                         >
-                          <Icon className="h-6 w-6 mb-1" />
-                          <span className="font-bold text-sm">{stage.name}</span>
+                          <div className="p-2 rounded-lg bg-muted mb-1">
+                            <Icon className="h-5 w-5 text-primary" />
+                          </div>
+                          <span className="font-semibold text-sm text-foreground">{stage.name}</span>
                           {stage.fullName && (
-                            <span className="text-[10px] opacity-80">{stage.fullName}</span>
+                            <span className="text-[10px] text-muted-foreground">{stage.fullName}</span>
                           )}
-                          <ExternalLink className="h-3 w-3 absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <ExternalLink className="h-3 w-3 absolute top-2 right-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                         </motion.button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="max-w-xs">
@@ -167,7 +140,7 @@ export function FunnelExplainer({ onStageClick }: FunnelExplainerProps) {
                     
                     {index < FUNNEL_STAGES.length - 1 && (
                       <div className="flex flex-col items-center mx-1">
-                        <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                        <ArrowRight className="h-5 w-5 text-muted-foreground/50" />
                         <span className="text-[10px] text-muted-foreground mt-0.5">
                           {stage.benchmarkRange}
                         </span>
@@ -180,9 +153,9 @@ export function FunnelExplainer({ onStageClick }: FunnelExplainerProps) {
           </div>
         </div>
 
-        {/* Quick Info Cards */}
+        {/* Quick Info Cards - Neutral styling */}
         <div className="grid md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-lg bg-muted/50 border">
+          <div className="p-4 rounded-lg bg-muted/30 border">
             <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
               <Users className="h-4 w-4 text-primary" />
               Papel do SDR
@@ -195,7 +168,7 @@ export function FunnelExplainer({ onStageClick }: FunnelExplainerProps) {
             </ul>
           </div>
           
-          <div className="p-4 rounded-lg bg-muted/50 border">
+          <div className="p-4 rounded-lg bg-muted/30 border">
             <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
               Métricas Importantes
@@ -208,7 +181,7 @@ export function FunnelExplainer({ onStageClick }: FunnelExplainerProps) {
             </ul>
           </div>
           
-          <div className="p-4 rounded-lg bg-muted/50 border">
+          <div className="p-4 rounded-lg bg-muted/30 border">
             <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
               <Trophy className="h-4 w-4 text-primary" />
               Boas Práticas

@@ -14,9 +14,9 @@ export default function EducacaoProcessos() {
   const [clients, setClients] = useState<{ id: string; company_name: string }[]>([]);
 
   usePageMeta({
-    title: 'Educação & Processos - Hub Vivaz',
+    title: 'Trilhas e Processos - Hub Vivaz',
     description: 'Biblioteca de recursos e Playbook SDR',
-    keywords: 'educação, treinamento, processos, sdr, playbook, vivaz',
+    keywords: 'trilhas, treinamento, processos, sdr, playbook, vivaz',
   });
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function EducacaoProcessos() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Educação & Processos</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Trilhas e Processos</h1>
           <p className="text-muted-foreground text-sm">
             Biblioteca de recursos e documentação de processos
           </p>
