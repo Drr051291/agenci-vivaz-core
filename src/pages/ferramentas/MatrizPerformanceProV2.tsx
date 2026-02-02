@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { jsPDF } from "jspdf";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { SaveReportDialog } from "@/components/ferramentas/SaveReportDialog";
 
 import {
   FunnelInputsV2,
@@ -92,10 +92,8 @@ export default function MatrizPerformanceProV2() {
   
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState<ScenarioType>('realista');
-  const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [diagnosticName, setDiagnosticName] = useState('');
 
   // Calculations - now pass scenario to enable cascading projections
   const outputs = useMemo(() => calculateFunnelV2(inputs, selectedScenario), [inputs, selectedScenario]);
@@ -126,54 +124,6 @@ export default function MatrizPerformanceProV2() {
     const parsed = value === '' ? undefined : parseFloat(value);
     setInputs(prev => ({ ...prev, [key]: parsed }));
   }, []);
-
-  // Save handler
-  const handleSave = async () => {
-    if (!diagnosticName.trim()) {
-      toast({ title: "Digite um nome para o diagnóstico", variant: "destructive" });
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({ title: "Faça login para salvar", variant: "destructive" });
-        return;
-      }
-
-      // Save to inside_sales_diagnostics
-      const insertData = {
-        client_name: diagnosticName.trim(),
-        channel: 'performance_pro_v2',
-        period_label: inputs.periodo || null,
-        inputs: JSON.parse(JSON.stringify(inputs)),
-        outputs: JSON.parse(JSON.stringify(outputs)),
-        targets: JSON.parse(JSON.stringify({ 
-          scenario: selectedScenario,
-          projection: selectedProjection,
-        })),
-        stage_status: JSON.parse(JSON.stringify(outputs.conversions.reduce((acc, c) => ({ 
-          ...acc, 
-          [c.key]: c.status 
-        }), {}))),
-        created_by: user.id,
-      };
-
-      const { error } = await supabase.from('inside_sales_diagnostics').insert([insertData]);
-
-      if (error) throw error;
-
-      toast({ title: "Diagnóstico salvo com sucesso!" });
-      setSaveDialogOpen(false);
-      setDiagnosticName('');
-    } catch (error) {
-      console.error('Error saving:', error);
-      toast({ title: "Erro ao salvar", variant: "destructive" });
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   // PDF Export
   const handleExportPDF = async () => {
@@ -1001,43 +951,14 @@ export default function MatrizPerformanceProV2() {
             </Card>
           </div>
 
-          {/* Save Dialog */}
-          <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Salvar Diagnóstico</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome do diagnóstico</Label>
-                  <Input
-                    id="name"
-                    value={diagnosticName}
-                    onChange={(e) => setDiagnosticName(e.target.value)}
-                    placeholder="Ex: Análise Jan/2026"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Salvar
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {/* Save Report Dialog */}
+          <SaveReportDialog
+            open={saveDialogOpen}
+            onOpenChange={setSaveDialogOpen}
+            inputs={inputs}
+            outputs={outputs}
+            scenario={selectedScenario}
+          />
         </div>
       </TooltipProvider>
     </DashboardLayout>

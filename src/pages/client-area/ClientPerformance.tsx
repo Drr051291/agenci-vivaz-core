@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClientUser } from "@/hooks/useClientUser";
+import { PerformanceReportsList } from "@/components/client-area/PerformanceReportsList";
 import { 
   BarChart3, 
   ChevronDown, 
@@ -253,6 +254,9 @@ const ClientPerformance = () => {
             Visualize análises de performance, diagnósticos e cenários simulados
           </p>
         </div>
+
+        {/* Performance Reports from Matriz Performance Pro */}
+        {clientId && <PerformanceReportsList clientId={clientId} />}
 
         {/* Empty State */}
         {!hasData && (
