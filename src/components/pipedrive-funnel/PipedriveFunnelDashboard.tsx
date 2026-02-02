@@ -16,6 +16,7 @@ import { ComparisonPeriodSelector } from './ComparisonPeriodSelector';
 import { LostReasonsChart } from './LostReasonsChart';
 import { CampaignTrackingChart } from './CampaignTrackingChart';
 import { LeadSourceChart } from './LeadSourceChart';
+import { TargetVsActualPanel } from './TargetVsActualPanel';
 import { 
   DateRange, 
   PIPELINE_ID, 
@@ -213,6 +214,17 @@ export function PipedriveFunnelDashboard({
           />
         </CardContent>
       </Card>
+
+      {/* Target vs Actual Panel */}
+      <TargetVsActualPanel
+        conversions={conversions}
+        stageCounts={stageCounts}
+        stageArrivals={stageArrivals}
+        allStages={data?.all_stages}
+        leadsCount={leadsCount}
+        viewMode={viewMode}
+        loading={loading}
+      />
 
       {/* Lead Source Chart */}
       <LeadSourceChart 
