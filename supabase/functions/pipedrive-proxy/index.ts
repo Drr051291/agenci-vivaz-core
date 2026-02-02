@@ -995,7 +995,7 @@ serve(async (req) => {
       throw new Error('Not authenticated')
     }
 
-    const { action, pipeline_id, start_date, end_date, force } = await req.json()
+    const { action, pipeline_id, start_date, end_date, force, stage_id, view_mode } = await req.json()
     const forceRefresh = force === true
 
     console.log(`Pipedrive proxy request: ${action}, pipeline: ${pipeline_id}, dates: ${start_date} - ${end_date}`)
@@ -1226,11 +1226,11 @@ serve(async (req) => {
 
       case 'get_stage_deals': {
         // Get list of deals in a specific stage
-        const requestBody = await req.json().catch(() => ({}))
-        const stageId = requestBody?.stage_id
-        const viewModeParam = requestBody?.view_mode
-        const startDateParam = requestBody?.start_date
-        const endDateParam = requestBody?.end_date
+        // stage_id and view_mode come from the initial req.json() destructuring
+        const stageId = stage_id
+        const viewModeParam = view_mode
+        const startDateParam = start_date
+        const endDateParam = end_date
 
         if (!stageId) {
           throw new Error('stage_id is required')
