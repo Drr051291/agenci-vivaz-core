@@ -4,4 +4,5 @@ export { FunnelExplainer, FUNNEL_STAGES } from './FunnelExplainer';
 export type { FunnelStage } from './FunnelExplainer';
 export { PipedriveExamples } from './PipedriveExamples';
 export { EmbeddedPerformanceMatrix } from './EmbeddedPerformanceMatrix';
+export { ContactCadenceFlow } from './ContactCadenceFlow';
 export { StageTemplates } from './StageTemplates';

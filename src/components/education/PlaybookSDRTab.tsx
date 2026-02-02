@@ -35,6 +35,7 @@ import {
   UserCheck,
   Handshake,
   Trophy,
+  Timer,
 } from 'lucide-react';
 import {
   usePlaybookSections,
@@ -54,6 +55,7 @@ import { FunnelExplainer, FUNNEL_STAGES } from './FunnelExplainer';
 import { PipedriveExamples } from './PipedriveExamples';
 import { EmbeddedPerformanceMatrix } from './EmbeddedPerformanceMatrix';
 import { StageTemplates } from './StageTemplates';
+import { ContactCadenceFlow } from './ContactCadenceFlow';
 
 interface PlaybookSDRTabProps {
   clientId?: string;
@@ -339,6 +341,24 @@ export function PlaybookSDRTab({ clientId, clientName, clients }: PlaybookSDRTab
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Contact Cadence Flow - Sétima specific */}
+          {(clientName?.toLowerCase().includes('sétima') || clientName?.toLowerCase().includes('setima')) && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-primary" />
+                  Cadência de Contato
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Fluxo visual de 5 dias úteis para conversão de MQLs
+                </p>
+              </CardHeader>
+              <CardContent>
+                <ContactCadenceFlow clientName={clientName} />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Templates Section */}
           <Card>
