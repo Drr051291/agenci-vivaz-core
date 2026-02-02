@@ -15,7 +15,20 @@ import {
   AlertCircle,
   CheckCircle,
   Lightbulb,
+  Trash2,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 interface PerformanceReport {
   id: string;
@@ -79,6 +92,7 @@ interface PerformanceReport {
 
 interface PerformanceReportsListProps {
   clientId: string;
+  canDelete?: boolean;
 }
 
 const formatCurrency = (n?: number | null): string => {
@@ -109,10 +123,12 @@ const STATUS_ICONS = {
   no_data: <span className="h-3 w-3 text-muted-foreground">—</span>,
 };
 
-export function PerformanceReportsList({ clientId }: PerformanceReportsListProps) {
+export function PerformanceReportsList({ clientId, canDelete = false }: PerformanceReportsListProps) {
   const [reports, setReports] = useState<PerformanceReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (clientId) {
@@ -134,6 +150,28 @@ export function PerformanceReportsList({ clientId }: PerformanceReportsListProps
       console.error("Error loading reports:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("performance_reports")
+        .delete()
+        .eq("id", deleteId);
+
+      if (error) throw error;
+
+      setReports((prev) => prev.filter((r) => r.id !== deleteId));
+      toast.success("Relatório excluído com sucesso");
+    } catch (error) {
+      console.error("Error deleting report:", error);
+      toast.error("Erro ao excluir relatório");
+    } finally {
+      setDeleting(false);
+      setDeleteId(null);
     }
   };
 
@@ -232,6 +270,19 @@ export function PerformanceReportsList({ clientId }: PerformanceReportsListProps
                       </Badge>
                     )}
                   </div>
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteId(report.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                   <ChevronDown
                     className={cn(
                       "h-4 w-4 text-muted-foreground transition-transform",
@@ -388,6 +439,28 @@ export function PerformanceReportsList({ clientId }: PerformanceReportsListProps
           );
         })}
       </CardContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir relatório?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O relatório será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
