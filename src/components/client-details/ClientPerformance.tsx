@@ -17,7 +17,8 @@ import {
   TrendingUp,
   ShoppingCart,
   Users,
-  Calendar
+  Calendar,
+  FileText
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -33,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { PerformanceReportsList } from "@/components/client-area/PerformanceReportsList";
 
 interface ClientPerformanceProps {
   clientId: string;
@@ -279,8 +281,6 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
     );
   }
 
-  const hasData = entries.length > 0 || matrixDiagnostics.length > 0 || scenarios.length > 0;
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -298,24 +298,21 @@ export function ClientPerformance({ clientId }: ClientPerformanceProps) {
         </Button>
       </div>
 
-      {/* Empty state */}
-      {!hasData && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <BarChart3 className="h-12 w-12 text-muted-foreground/50 mb-4" />
-            <h3 className="font-medium text-lg mb-1">Nenhuma análise salva</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
-              Use as ferramentas de análise para criar diagnósticos e cenários.
-            </p>
-            <Button 
-              variant="outline" 
-              onClick={() => navigate('/ferramentas/matriz-performance-pro')}
-            >
-              Ir para Ferramentas
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {/* Performance Reports - Saved by Admin */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            Relatórios de Performance
+          </CardTitle>
+          <CardDescription>
+            Snapshots imutáveis gerados pela Matriz de Performance Pro
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PerformanceReportsList clientId={clientId} />
+        </CardContent>
+      </Card>
 
       {/* Matrix Diagnostics - All Tool Types */}
       {matrixDiagnostics.length > 0 && (
