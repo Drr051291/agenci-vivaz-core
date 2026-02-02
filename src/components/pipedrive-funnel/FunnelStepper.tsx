@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronRight, Info } from 'lucide-react';
@@ -7,9 +7,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { StageInfo, ViewMode, FunnelData } from './types';
+import { StageInfo, ViewMode, FunnelData, DateRange } from './types';
 import { VariationBadge } from './VariationBadge';
 import { calculateVariation, calculatePointsVariation } from './comparisonUtils';
+import { StageDealsDialog } from './StageDealsDialog';
 
 interface FunnelStepperProps {
   conversions: Record<string, number>;
@@ -23,6 +24,9 @@ interface FunnelStepperProps {
   comparisonData?: FunnelData | null;
   comparisonLoading?: boolean;
   comparisonLabel?: string;
+  // Pipeline info
+  pipelineId?: number;
+  dateRange?: DateRange;
 }
 
 const STAGE_COLORS = [
@@ -52,7 +56,18 @@ export function FunnelStepper({
   comparisonData,
   comparisonLoading = false,
   comparisonLabel,
+  pipelineId = 9,
+  dateRange,
 }: FunnelStepperProps) {
+  const [selectedStage, setSelectedStage] = useState<StageInfo | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handleStageClick = (stage: StageInfo, count: number) => {
+    if (count > 0 && !loading) {
+      setSelectedStage(stage);
+      setDialogOpen(true);
+    }
+  };
   const displayStages = allStages;
   
   const transitions = displayStages.slice(0, -1).map((stage, index) => ({
@@ -183,9 +198,13 @@ export function FunnelStepper({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
+                      onClick={() => handleStageClick(stage, stageCount)}
                       className={cn(
-                        'w-full py-2 px-2 rounded-lg text-white text-center relative cursor-help',
-                        STAGE_COLORS[index % STAGE_COLORS.length]
+                        'w-full py-2 px-2 rounded-lg text-white text-center relative transition-all',
+                        STAGE_COLORS[index % STAGE_COLORS.length],
+                        stageCount > 0 && !loading 
+                          ? 'cursor-pointer hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]' 
+                          : 'cursor-help'
                       )}
                       style={{
                         clipPath: isLast 
@@ -200,7 +219,10 @@ export function FunnelStepper({
                           <span className="text-xs font-semibold truncate block">
                             {simplifyName(stage.name)}
                           </span>
-                          <span className="text-[10px] font-bold opacity-90">
+                          <span className={cn(
+                            "text-[10px] font-bold opacity-90",
+                            stageCount > 0 && "underline decoration-white/50 decoration-dotted underline-offset-2"
+                          )}>
                             {stageCount} {isPeriodMode ? 'chegaram' : 'deals'}
                           </span>
                           {showComparison && !comparisonLoading && stageVariation !== null && (
@@ -228,6 +250,9 @@ export function FunnelStepper({
                         <p className="text-muted-foreground">
                           Anterior: {comparisonStageCount}
                         </p>
+                      )}
+                      {stageCount > 0 && (
+                        <p className="text-primary font-medium">Clique para ver negócios</p>
                       )}
                     </div>
                   </TooltipContent>
@@ -352,6 +377,16 @@ export function FunnelStepper({
           }) : null}
         </div>
       )}
+
+      {/* Dialog for viewing deals in a stage */}
+      <StageDealsDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        stage={selectedStage}
+        pipelineId={pipelineId}
+        viewMode={viewMode}
+        dateRange={dateRange}
+      />
     </div>
   );
 }

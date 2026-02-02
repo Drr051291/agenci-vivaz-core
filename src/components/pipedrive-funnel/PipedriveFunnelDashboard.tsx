@@ -208,6 +208,8 @@ export function PipedriveFunnelDashboard({
             comparisonData={comparisonConfig.enabled ? comparisonData : null}
             comparisonLoading={comparisonLoading}
             comparisonLabel={comparisonLabel}
+            pipelineId={pipelineId}
+            dateRange={dateRange}
           />
         </CardContent>
       </Card>
