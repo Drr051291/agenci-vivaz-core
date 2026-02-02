@@ -322,37 +322,37 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
         </div>
       </div>
 
-      {/* Pipedrive Funnel Cards - Only visible for Sétima (c694df38-b4ec-444c-bc0d-8d8b6102b161) */}
-      {clientId === "c694df38-b4ec-444c-bc0d-8d8b6102b161" && (
-        <div className="p-4 pb-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* All Dashboard Cards - Unified Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
+        {/* Pipedrive Funnel Cards - Only visible for Sétima */}
+        {clientId === "c694df38-b4ec-444c-bc0d-8d8b6102b161" && (
+          <>
             {/* Brandspot Pipeline (ID 9) */}
-            <Card className="hover:shadow-md transition-shadow border-blue-500/30 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
-              <CardContent className="p-6">
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600">
-                        <Filter className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-base">Funil {PIPELINES.brandspot.name}</h3>
-                        <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs mt-1">
-                          Pipeline ID {PIPELINES.brandspot.id}
-                        </Badge>
-                      </div>
+            <Card className="hover:shadow-md transition-all hover:border-primary/50 group">
+              <CardContent className="p-5">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+                      <Filter className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-sm truncate">Funil {PIPELINES.brandspot.name}</h3>
+                      <Badge variant="secondary" className="text-xs mt-1">
+                        Pipeline ID {PIPELINES.brandspot.id}
+                      </Badge>
                     </div>
                   </div>
                   
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground line-clamp-2">
                     {PIPELINES.brandspot.subtitle} — Leads, taxas de conversão e performance.
                   </p>
 
                   <Button
                     size="sm"
                     onClick={() => setActiveFunnel(PIPELINES.brandspot)}
-                    className="w-full"
+                    className="w-full mt-1"
                   >
+                    <Eye className="h-4 w-4 mr-2" />
                     Visualizar
                   </Button>
                 </div>
@@ -360,91 +360,79 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
             </Card>
 
             {/* 3D Pipeline (ID 13) */}
-            <Card className="hover:shadow-md transition-shadow border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-pink-500/5">
-              <CardContent className="p-6">
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600">
-                        <Filter className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-base">Funil {PIPELINES.threeDimension.name}</h3>
-                        <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 text-xs mt-1">
-                          Pipeline ID {PIPELINES.threeDimension.id}
-                        </Badge>
-                      </div>
+            <Card className="hover:shadow-md transition-all hover:border-primary/50 group">
+              <CardContent className="p-5">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+                      <Filter className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-sm truncate">Funil {PIPELINES.threeDimension.name}</h3>
+                      <Badge variant="secondary" className="text-xs mt-1">
+                        Pipeline ID {PIPELINES.threeDimension.id}
+                      </Badge>
                     </div>
                   </div>
                   
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground line-clamp-2">
                     {PIPELINES.threeDimension.subtitle} — Leads, taxas de conversão e performance.
                   </p>
 
                   <Button
                     size="sm"
                     onClick={() => setActiveFunnel(PIPELINES.threeDimension)}
-                    className="w-full bg-purple-600 hover:bg-purple-700"
+                    className="w-full mt-1"
                   >
+                    <Eye className="h-4 w-4 mr-2" />
                     Visualizar
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
-      )}
+          </>
+        )}
 
-      {dashboards.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-[calc(100vh-450px)] gap-4">
-          <div className="text-center">
-            <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">Nenhum dashboard adicional</h3>
-            <p className="text-muted-foreground mb-4">
-              Adicione dashboards do Reportei ou Pipedrive Insights.
-            </p>
-            <Button onClick={openCreateDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Dashboard
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-          {dashboards.map((dashboard) => {
-            const platform = getPlatformInfo(dashboard.dashboard_type);
-            const Icon = platform.icon;
+        {/* Reportei/Pipedrive Embed Dashboards */}
+        {dashboards.map((dashboard) => {
+          const platform = getPlatformInfo(dashboard.dashboard_type);
+          const Icon = platform.icon;
 
-            return (
-              <Card key={dashboard.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${platform.color}`}>
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-base">{getDisplayName(dashboard)}</h3>
-                          <Badge className={`${platform.color} border text-xs mt-1`}>
-                            {platform.label}
-                          </Badge>
-                        </div>
-                      </div>
+          return (
+            <Card key={dashboard.id} className="hover:shadow-md transition-all hover:border-primary/50 group">
+              <CardContent className="p-5">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" />
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-sm truncate">{getDisplayName(dashboard)}</h3>
+                      <Badge variant="secondary" className="text-xs mt-1">
+                        {platform.label}
+                      </Badge>
+                    </div>
+                  </div>
 
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleViewDashboard(dashboard.id)}
-                        className="flex-1"
-                      >
-                        Visualizar
-                      </Button>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    Dashboard integrado via {platform.label}
+                  </p>
+
+                  <div className="flex items-center gap-2 mt-1">
+                    <Button
+                      size="sm"
+                      onClick={() => handleViewDashboard(dashboard.id)}
+                      className="flex-1"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Visualizar
+                    </Button>
+                    <div className="flex items-center gap-1">
                       {dashboard.embed_url && (
                         <Button
-                          variant="outline"
-                          size="sm"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
                           asChild
                           title="Abrir em Nova Aba"
                         >
@@ -458,33 +446,51 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
                         </Button>
                       )}
                       <Button
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={() => openEditDialog(dashboard)}
                         title="Editar"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => {
                           setDashboardToDelete(dashboard);
                           setDeleteDialogOpen(true);
                         }}
                         title="Excluir"
-                        className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+
+        {/* Empty state when no dashboards and not Sétima client */}
+        {dashboards.length === 0 && clientId !== "c694df38-b4ec-444c-bc0d-8d8b6102b161" && (
+          <div className="col-span-full flex flex-col items-center justify-center py-16 gap-4">
+            <div className="text-center">
+              <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">Nenhum dashboard configurado</h3>
+              <p className="text-muted-foreground mb-4">
+                Adicione dashboards do Reportei ou Pipedrive Insights.
+              </p>
+              <Button onClick={openCreateDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Dashboard
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Dialog Viewer */}
       {selectedDashboardId && (
