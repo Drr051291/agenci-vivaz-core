@@ -1,243 +1,199 @@
 
-# Plano: Sistema de Comparação de Períodos para o Funil Pipedrive
+# Plano: Dashboard de Funil para Pipeline 13 (3D)
 
 ## Objetivo
-Implementar um sistema inteligente de comparação que automaticamente calcule a diferença percentual entre o período atual e um período anterior, permitindo customização do período de comparação.
+Criar uma cópia do dashboard do Pipeline 9 (Brandspot) para o Pipeline 13 (3D), seguindo exatamente as mesmas regras e visualizações. A solução será parametrizada para permitir reutilização e manutenção simplificada.
 
 ---
 
-## Comportamento Automático (Regra Padrão)
+## Estratégia de Implementação
 
-O sistema calculará automaticamente o período de comparação com base no período selecionado:
-
-| Período Selecionado | Período de Comparação Automático |
-|---------------------|----------------------------------|
-| Hoje | Ontem |
-| Esta semana | Semana passada |
-| Últimos 7 dias | 7 dias anteriores (D-14 a D-7) |
-| Últimos 14 dias | 14 dias anteriores (D-28 a D-14) |
-| Este mês | Mês passado |
-| Mês passado | Mês retrasado |
-| Este ano | Ano passado |
-| Personalizado | Mesmo intervalo anterior |
-
-**Regra para período personalizado**: Se o usuário seleciona 01/01 a 15/01 (15 dias), a comparação será 17/12 a 31/12 (mesma duração).
+Em vez de duplicar todo o código, vamos **parametrizar** os componentes existentes para receber o `pipelineId` como prop. Isso garante que:
+- Ambos os dashboards evoluam juntos em otimizações futuras
+- Menor duplicação de código
+- Manutenção centralizada
 
 ---
 
-## Customização do Período de Comparação
+## Mudanças Necessárias
 
-O usuário poderá sobrescrever o período automático com opções como:
-
-- Período automático (padrão)
-- Mês anterior
-- Trimestre passado
-- Mesmo período do ano anterior
-- Período personalizado
-
----
-
-## Arquitetura da Solução
-
-### 1. Novos Tipos
+### 1. Atualizar Tipos e Constantes
 
 **Arquivo:** `src/components/pipedrive-funnel/types.ts`
 
-Adicionar:
-- `ComparisonPreset`: tipo para presets de comparação
-- `ComparisonData`: estrutura para dados de comparação
-- `ComparisonConfig`: configuração de comparação
+Adicionar configurações para múltiplos pipelines:
 
 ```text
-type ComparisonPreset = 'auto' | 'previousMonth' | 'previousQuarter' | 'sameLastYear' | 'custom' | 'off';
-
-interface ComparisonConfig {
-  enabled: boolean;
-  preset: ComparisonPreset;
-  customRange?: DateRange;
-}
-
-interface ComparisonData {
-  current: number;
-  previous: number;
-  variation: number;        // Percentual: ((current - previous) / previous) * 100
-  trend: 'up' | 'down' | 'stable';
-  periodLabel: string;      // Ex: "vs mês passado"
+PIPELINES = {
+  brandspot: {
+    id: 9,
+    name: 'Brandspot',
+    subtitle: 'serviços_b2b'
+  },
+  threeDimension: {
+    id: 13,
+    name: '3D',
+    subtitle: 'pipeline_3d'  // Verificar nome real no Pipedrive
+  }
 }
 ```
 
-### 2. Utilitário de Cálculo
+### 2. Parametrizar Hooks
 
-**Arquivo:** `src/components/pipedrive-funnel/comparisonUtils.ts`
+Modificar todos os hooks para receber `pipelineId` como parâmetro:
 
-Funções:
-- `getAutoComparisonRange(currentRange, preset)`: Calcula o período de comparação automático
-- `calculateVariation(current, previous)`: Calcula a variação percentual
-- `getTrend(variation, threshold)`: Determina a tendência (up/down/stable)
-- `formatVariation(variation)`: Formata para exibição (+12.5%, -8.2%)
+**`usePipedriveFunnel.ts`**
+- Adicionar parâmetro `pipelineId: number`
+- Usar este valor ao chamar a edge function
 
-### 3. Modificação do Hook
+**`useCampaignTracking.ts`**
+- Adicionar parâmetro `pipelineId: number`
 
-**Arquivo:** `src/components/pipedrive-funnel/usePipedriveFunnel.ts`
+**`useLeadSourceTracking.ts`**
+- Adicionar parâmetro `pipelineId: number`
 
-Modificar para buscar dados de dois períodos em paralelo:
+### 3. Parametrizar Dashboard Principal
+
+**Arquivo:** `src/components/pipedrive-funnel/PipedriveFunnelDashboard.tsx`
+
+Atualizar props:
 
 ```text
-// Retorno atualizado
-interface UsePipedriveFunnelReturn {
-  data: FunnelData | null;
-  comparisonData: FunnelData | null;     // NOVO
-  loading: boolean;
-  comparisonLoading: boolean;             // NOVO
-  ...
+interface PipedriveFunnelDashboardProps {
+  clientId: string;
+  pipelineId: number;      // NOVO
+  pipelineName?: string;   // NOVO: "Brandspot" ou "3D"
+  pipelineSubtitle?: string; // NOVO
 }
 ```
 
-### 4. Novo Componente de Filtro
+- O componente passará o `pipelineId` para todos os hooks
+- Header exibirá o nome do pipeline dinamicamente
 
-**Arquivo:** `src/components/pipedrive-funnel/ComparisonPeriodSelector.tsx`
+### 4. Atualizar DashboardList
 
-Selector compacto que permite:
-- Toggle on/off da comparação
-- Seleção do preset de comparação
-- Calendário para período personalizado
+**Arquivo:** `src/components/client-details/DashboardList.tsx`
 
-### 5. Componente de Badge de Variação
-
-**Arquivo:** `src/components/pipedrive-funnel/VariationBadge.tsx`
-
-Badge reutilizável que exibe:
-- Seta de tendência (TrendingUp/TrendingDown/Minus)
-- Valor percentual com cor (verde/vermelho/cinza)
-- Tooltip com detalhes do período
-
-### 6. Atualização do FunnelStepper
-
-O componente do funil exibirá indicadores de variação ao lado de cada métrica:
+Adicionar card para Pipeline 13 (3D) ao lado do card existente do Pipeline 9:
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│ Leads no período: 45  ▲+12.5% vs mês passado                   │
-├─────────────────────────────────────────────────────────────────┤
-│ ┌─────────┐        ┌─────────┐        ┌─────────┐              │
-│ │  Lead   │  42%   │   MQL   │  58%   │   SQL   │              │
-│ │   45    │───────▶│   19    │───────▶│   11    │              │
-│ │ ▲+12%   │ ▼-3pp  │ ▲+8%    │ ▲+15pp │ ▲+22%   │              │
-│ └─────────┘        └─────────┘        └─────────┘              │
-└─────────────────────────────────────────────────────────────────┘
+{/* Cards de Funil - Sétima */}
+{clientId === "c694df38-b4ec-444c-bc0d-8d8b6102b161" && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+    {/* Card Brandspot (Pipeline 9) */}
+    <Card>
+      <h3>Funil Brandspot</h3>
+      <Badge>Pipeline ID 9</Badge>
+      <Button onClick={() => openFunnel(9, 'Brandspot')}>
+        Visualizar
+      </Button>
+    </Card>
+    
+    {/* Card 3D (Pipeline 13) */}
+    <Card>
+      <h3>Funil 3D</h3>
+      <Badge>Pipeline ID 13</Badge>
+      <Button onClick={() => openFunnel(13, '3D')}>
+        Visualizar
+      </Button>
+    </Card>
+  </div>
+)}
 ```
 
-### 7. Atualização do LeadSourceChart
+### 5. Estado de Navegação
 
-Adicionar variação por origem:
+Atualizar estado do DashboardList para gerenciar qual pipeline está ativo:
 
 ```text
-Lead Nativo    ███████████  78 (58%) ▲+15% vs mês passado
-Landing Page   ██████       45 (33%) ▼-8%
-Base Sétima    ███          12 (9%)  ▲+25%
+// Estado atual
+const [showPipedriveFunnel, setShowPipedriveFunnel] = useState(false);
+
+// Novo estado
+const [activeFunnel, setActiveFunnel] = useState<{
+  pipelineId: number;
+  name: string;
+  subtitle: string;
+} | null>(null);
 ```
 
 ---
 
-## Interface do Usuário
+## Componentes Afetados
 
-### Seletor de Comparação no Header
+| Arquivo | Mudança |
+|---------|---------|
+| `types.ts` | Adicionar configuração de múltiplos pipelines |
+| `usePipedriveFunnel.ts` | Adicionar param `pipelineId` |
+| `useCampaignTracking.ts` | Adicionar param `pipelineId` |
+| `useLeadSourceTracking.ts` | Adicionar param `pipelineId` |
+| `PipedriveFunnelDashboard.tsx` | Adicionar props `pipelineId`, `pipelineName` |
+| `DashboardList.tsx` | Adicionar card do Pipeline 13 e gerenciar navegação |
+
+---
+
+## Visualização Final
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│ Período: [Este mês ▼]   Comparar com: [Automático (mês passado) ▼] │
-│                                        ○ Desligado               │
-│                                        ● Automático              │
-│                                        ○ Trimestre passado       │
-│                                        ○ Mesmo período ano ant.  │
-│                                        ○ Personalizado...        │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ Dashboards do Cliente Sétima                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────┐   ┌─────────────────────┐         │
+│  │ 🔵 Funil Brandspot  │   │ 🟣 Funil 3D         │         │
+│  │ Pipeline ID 9       │   │ Pipeline ID 13      │         │
+│  │ [Visualizar]        │   │ [Visualizar]        │         │
+│  └─────────────────────┘   └─────────────────────┘         │
+│                                                             │
+│  ┌─ Dashboards Embarcados ──────────────────────┐          │
+│  │  • Reportei Dashboard                        │          │
+│  │  • Pipedrive Insights                        │          │
+│  └──────────────────────────────────────────────┘          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Badges de Variação
+---
 
-Três estados visuais:
+## Considerações sobre Diferenças entre Pipelines
 
-**Positivo (verde)**:
-- Ícone TrendingUp
-- Fundo verde claro
-- Texto "+12.5%"
+### O que será igual (compartilhado)
+- Lógica de cálculo de conversão
+- Visualização do funil (FunnelStepper)
+- Gráfico de Motivos de Perda
+- Gráfico de Rastreamento de Campanhas
+- Sistema de comparação de períodos
+- Filtros de data
+- Toggle Período/Snapshot
 
-**Negativo (vermelho)**:
-- Ícone TrendingDown
-- Fundo vermelho claro
-- Texto "-8.2%"
+### O que pode variar (específico de cada pipeline)
+- **Etapas do funil**: A edge function já busca as etapas dinamicamente por pipeline
+- **Labels/Etiquetas**: A lógica de "BASE SETIMA" é específica, mas o código é flexível
+- **Origem dos Leads**: Depende das convenções de nomenclatura usadas no pipeline 13
 
-**Estável (cinza, ±2%)**:
-- Ícone Minus
-- Fundo cinza
-- Texto "~0%"
+### Notas sobre "Origem dos Leads"
+A classificação atual usa:
+1. `[Lead Site]` no título → Landing Page
+2. Label `BASE SETIMA` → Base Sétima
+3. Fallback → Lead Nativo
+
+Se o pipeline 13 usar convenções diferentes, podemos adicionar configuração específica posteriormente. Por enquanto, assumimos as mesmas regras.
 
 ---
 
 ## Etapas de Implementação
 
-1. **Tipos e Utilitários** - Criar tipos e funções de cálculo de períodos
-2. **ComparisonPeriodSelector** - Componente de seleção do período de comparação
-3. **VariationBadge** - Componente de badge reutilizável
-4. **Hook usePipedriveFunnel** - Adicionar busca de dados de comparação
-5. **FunnelPeriodFilter** - Integrar seletor de comparação
-6. **FunnelStepper** - Exibir variações ao lado das métricas
-7. **LeadSourceChart** - Adicionar comparação por origem
-8. **Dashboard** - Integrar tudo no dashboard principal
+1. **Tipos e Constantes** - Adicionar config de pipelines
+2. **Hooks** - Parametrizar com `pipelineId`
+3. **Dashboard** - Adicionar props de pipeline
+4. **DashboardList** - Adicionar card do Pipeline 13
+5. **Testes** - Validar ambos os dashboards funcionando
 
 ---
 
-## Detalhes Técnicos
+## Benefícios da Abordagem Parametrizada
 
-### Cálculo do Período Automático
-
-```text
-function getAutoComparisonRange(current: DateRange, preset: PeriodPreset): DateRange {
-  const durationMs = current.end.getTime() - current.start.getTime();
-  const durationDays = durationMs / (1000 * 60 * 60 * 24);
-  
-  switch (preset) {
-    case 'today':
-      return { start: subDays(current.start, 1), end: subDays(current.end, 1) };
-    case 'thisWeek':
-      return { start: subWeeks(current.start, 1), end: subWeeks(current.end, 1) };
-    case 'thisMonth':
-      return { start: subMonths(current.start, 1), end: endOfMonth(subMonths(current.start, 1)) };
-    case 'custom':
-    default:
-      // Mesmo intervalo anterior
-      return { 
-        start: subDays(current.start, durationDays + 1), 
-        end: subDays(current.start, 1) 
-      };
-  }
-}
-```
-
-### Variação de Taxas de Conversão
-
-Para taxas de conversão, usar **pontos percentuais (pp)** em vez de variação relativa:
-
-- Período atual: 42% de conversão
-- Período anterior: 45% de conversão
-- Variação: -3pp (não -6.67%)
-
-### Performance
-
-Para evitar chamadas duplicadas:
-- Usar Promise.all para buscar dados de ambos os períodos em paralelo
-- Manter cache separado para cada período
-- Debounce de 500ms igual ao existente
-
----
-
-## Resultado Final
-
-O usuário poderá:
-1. Ver automaticamente a comparação com o período anterior equivalente
-2. Personalizar o período de comparação quando necessário
-3. Visualizar as variações de forma clara e destacada
-4. Entender rapidamente se o desempenho melhorou ou piorou
-5. Identificar em qual etapa do funil houve maior variação
-6. Desligar a comparação se desejar uma visualização mais limpa
+- **Manutenção única**: Correções e melhorias aplicam-se automaticamente a ambos os pipelines
+- **Escalabilidade**: Fácil adicionar novos pipelines no futuro
+- **Consistência**: Garantia de que ambos os dashboards têm as mesmas funcionalidades
+- **Menos código**: Sem duplicação de componentes ou hooks
