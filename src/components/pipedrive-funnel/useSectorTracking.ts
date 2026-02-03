@@ -40,7 +40,7 @@ export function useSectorTracking(
     const endDate = format(dateRange.end, 'yyyy-MM-dd');
     const fetchKey = `${pipelineId}_${startDate}_${endDate}`;
 
-    if (!force && fetchKey === lastFetchRef.current && data) {
+    if (!force && fetchKey === lastFetchRef.current) {
       return;
     }
 
@@ -78,12 +78,12 @@ export function useSectorTracking(
     } finally {
       setLoading(false);
     }
-  }, [dateRange, data, pipelineId]);
+  }, [dateRange.start, dateRange.end, pipelineId]);
 
   // Fetch snapshot data (only once per pipelineId, no date filter)
   const fetchSnapshotData = useCallback(async (force = false) => {
     const snapshotKey = `${pipelineId}`;
-    if (!force && snapshotFetchedRef.current === snapshotKey && snapshotData) {
+    if (!force && snapshotFetchedRef.current === snapshotKey) {
       return;
     }
 
@@ -116,10 +116,15 @@ export function useSectorTracking(
     } finally {
       setSnapshotLoading(false);
     }
-  }, [snapshotData, pipelineId]);
+  }, [pipelineId]);
 
-  // Reset refs when pipelineId changes to force fresh data
+  // Reset state and refs when pipelineId changes to force fresh data
   useEffect(() => {
+    // Clear previous data immediately to avoid showing wrong pipeline data
+    setData(null);
+    setSnapshotData(null);
+    
+    // Reset fetch tracking refs
     lastFetchRef.current = '';
     snapshotFetchedRef.current = '';
   }, [pipelineId]);
@@ -144,7 +149,7 @@ export function useSectorTracking(
   // Fetch snapshot data on mount and pipeline change
   useEffect(() => {
     fetchSnapshotData();
-  }, [pipelineId]);
+  }, [pipelineId, fetchSnapshotData]);
 
   const refetch = useCallback(async (force = false) => {
     await Promise.all([fetchData(force), fetchSnapshotData(force)]);
