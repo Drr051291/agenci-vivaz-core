@@ -1,56 +1,72 @@
 
 
-# Correção: Relatório de Setor Replicado entre Dashboards
+# Correção: Hook de Setor não Reage Corretamente a Mudanças de Pipeline
 
 ## Problema Identificado
 
-O relatório de Distribuição por Setor está mostrando os **mesmos dados** em ambos os dashboards (Brandspot e 3D) porque:
+A Edge Function está funcionando corretamente após as correções (confirmado via curl - cada pipeline retorna dados diferentes). O problema está no hook `useSectorTracking.ts`:
 
-1. **Cache do campo de setor é compartilhado** - A função `getSectorFieldKey` usa um cache key único (`pipedrive_sector_field_key_v1`) para todos os pipelines. Isso faz com que, ao buscar o campo do 3D ("Qual o setor da sua empresa"), o sistema armazena esse valor no cache. Quando o Brandspot busca seu campo ("Segmento da sua empresa"), ele retorna o cache do 3D.
+1. **Estado stale** - Quando o usuário troca de dashboard, os dados antigos continuam sendo exibidos porque:
+   - O `useEffect` que reseta os refs roda, mas os dados em `data` e `snapshotData` não são limpos
+   - O usuário vê os dados do pipeline anterior enquanto o novo carrega
 
-2. **Hook não reage à mudança de pipelineId** - O `useEffect` que busca os dados de snapshot não inclui `pipelineId` como dependência, então não refaz a busca quando muda de um dashboard para outro.
+2. **Dependências de useCallback incorretas** - `fetchData` tem `data` como dependência, o que pode causar comportamento inesperado com closures
+
+3. **useEffect sem dependência de função** - O `useEffect` para snapshot (linha 145-147) não inclui `fetchSnapshotData` como dependência
 
 ---
 
 ## Solução
 
-### 1. Edge Function - Cache separado por pipeline
+### 1. Limpar dados imediatamente quando pipeline muda
 
-Alterar a função `getSectorFieldKey` para incluir o `pipelineId` no cache key:
+Quando o `pipelineId` muda, devemos:
+- Limpar `data` e `snapshotData` para evitar exibir dados do pipeline errado
+- Resetar os refs de tracking
 
 ```typescript
-// ANTES
-const cacheKey = 'pipedrive_sector_field_key_v1'
-
-// DEPOIS  
-const cacheKey = `pipedrive_sector_field_key_${pipelineId}_v2`
+// Reset state and refs when pipelineId changes
+useEffect(() => {
+  // Clear previous data immediately
+  setData(null);
+  setSnapshotData(null);
+  
+  // Reset fetch tracking refs
+  lastFetchRef.current = '';
+  snapshotFetchedRef.current = '';
+}, [pipelineId]);
 ```
 
-Isso garante que cada pipeline terá seu próprio cache de campo de setor.
+### 2. Remover `data` das dependências de useCallback
 
-### 2. Hook - Dependências corretas nos useEffects
-
-Corrigir os `useEffect` para reagir às mudanças de `pipelineId`:
+O `fetchData` não deve depender de `data` para evitar closures stale:
 
 ```typescript
-// useEffect de snapshot - adicionar pipelineId como dependência
+const fetchData = useCallback(async (force = false) => {
+  // ... logic
+}, [dateRange.start.getTime(), dateRange.end.getTime(), pipelineId]);
+// Removido: data
+```
+
+### 3. Adicionar fetchSnapshotData como dependência
+
+```typescript
 useEffect(() => {
   fetchSnapshotData();
-}, [pipelineId]); // ← Agora reage a mudanças de pipeline
-
-// useEffect de período - adicionar pipelineId como dependência  
-useEffect(() => {
-  // ... debounce logic
-  debounceRef.current = setTimeout(() => {
-    fetchData();
-  }, 500);
-  // ...
-}, [dateRange.start.getTime(), dateRange.end.getTime(), pipelineId]); // ← Agora reage a mudanças de pipeline
+}, [pipelineId, fetchSnapshotData]);
 ```
 
-### 3. Limpar cache antigo
+### 4. Verificar se está vazio ao invés de checar por estado anterior
 
-Atualizar a versão do cache para `v2`, garantindo que o cache antigo (incorreto) seja ignorado.
+```typescript
+const fetchSnapshotData = useCallback(async (force = false) => {
+  const snapshotKey = `${pipelineId}`;
+  if (!force && snapshotFetchedRef.current === snapshotKey) {
+    return; // Removido: && snapshotData
+  }
+  // ...
+}, [pipelineId]); // Removido: snapshotData
+```
 
 ---
 
@@ -58,15 +74,28 @@ Atualizar a versão do cache para `v2`, garantindo que o cache antigo (incorreto
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `supabase/functions/pipedrive-proxy/index.ts` | Passar `pipelineId` para `getSectorFieldKey` e incluir no cache key |
-| `src/components/pipedrive-funnel/useSectorTracking.ts` | Adicionar `pipelineId` como dependência nos `useEffect` e limpar refs quando muda |
+| `src/components/pipedrive-funnel/useSectorTracking.ts` | Limpar estado ao trocar pipeline, corrigir dependências de useCallback/useEffect |
 
 ---
 
 ## Impacto
 
-- **Brandspot** usará o campo "Segmento da sua empresa"
-- **3D** usará o campo "Qual o setor da sua empresa"
-- Cada dashboard terá seus próprios dados de setor
-- O refresh forçará a busca correta do campo
+- Ao trocar de Brandspot para 3D (ou vice-versa), o gráfico mostrará um loading enquanto busca os novos dados
+- Não haverá mais exibição de dados do pipeline errado
+- Cada dashboard terá seus próprios dados de setor corretos
+
+---
+
+## Detalhes Técnicos
+
+O problema fundamental era uma combinação de:
+
+1. **Cache de backend correto** mas dados de frontend não sendo atualizados
+2. **Closures de React** mantendo referências stale quando o pipelineId mudava
+3. **Estados não limpos** ao trocar de pipeline, causando exibição de dados incorretos durante o carregamento
+
+A correção garante que:
+- O estado é limpo imediatamente quando o pipeline muda
+- As funções de fetch são recriadas corretamente com os novos valores
+- Os useEffects reagem apropriadamente às mudanças
 
