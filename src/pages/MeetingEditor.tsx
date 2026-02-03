@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, RefreshCw, Check, FileText, BarChart3, TrendingUp, Target, Wrench, History, Stethoscope, MessageSquare } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, TrendingUp, Target, Wrench, History, Stethoscope, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -20,7 +20,6 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { useMeetingCalendarSync } from "@/hooks/useMeetingCalendarSync";
 import {
   CollapsibleSection,
   MetricsSection,
@@ -126,9 +125,6 @@ export default function MeetingEditor() {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
-  const [isSynced, setIsSynced] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const { isConnected, updateMeetingInCalendar, syncMeetingToCalendar, getMeetingSyncStatus } = useMeetingCalendarSync();
   
   // Resolve slugs to IDs
   const { clientId, clientSlug, loading: clientLoading, error: clientError } = useClientSlugResolver(clientSlugOrId);
@@ -362,11 +358,6 @@ export default function MeetingEditor() {
           })),
         }));
       }
-
-      if (isConnected && meetingId) {
-        const syncStatus = await getMeetingSyncStatus(meetingId);
-        setIsSynced(!!syncStatus);
-      }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       toast.error("Erro ao carregar reunião");
@@ -482,49 +473,16 @@ export default function MeetingEditor() {
         }));
         await supabase.from("meeting_channels").insert(channelsToInsert);
       }
-
-      if (isConnected && isSynced) {
-        await updateMeetingInCalendar({
-          id: meetingId,
-          title: newTitle,
-          meeting_date: meetingData.meeting_date,
-          participants: meetingData.participants,
-        });
-      }
     } catch (error) {
       console.error("Erro no autosave:", error);
     } finally {
       setIsSaving(false);
     }
-  }, [meetingData, selectedTasks, sections, meetingId, isSaving, clientName, isConnected, isSynced, updateMeetingInCalendar]);
+  }, [meetingData, selectedTasks, sections, meetingId, isSaving, clientName]);
 
   const handleSave = async () => {
     await handleAutoSave();
     toast.success("Alterações salvas!");
-  };
-
-  const handleSyncToCalendar = async () => {
-    if (!meetingId) return;
-    setIsSyncing(true);
-    try {
-      const result = await syncMeetingToCalendar({
-        id: meetingId,
-        title: meetingData.title,
-        meeting_date: meetingData.meeting_date,
-        participants: meetingData.participants,
-      });
-      if (result) {
-        setIsSynced(true);
-        toast.success("Sincronizado com Google Calendar");
-      } else {
-        toast.error("Erro ao sincronizar");
-      }
-    } catch (error) {
-      console.error("Erro ao sincronizar:", error);
-      toast.error("Erro ao sincronizar");
-    } finally {
-      setIsSyncing(false);
-    }
   };
 
   const handleTaskToggle = (taskId: string) => {
@@ -861,25 +819,6 @@ export default function MeetingEditor() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {isConnected && (
-                isSynced ? (
-                  <Badge variant="outline" className="gap-1.5 bg-emerald-50 text-emerald-700 border-emerald-200">
-                    <Check className="h-3 w-3" />
-                    Sincronizado
-                  </Badge>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleSyncToCalendar}
-                    disabled={isSyncing}
-                    className="text-muted-foreground"
-                  >
-                    <RefreshCw className={cn("h-4 w-4 mr-1.5", isSyncing && "animate-spin")} />
-                    Sincronizar
-                  </Button>
-                )
-              )}
               {isEditMode && (
                 <span className={cn(
                   "text-xs px-2.5 py-1 rounded-full",

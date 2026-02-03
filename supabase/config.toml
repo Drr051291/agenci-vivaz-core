@@ -3,9 +3,6 @@ project_id = "dxvgiodsfbdmifqynfog"
 [functions.asaas-api]
 verify_jwt = true
 
-[functions.google-calendar]
-verify_jwt = false
-
 [functions.pipedrive-data]
 verify_jwt = true
 
