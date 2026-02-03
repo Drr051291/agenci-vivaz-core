@@ -179,7 +179,8 @@ Deno.serve(async (req) => {
 
       // Check if token is expired and refresh if needed
       let accessToken = tokenData.access_token;
-      if (new Date(tokenData.token_expiry) < new Date()) {
+      const tokenExpiryDate = tokenData.token_expiry ? new Date(tokenData.token_expiry) : new Date(0);
+      if (isNaN(tokenExpiryDate.getTime()) || tokenExpiryDate < new Date()) {
         const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -192,9 +193,20 @@ Deno.serve(async (req) => {
         });
 
         const newTokens: GoogleTokenResponse = await refreshResponse.json();
+        
+        if (!refreshResponse.ok || !newTokens.access_token) {
+          console.error('Token refresh failed:', newTokens);
+          return new Response(JSON.stringify({ error: 'Failed to refresh token. Please reconnect Google Calendar.' }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
         accessToken = newTokens.access_token;
 
-        const tokenExpiry = new Date(Date.now() + newTokens.expires_in * 1000);
+        // Safely calculate token expiry (default to 1 hour if expires_in is missing)
+        const expiresIn = newTokens.expires_in || 3600;
+        const tokenExpiry = new Date(Date.now() + expiresIn * 1000);
         await supabaseClient
           .from('google_calendar_tokens')
           .update({
@@ -247,7 +259,8 @@ Deno.serve(async (req) => {
 
       // Refresh token if expired
       let accessToken = tokenData.access_token;
-      if (new Date(tokenData.token_expiry) < new Date()) {
+      const tokenExpiryDate = tokenData.token_expiry ? new Date(tokenData.token_expiry) : new Date(0);
+      if (isNaN(tokenExpiryDate.getTime()) || tokenExpiryDate < new Date()) {
         const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -260,9 +273,19 @@ Deno.serve(async (req) => {
         });
 
         const newTokens: GoogleTokenResponse = await refreshResponse.json();
+        
+        if (!refreshResponse.ok || !newTokens.access_token) {
+          console.error('Token refresh failed:', newTokens);
+          return new Response(JSON.stringify({ error: 'Failed to refresh token. Please reconnect Google Calendar.' }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
         accessToken = newTokens.access_token;
 
-        const tokenExpiry = new Date(Date.now() + newTokens.expires_in * 1000);
+        const expiresIn = newTokens.expires_in || 3600;
+        const tokenExpiry = new Date(Date.now() + expiresIn * 1000);
         await supabaseClient
           .from('google_calendar_tokens')
           .update({
@@ -342,7 +365,8 @@ Deno.serve(async (req) => {
 
       // Refresh token if expired
       let accessToken = tokenData.access_token;
-      if (new Date(tokenData.token_expiry) < new Date()) {
+      const tokenExpiryDate = tokenData.token_expiry ? new Date(tokenData.token_expiry) : new Date(0);
+      if (isNaN(tokenExpiryDate.getTime()) || tokenExpiryDate < new Date()) {
         const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -355,9 +379,19 @@ Deno.serve(async (req) => {
         });
 
         const newTokens: GoogleTokenResponse = await refreshResponse.json();
+        
+        if (!refreshResponse.ok || !newTokens.access_token) {
+          console.error('Token refresh failed:', newTokens);
+          return new Response(JSON.stringify({ error: 'Failed to refresh token. Please reconnect Google Calendar.' }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
         accessToken = newTokens.access_token;
 
-        const tokenExpiry = new Date(Date.now() + newTokens.expires_in * 1000);
+        const expiresIn = newTokens.expires_in || 3600;
+        const tokenExpiry = new Date(Date.now() + expiresIn * 1000);
         await supabaseClient
           .from('google_calendar_tokens')
           .update({
@@ -435,7 +469,8 @@ Deno.serve(async (req) => {
 
       // Refresh token if expired
       let accessToken = tokenData.access_token;
-      if (new Date(tokenData.token_expiry) < new Date()) {
+      const tokenExpiryDate = tokenData.token_expiry ? new Date(tokenData.token_expiry) : new Date(0);
+      if (isNaN(tokenExpiryDate.getTime()) || tokenExpiryDate < new Date()) {
         const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -448,9 +483,19 @@ Deno.serve(async (req) => {
         });
 
         const newTokens: GoogleTokenResponse = await refreshResponse.json();
+        
+        if (!refreshResponse.ok || !newTokens.access_token) {
+          console.error('Token refresh failed:', newTokens);
+          return new Response(JSON.stringify({ error: 'Failed to refresh token. Please reconnect Google Calendar.' }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
         accessToken = newTokens.access_token;
 
-        const tokenExpiry = new Date(Date.now() + newTokens.expires_in * 1000);
+        const expiresIn = newTokens.expires_in || 3600;
+        const tokenExpiry = new Date(Date.now() + expiresIn * 1000);
         await supabaseClient
           .from('google_calendar_tokens')
           .update({
