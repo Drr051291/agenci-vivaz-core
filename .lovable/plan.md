@@ -1,224 +1,169 @@
 
-# Plano: Melhorias Visuais e Estruturais no Modulo Trilhas e Processos
 
-## Resumo das Alteracoes
+# Reestruturação do Relatório de Rastreamento de Campanhas
 
-O objetivo e refinar o modulo tornando-o mais sobrio, elegante e visualmente coeso, alem de corrigir a estrutura da cadencia de contato e melhorar a disposicao dos elementos.
+## Visão Geral
 
----
-
-## 1. Renomear para "Trilhas e Processos" em Todos os Lugares
-
-**Arquivos afetados:**
-- `src/components/layout/DashboardLayout.tsx` - Menu lateral da agencia
-- `src/pages/EducacaoProcessos.tsx` - Titulo e meta da pagina global
-- `src/pages/ClientDetails.tsx` - Aba do cliente (ja esta como "Trilhas", manter)
-
-**Alteracao:**
-```text
-Antes: "Educacao & Processos"
-Depois: "Trilhas e Processos"
-```
+Você criou 3 novos campos personalizados no Pipedrive: **Campanha**, **Conjunto** e **Anuncio**. Vamos reestruturar todo o sistema de rastreamento para usar esses campos separados, removendo a lógica antiga de parsing de um único campo.
 
 ---
 
-## 2. Visao Geral como Sumario Visual
+## O Que Vai Mudar
 
-**Arquivo:** `src/components/education/PlaybookSDRTab.tsx`
+### Antes (Atual)
+- Buscava um campo único chamado "Origem - Campanha / Conjunto / Criativo"
+- Usava regras complexas de parsing com "/" e " - " como separadores
+- Difícil de manter e propenso a erros
 
-**O que sera feito:**
-- Transformar a "Visao Geral" em um sumario interativo com cards visuais
-- Criar tres blocos principais em destaque:
-  1. **Funil de Vendas** - Visao interativa das etapas (ja existe, otimizar)
-  2. **Atribuicoes do SDR** - Card resumido e clicavel
-  3. **Cadencia de Contato** - Card resumido apontando para a secao completa
-
-- Cada bloco sera um card com:
-  - Icone
-  - Titulo
-  - Breve descricao
-  - Indicador visual ou mini-preview
-  - Acao de navegacao interna
+### Depois (Novo)
+- Leitura direta dos 3 campos separados: `Campanha:`, `Conjunto:`, `Anuncio:`
+- Sem parsing complexo - valores já vêm prontos do Pipedrive
+- Visual mais claro com cards dedicados para cada dimensão
 
 ---
 
-## 3. Corrigir Fluxo da Cadencia de Contato
+## Novo Design Visual
 
-**Arquivo:** `src/components/education/ContactCadenceFlow.tsx`
-
-**Problema atual:**
-O fluxo apos "conseguiu contato" nao esta claro. A logica correta e:
-
-**Fluxo corrigido:**
+O relatório será redesenhado com uma estrutura mais clara e visual:
 
 ```text
-MQL Qualificado
-     |
-     v
-Dia 1: Ligacao + WhatsApp (se nao atender)
-     |
-     +----> CONSEGUIU CONTATO?
-     |          |
-     |   [SIM]  v  [NAO]
-     |    +-------------+
-     |    | OBRIGATORIO:|     +---> Dia 1: LinkedIn (pesquisar + convite)
-     |    | - Retorno   |     |
-     |    | - SQL       |     v
-     |    | - Perdido   |   Dia 2: LinkedIn + WhatsApp call
-     |    +-------------+     |
-     |                        v
-     |                  CONSEGUIU CONTATO?
-     |                        |
-     |                  [SIM] | [NAO]
-     |                        |
-     |            (mesmo fluxo)|---> Dias 3-4: Espera
-     |                               |
-     |                               v
-     |                         Dia 5: Ultima tentativa
-     |                               |
-     |                         [SIM] | [NAO]
-     |                               |
-     +---------------------------+   v
-                                 PERDIDO
-```
-
-**Alteracoes:**
-- Reestruturar outcomes do "Dia 1 - Primeiro Contato" para mostrar que ao conseguir contato, ha duas opcoes OBRIGATORIAS: agendar retorno/SQL ou marcar perdido
-- O fluxo so continua para dia 2+ se NAO conseguiu contato
-- Ajustar visual do "decision" node para mostrar claramente as 3 opcoes (Retorno, SQL, Perdido)
-- Simplificar cards mantendo informacao essencial
-
----
-
-## 4. Otimizar Imagens do CRM (Carousel)
-
-**Arquivo:** `src/components/education/PipedriveExamples.tsx`
-
-**Problema atual:**
-As imagens tem dimensoes muito diferentes, causando desproporcao visual.
-
-**Solucao:**
-- Adicionar uma "moldura" (frame) padronizada para as imagens
-- Definir altura maxima fixa para o container do carousel
-- Usar `object-contain` com background sutil para preencher espaco
-- Adicionar sombra e borda para criar efeito de "janela de navegador"
-- Controlar melhor o aspect-ratio
-
----
-
-## 5. Paleta de Cores Mais Sobria e Elegante
-
-**Arquivos afetados:**
-- `ContactCadenceFlow.tsx`
-- `FunnelExplainer.tsx`
-- `PlaybookSDRTab.tsx`
-- `PipedriveExamples.tsx`
-
-**Alteracoes de cores:**
-
-| Elemento | Antes | Depois |
-|----------|-------|--------|
-| Cards de etapa do funil | Gradientes coloridos variados | Tons de cinza com accent primary sutil |
-| Badges de status | Cores vibrantes (verde, azul, amarelo) | Cores mais suaves e desaturadas |
-| Backgrounds de secao | bg-primary/10, bg-blue-500/10 | bg-muted/30, bg-card |
-| Bordas | Coloridas (border-blue-500/30) | Neutras (border-border, border-muted) |
-| Icones | Cores variadas por tipo | Primary ou muted-foreground |
-| Cards CRM | Cores por tipo (azul, roxo, teal) | Todos com mesmo estilo neutro |
-
-**Paleta reduzida:**
-- Primary (roxo Vivaz) para destaques importantes
-- Muted/Card para backgrounds
-- Foreground/muted-foreground para textos
-- Verde sutil apenas para sucesso
-- Vermelho sutil apenas para erros/perdido
-
----
-
-## Arquivos a Serem Modificados
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/components/layout/DashboardLayout.tsx` | Renomear menu para "Trilhas e Processos" |
-| `src/pages/EducacaoProcessos.tsx` | Renomear titulo e metas |
-| `src/components/education/PlaybookSDRTab.tsx` | Refatorar Visao Geral como sumario, ajustar cores |
-| `src/components/education/ContactCadenceFlow.tsx` | Corrigir fluxo de decisao, reduzir cores |
-| `src/components/education/PipedriveExamples.tsx` | Adicionar moldura nas imagens, cores mais neutras |
-| `src/components/education/FunnelExplainer.tsx` | Cores mais sobrias no funil |
-
----
-
-## Secao Tecnica
-
-### Estrutura da Nova Visao Geral (Sumario)
-
-```text
-[Titulo: Playbook SDR - Sumario]
-
 +--------------------------------------------------+
-|  [CARD 1]      [CARD 2]        [CARD 3]          |
-|  Funil         Atribuicoes     Cadencia          |
-|  de Vendas     do SDR          de Contato        |
-|                                                   |
-|  Mini-preview  Lista resumida  Timeline visual   |
-|  5 etapas      4 pontos        5 dias           |
-|                                                   |
-|  [Ver etapas]  [Expandir]      [Ver fluxo]       |
+|  Rastreamento de Campanhas                       |
+|  [Fluxo do Período ▼]           12 negócios      |
 +--------------------------------------------------+
-
-[Secao expandida conforme navegacao]
+|                                                  |
+|  CAMPANHA                                        |
+|  +--------------------------------------------+  |
+|  | Nome da Campanha 1        ██████████ 8 (67%)|  |
+|  | Nome da Campanha 2        ████       4 (33%)|  |
+|  +--------------------------------------------+  |
+|                                                  |
+|  CONJUNTO DE ANÚNCIOS                            |
+|  +--------------------------------------------+  |
+|  | Conjunto A                ████████   6 (50%)|  |
+|  | Conjunto B                ██████     4 (33%)|  |
+|  | Conjunto C                ██         2 (17%)|  |
+|  +--------------------------------------------+  |
+|                                                  |
+|  ANÚNCIO                                         |
+|  +--------------------------------------------+  |
+|  | Anúncio 01                ██████████ 6 (50%)|  |
+|  | Anúncio 02                ████       4 (33%)|  |
+|  | Anúncio 03                ██         2 (17%)|  |
+|  +--------------------------------------------+  |
+|                                                  |
+|  [Total] [Lead] [MQL] [SQL] [Oportunidade]       |
++--------------------------------------------------+
 ```
 
-### Nova Estrutura do ContactCadenceFlow
+### Melhorias Visuais
+1. **Três seções verticais** - Uma para cada dimensão (Campanha, Conjunto, Anúncio)
+2. **Barras horizontais coloridas** - Fácil visualização da proporção
+3. **Contagem e percentual** - Exibidos ao lado de cada barra
+4. **Filtro por etapa** - Mantém a capacidade de filtrar por Lead, MQL, SQL, etc.
+5. **Toggle de visualização** - Período vs Cenário Atual
 
-```text
-CADENCE_STEPS = [
-  { id: 'qualification', day: 0 },
-  { id: 'day1-contact', day: 1, isDecision: true,
-    outcomes: [
-      { label: 'Conseguiu contato', nextStep: 'decision' },
-      { label: 'Sem resposta', nextStep: 'day1-linkedin' }
-    ]
-  },
-  { id: 'decision', day: 1, 
-    // Este e o ponto de OBRIGATORIEDADE
-    actions: [
-      { label: 'Agendar Retorno', required: true },
-      { label: 'Mover para SQL', required: true },
-      { label: 'Marcar como Perdido', required: true }
-    ]
-    // Nao ha "sem resposta" aqui - uma dessas DEVE ser escolhida
-  },
-  { id: 'day1-linkedin', day: 1 }, // Continua apenas se sem contato
-  { id: 'day2', day: 2, isDecision: true },
-  { id: 'wait', day: 3 },
-  { id: 'day5', day: 5, isDecision: true },
-  { id: 'lost', day: 5, isFinal: true }
-]
+---
+
+## Detalhes Técnicos
+
+### 1. Edge Function (`pipedrive-proxy/index.ts`)
+
+**Remover:**
+- Função `getTrackingFieldKey()` - não mais necessária
+- Função `parseTrackingField()` - não mais necessária
+
+**Adicionar:**
+- Função `getTrackingFieldKeys()` para buscar as 3 chaves dos campos personalizados
+- Lógica simplificada que lê diretamente dos 3 campos
+
+```typescript
+// Nova estrutura para buscar as 3 chaves de campo
+async function getTrackingFieldKeys(supabase, forceRefresh): Promise<{
+  campaignKey: string | null;
+  adsetKey: string | null; 
+  creativeKey: string | null;
+}>
+
+// Processamento direto sem parsing
+const campaign = deal[campaignKey] || 'Não informado';
+const adset = deal[adsetKey] || 'Não informado';
+const creative = deal[creativeKey] || 'Não informado';
 ```
 
-### Moldura para Imagens do CRM
+**Funções afetadas:**
+- `getCampaignTrackingData()` - Atualizar para usar os 3 campos
+- `getCampaignTrackingSnapshotData()` - Atualizar para usar os 3 campos
 
+### 2. Tipos (`types.ts`)
+
+**Atualizar:**
+```typescript
+// Indicar que temos 3 campos separados
+export interface CampaignTrackingData {
+  by_campaign: Record<string, { total: number; by_stage: Record<number, number> }>;
+  by_adset: Record<string, { total: number; by_stage: Record<number, number> }>;
+  by_creative: Record<string, { total: number; by_stage: Record<number, number> }>;
+  field_keys: {
+    campaign: string | null;
+    adset: string | null;
+    creative: string | null;
+  };
+  all_stages?: StageInfo[];
+  fetched_at?: string;
+}
+```
+
+### 3. Componente Visual (`CampaignTrackingChart.tsx`)
+
+**Redesign completo:**
+- Layout em 3 seções verticais (Campanha, Conjunto, Anúncio)
+- Cards individuais para cada dimensão
+- Cores diferenciadas por seção
+- Remoção das tabs de nível (agora todas visíveis simultaneamente)
+- Manutenção do filtro por etapa do funil
+
+**Nova estrutura de layout:**
 ```tsx
-<div className="relative bg-muted/30 rounded-lg border shadow-sm p-2">
-  <div className="bg-muted/50 rounded h-8 flex items-center px-3 gap-2 mb-2">
-    <div className="flex gap-1.5">
-      <div className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
-      <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/60" />
-      <div className="w-2.5 h-2.5 rounded-full bg-green-400/60" />
+<Card>
+  <CardHeader>
+    <CardTitle>Rastreamento de Campanhas</CardTitle>
+    <FilterTabs stages={stagesWithData} />
+  </CardHeader>
+  <CardContent>
+    <div className="grid gap-4 md:grid-cols-3">
+      <TrackingSection title="Campanha" data={campaignData} color="blue" />
+      <TrackingSection title="Conjunto" data={adsetData} color="purple" />
+      <TrackingSection title="Anúncio" data={creativeData} color="green" />
     </div>
-    <span className="text-xs text-muted-foreground">Pipedrive CRM</span>
-  </div>
-  <img src={image} className="w-full max-h-[350px] object-contain" />
-</div>
+  </CardContent>
+</Card>
 ```
+
+---
+
+## Arquivos a Modificar
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `supabase/functions/pipedrive-proxy/index.ts` | Substituir lógica de parsing por leitura direta dos 3 campos |
+| `src/components/pipedrive-funnel/types.ts` | Atualizar interface `CampaignTrackingData` |
+| `src/components/pipedrive-funnel/CampaignTrackingChart.tsx` | Redesign visual com 3 seções |
+
+---
+
+## Impacto
+
+- **Ambos os pipelines** (Brandspot ID 9 e 3D ID 13) usarão a mesma lógica
+- **Visão da agência** e **visão do cliente** verão o mesmo componente visual melhorado
+- **Cache existente** será invalidado automaticamente na próxima requisição com `force: true`
 
 ---
 
 ## Resultado Esperado
 
-1. Nome unificado "Trilhas e Processos" em toda a plataforma
-2. Visao Geral funciona como sumario navegavel
-3. Fluxo de cadencia corrigido com decisoes obrigatorias claras
-4. Imagens do CRM com moldura elegante e dimensionamento adequado
-5. Paleta de cores reduzida, mais profissional e coesa
-6. Interface mais limpa e escaneravel
+Após a implementação:
+1. Os leads com os campos preenchidos aparecerão corretamente no relatório
+2. Cada dimensão (Campanha, Conjunto, Anúncio) terá sua própria visualização
+3. Interface mais clara e profissional para análise de performance de mídia paga
+
