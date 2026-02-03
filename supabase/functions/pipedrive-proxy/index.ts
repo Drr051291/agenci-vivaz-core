@@ -457,6 +457,11 @@ async function getCampaignTrackingData(
     }
   }
 
+  // Get valid stage IDs for this pipeline
+  const { all: pipelineStages } = await getStagesMap(supabase, pipelineId, forceRefresh)
+  const validStageIds = new Set(pipelineStages.map(s => s.id))
+  console.log(`Valid stage IDs for pipeline ${pipelineId} (period):`, Array.from(validStageIds))
+
   console.log('Fetching deals with tracking field:', fieldKey)
 
   // Fetch all deals in the pipeline (open and won) within the date range
@@ -503,14 +508,19 @@ async function getCampaignTrackingData(
 
   console.log(`Total deals fetched: ${allDeals.length}`)
 
-  // Filter to deals created in the period and after the base date
+  // Filter to deals created in the period, after the base date, AND in valid stages for this pipeline
   const filteredDeals = allDeals.filter(deal => {
     if (!deal.add_time) return false
     const addDate = deal.add_time.split('T')[0]
-    return addDate >= DEALS_CREATED_AFTER && addDate >= startDate && addDate <= endDate
+    const stageId = deal.stage_id
+    // Must be in a valid stage for this pipeline AND within the date range
+    return stageId && validStageIds.has(stageId) && 
+           addDate >= DEALS_CREATED_AFTER && 
+           addDate >= startDate && 
+           addDate <= endDate
   })
 
-  console.log(`Deals in period: ${filteredDeals.length}`)
+  console.log(`Deals in period (pipeline ${pipelineId}): ${filteredDeals.length}`)
 
   // Initialize result structures
   const byCampaign: Record<string, { total: number; by_stage: Record<number, number> }> = {}
@@ -743,6 +753,152 @@ async function getLeadSourceTrackingData(
   })
 
   const result: LeadSourceTrackingResult = { by_source: bySource }
+
+  await setCachedData(supabase, cacheKey, result, TTL_CONFIG.deals)
+  return result
+}
+
+// Get campaign tracking SNAPSHOT data - all open deals regardless of date filter
+async function getCampaignTrackingSnapshotData(
+  supabase: AnySupabaseClient,
+  pipelineId: number,
+  forceRefresh: boolean
+): Promise<CampaignTrackingResult> {
+  const cacheKey = `campaign_tracking_snapshot_${pipelineId}`
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached campaign tracking snapshot data')
+      return cached.payload as CampaignTrackingResult
+    }
+  }
+
+  // First, get the tracking field key
+  const fieldKey = await getTrackingFieldKey(supabase, forceRefresh)
+  
+  if (!fieldKey) {
+    console.log('Tracking field not found in Pipedrive (snapshot)')
+    return {
+      by_campaign: {},
+      by_adset: {},
+      by_creative: {},
+      field_key: null
+    }
+  }
+
+  // Get valid stage IDs for this pipeline
+  const { all: pipelineStages } = await getStagesMap(supabase, pipelineId, forceRefresh)
+  const validStageIds = new Set(pipelineStages.map(s => s.id))
+  console.log(`Valid stage IDs for pipeline ${pipelineId}:`, Array.from(validStageIds))
+
+  console.log('Fetching OPEN deals with tracking field for snapshot:', fieldKey)
+
+  // Fetch ALL OPEN deals in the pipeline - no date filter for snapshot
+  const allDeals: Array<{
+    id: number
+    add_time?: string
+    stage_id?: number
+    status?: string
+    [key: string]: unknown
+  }> = []
+  
+  let start = 0
+  const limit = 500
+  let hasMore = true
+  
+  while (hasMore) {
+    const dealsResponse = await fetchFromPipedrive('/v1/deals', {
+      pipeline_id: pipelineId.toString(),
+      status: 'open', // Only open deals for snapshot
+      limit: limit.toString(),
+      start: start.toString()
+    }) as { 
+      data?: Array<{
+        id: number
+        add_time?: string
+        stage_id?: number
+        status?: string
+        [key: string]: unknown
+      }>
+      additional_data?: {
+        pagination?: {
+          more_items_in_collection?: boolean
+        }
+      }
+    }
+
+    const deals = dealsResponse?.data || []
+    allDeals.push(...deals)
+    
+    hasMore = dealsResponse?.additional_data?.pagination?.more_items_in_collection || false
+    start += limit
+    
+    if (start > 5000) break
+  }
+
+  console.log(`Total OPEN deals fetched for campaign tracking snapshot: ${allDeals.length}`)
+
+  // Filter to only deals in valid stages for this pipeline
+  const filteredDeals = allDeals.filter(deal => {
+    const stageId = deal.stage_id
+    return stageId && validStageIds.has(stageId)
+  })
+
+  console.log(`Deals in pipeline ${pipelineId} stages: ${filteredDeals.length}`)
+
+  // Initialize result structures
+  const byCampaign: Record<string, { total: number; by_stage: Record<number, number> }> = {}
+  const byAdset: Record<string, { total: number; by_stage: Record<number, number> }> = {}
+  const byCreative: Record<string, { total: number; by_stage: Record<number, number> }> = {}
+
+  // Process each deal - NO date filtering
+  filteredDeals.forEach(deal => {
+    const trackingValue = deal[fieldKey] as string | undefined
+    const { campaign, adSet, creative } = parseTrackingField(trackingValue || '')
+    const stageId = deal.stage_id || 0
+
+    // Aggregate by campaign
+    if (!byCampaign[campaign]) {
+      byCampaign[campaign] = { total: 0, by_stage: {} }
+    }
+    byCampaign[campaign].total++
+    byCampaign[campaign].by_stage[stageId] = (byCampaign[campaign].by_stage[stageId] || 0) + 1
+
+    // Aggregate by ad set
+    if (!byAdset[adSet]) {
+      byAdset[adSet] = { total: 0, by_stage: {} }
+    }
+    byAdset[adSet].total++
+    byAdset[adSet].by_stage[stageId] = (byAdset[adSet].by_stage[stageId] || 0) + 1
+
+    // Aggregate by creative
+    if (!byCreative[creative]) {
+      byCreative[creative] = { total: 0, by_stage: {} }
+    }
+    byCreative[creative].total++
+    byCreative[creative].by_stage[stageId] = (byCreative[creative].by_stage[stageId] || 0) + 1
+  })
+
+  // Sort each record by total descending
+  const sortByTotal = (obj: Record<string, { total: number; by_stage: Record<number, number> }>) => {
+    return Object.fromEntries(
+      Object.entries(obj).sort((a, b) => b[1].total - a[1].total)
+    )
+  }
+
+  const result: CampaignTrackingResult = {
+    by_campaign: sortByTotal(byCampaign),
+    by_adset: sortByTotal(byAdset),
+    by_creative: sortByTotal(byCreative),
+    field_key: fieldKey
+  }
+
+  console.log('Campaign tracking snapshot result:', {
+    campaigns: Object.keys(result.by_campaign).length,
+    adsets: Object.keys(result.by_adset).length,
+    creatives: Object.keys(result.by_creative).length
+  })
 
   await setCachedData(supabase, cacheKey, result, TTL_CONFIG.deals)
   return result
@@ -1166,6 +1322,30 @@ serve(async (req) => {
             success: true,
             data: {
               ...trackingData,
+              all_stages: stagesResult.all,
+              fetched_at: new Date().toISOString()
+            }
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      case 'get_campaign_tracking_snapshot': {
+        // Get campaign tracking SNAPSHOT data - all open deals regardless of date
+        const snapshotData = await getCampaignTrackingSnapshotData(
+          supabase, 
+          pipeline_id, 
+          forceRefresh
+        )
+
+        // Also get stages for reference
+        const stagesResult = await getStagesMap(supabase, pipeline_id, forceRefresh)
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              ...snapshotData,
               all_stages: stagesResult.all,
               fetched_at: new Date().toISOString()
             }
