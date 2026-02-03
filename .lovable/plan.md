@@ -1,101 +1,74 @@
 
+# Remoção Completa da Integração Google Calendar
 
-# Correção: Hook de Setor não Reage Corretamente a Mudanças de Pipeline
+## Resumo
 
-## Problema Identificado
-
-A Edge Function está funcionando corretamente após as correções (confirmado via curl - cada pipeline retorna dados diferentes). O problema está no hook `useSectorTracking.ts`:
-
-1. **Estado stale** - Quando o usuário troca de dashboard, os dados antigos continuam sendo exibidos porque:
-   - O `useEffect` que reseta os refs roda, mas os dados em `data` e `snapshotData` não são limpos
-   - O usuário vê os dados do pipeline anterior enquanto o novo carrega
-
-2. **Dependências de useCallback incorretas** - `fetchData` tem `data` como dependência, o que pode causar comportamento inesperado com closures
-
-3. **useEffect sem dependência de função** - O `useEffect` para snapshot (linha 145-147) não inclui `fetchSnapshotData` como dependência
+Esta alteração remove toda a funcionalidade de integração com Google Calendar do Hub Vivaz, incluindo a Edge Function, componentes de UI, hooks, rotas e tabelas do banco de dados.
 
 ---
 
-## Solução
+## Arquivos a Excluir
 
-### 1. Limpar dados imediatamente quando pipeline muda
-
-Quando o `pipelineId` muda, devemos:
-- Limpar `data` e `snapshotData` para evitar exibir dados do pipeline errado
-- Resetar os refs de tracking
-
-```typescript
-// Reset state and refs when pipelineId changes
-useEffect(() => {
-  // Clear previous data immediately
-  setData(null);
-  setSnapshotData(null);
-  
-  // Reset fetch tracking refs
-  lastFetchRef.current = '';
-  snapshotFetchedRef.current = '';
-}, [pipelineId]);
-```
-
-### 2. Remover `data` das dependências de useCallback
-
-O `fetchData` não deve depender de `data` para evitar closures stale:
-
-```typescript
-const fetchData = useCallback(async (force = false) => {
-  // ... logic
-}, [dateRange.start.getTime(), dateRange.end.getTime(), pipelineId]);
-// Removido: data
-```
-
-### 3. Adicionar fetchSnapshotData como dependência
-
-```typescript
-useEffect(() => {
-  fetchSnapshotData();
-}, [pipelineId, fetchSnapshotData]);
-```
-
-### 4. Verificar se está vazio ao invés de checar por estado anterior
-
-```typescript
-const fetchSnapshotData = useCallback(async (force = false) => {
-  const snapshotKey = `${pipelineId}`;
-  if (!force && snapshotFetchedRef.current === snapshotKey) {
-    return; // Removido: && snapshotData
-  }
-  // ...
-}, [pipelineId]); // Removido: snapshotData
-```
+| Arquivo | Descrição |
+|---------|-----------|
+| `supabase/functions/google-calendar/index.ts` | Edge Function principal |
+| `src/components/calendar/GoogleCalendarConnect.tsx` | Componente de conexão |
+| `src/components/calendar/GoogleCalendarManager.tsx` | Gerenciador de eventos |
+| `src/components/calendar/ImportEventsDialog.tsx` | Dialog de importação |
+| `src/pages/GoogleCalendarCallback.tsx` | Página de callback OAuth |
+| `src/hooks/useGoogleCalendar.ts` | Hook principal de integração |
+| `src/hooks/useMeetingCalendarSync.ts` | Hook de sincronização de reuniões |
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/pipedrive-funnel/useSectorTracking.ts` | Limpar estado ao trocar pipeline, corrigir dependências de useCallback/useEffect |
+### 1. `src/App.tsx`
+- Remover import do `GoogleCalendarCallback`
+- Remover rota `/google-calendar/callback`
+
+### 2. `src/components/client-details/ClientMeetings.tsx`
+- Remover imports: `GoogleCalendarManager`, `useGoogleCalendar`, `useMeetingCalendarSync`
+- Remover estados: `syncedMeetingIds`, `syncingAll`
+- Remover função `fetchSyncedMeetings`
+- Remover função `handleSyncAll`
+- Remover lógica de `handleImportEvent` relacionada ao Google Calendar
+- Remover lógica de `handleDeleteConfirm` relacionada ao Google Calendar
+- Remover UI condicional `{isConnected && ...}` (botões de sincronização e gerenciador)
+- Remover Badge de sincronização nos cards de reunião
+
+### 3. `supabase/config.toml`
+- Remover seção `[functions.google-calendar]`
+
+---
+
+## Alterações no Banco de Dados
+
+### Migração SQL para remover tabelas
+
+```sql
+-- Remover tabela de eventos sincronizados
+DROP TABLE IF EXISTS google_calendar_events;
+
+-- Remover tabela de tokens
+DROP TABLE IF EXISTS google_calendar_tokens;
+```
 
 ---
 
 ## Impacto
 
-- Ao trocar de Brandspot para 3D (ou vice-versa), o gráfico mostrará um loading enquanto busca os novos dados
-- Não haverá mais exibição de dados do pipeline errado
-- Cada dashboard terá seus próprios dados de setor corretos
+- **Funcionalidade Removida**: Não será mais possível conectar, importar ou sincronizar eventos do Google Calendar
+- **Reuniões**: Continuam funcionando normalmente, apenas sem a integração com calendário externo
+- **Dados existentes**: Os tokens e referências de sincronização serão removidos do banco
 
 ---
 
-## Detalhes Técnicos
+## Etapas de Implementação
 
-O problema fundamental era uma combinação de:
-
-1. **Cache de backend correto** mas dados de frontend não sendo atualizados
-2. **Closures de React** mantendo referências stale quando o pipelineId mudava
-3. **Estados não limpos** ao trocar de pipeline, causando exibição de dados incorretos durante o carregamento
-
-A correção garante que:
-- O estado é limpo imediatamente quando o pipeline muda
-- As funções de fetch são recriadas corretamente com os novos valores
-- Os useEffects reagem apropriadamente às mudanças
-
+1. Excluir a Edge Function e deletar do Supabase
+2. Remover arquivos de componentes e hooks
+3. Atualizar `App.tsx` removendo rota e import
+4. Atualizar `ClientMeetings.tsx` removendo toda lógica de Google Calendar
+5. Atualizar `config.toml` removendo configuração da função
+6. Executar migração SQL para remover tabelas do banco
