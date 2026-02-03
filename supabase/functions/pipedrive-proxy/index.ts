@@ -1085,18 +1085,44 @@ async function getSectorFieldKey(
 
   const fields = response?.data || []
   
-  // Search variations - includes both 3D ("Qual o setor") and Brandspot ("Segmento") field names
-  const sectorVariations = [
-    'Qual o setor da sua empresa',
-    'Qual o setor da sua empresa?',
-    'Segmento da sua empresa',
-    'Segmento da empresa',
-    'Segmento',
-    'Setor da empresa',
-    'Setor',
-    'setor',
-    'segmento'
-  ]
+  // Pipeline-specific field names - CRITICAL: order matters!
+  // Brandspot (pipeline 9) uses "Segmento da sua empresa"
+  // 3D (pipeline 13) uses "Qual o setor da sua empresa"
+  const BRANDSPOT_PIPELINE_ID = 9
+  const PIPELINE_3D_ID = 13
+  
+  // Prioritize the correct field based on pipeline
+  let sectorVariations: string[]
+  
+  if (pipelineId === BRANDSPOT_PIPELINE_ID) {
+    // Brandspot: prioritize "Segmento" variations
+    sectorVariations = [
+      'Segmento da sua empresa',
+      'Segmento da empresa',
+      'Segmento',
+      'segmento'
+    ]
+    console.log(`Pipeline ${pipelineId} (Brandspot): searching for "Segmento" field`)
+  } else if (pipelineId === PIPELINE_3D_ID) {
+    // 3D: prioritize "Setor" variations
+    sectorVariations = [
+      'Qual o setor da sua empresa',
+      'Qual o setor da sua empresa?',
+      'Setor da empresa',
+      'Setor',
+      'setor'
+    ]
+    console.log(`Pipeline ${pipelineId} (3D): searching for "Setor" field`)
+  } else {
+    // Fallback for other pipelines
+    sectorVariations = [
+      'Segmento da sua empresa',
+      'Qual o setor da sua empresa',
+      'Segmento',
+      'Setor'
+    ]
+    console.log(`Pipeline ${pipelineId} (unknown): searching for generic sector field`)
+  }
   
   for (const searchName of sectorVariations) {
     // Try exact match first (case-insensitive, trimmed)
