@@ -118,7 +118,13 @@ export function useSectorTracking(
     }
   }, [snapshotData, pipelineId]);
 
-  // Fetch period data on date range change
+  // Reset refs when pipelineId changes to force fresh data
+  useEffect(() => {
+    lastFetchRef.current = '';
+    snapshotFetchedRef.current = '';
+  }, [pipelineId]);
+
+  // Fetch period data on date range or pipeline change
   useEffect(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -133,12 +139,12 @@ export function useSectorTracking(
         clearTimeout(debounceRef.current);
       }
     };
-  }, [dateRange.start.getTime(), dateRange.end.getTime()]);
+  }, [dateRange.start.getTime(), dateRange.end.getTime(), pipelineId]);
 
-  // Fetch snapshot data on mount
+  // Fetch snapshot data on mount and pipeline change
   useEffect(() => {
     fetchSnapshotData();
-  }, []);
+  }, [pipelineId]);
 
   const refetch = useCallback(async (force = false) => {
     await Promise.all([fetchData(force), fetchSnapshotData(force)]);
