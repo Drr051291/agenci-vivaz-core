@@ -357,7 +357,11 @@ interface CampaignTrackingResult {
   by_campaign: Record<string, { total: number; by_stage: Record<number, number> }>
   by_adset: Record<string, { total: number; by_stage: Record<number, number> }>
   by_creative: Record<string, { total: number; by_stage: Record<number, number> }>
-  field_key: string | null
+  field_keys: {
+    campaign: string | null
+    adset: string | null
+    creative: string | null
+  }
 }
 
 // Lead source tracking data types
@@ -367,102 +371,28 @@ interface LeadSourceTrackingResult {
   by_source: Record<LeadSource, { total: number; by_stage: Record<number, number> }>
 }
 
-// Parse the tracking field value
-// Handles various UTM structures:
-// Format A: [F][Lead][Nativo][Sétima] - RMKT / Visitantes 30D / ad04 (uses " / ")
-// Format B: [M][Lead][Nativo][Sétima] - Geral - 00 - Funciários... - Criativos Sávio - Tera (uses " - " throughout)
-function parseTrackingField(value: string): { campaign: string; adSet: string; creative: string } {
-  if (!value || value.trim() === '') {
-    return { campaign: 'Não informado', adSet: 'Não informado', creative: 'Não informado' }
-  }
-  
-  // Try splitting by " / " first (Format A)
-  let parts = value.split(' / ').map(p => p.trim())
-  
-  // If only 1 part after splitting by " / ", maybe it uses " - " as separator
-  // We need to be smart about this because campaigns like "[M][Lead][Nativo][Sétima] - RMKT" 
-  // have " - " as part of the campaign name
-  if (parts.length < 3) {
-    parts = value.split('/').map(p => p.trim())
-  }
-  
-  // Still only 1 part? Try a smarter " - " split
-  // Pattern for 3D pipeline: [M][Lead][Nativo][Sétima] - Campanha - Conjunto - Anúncio
-  // We need to find the structure: Campanha prefix, then split remaining by " - "
-  if (parts.length < 3) {
-    // Look for pattern starting with brackets: [X][Y][Z][W]
-    const bracketMatch = value.match(/^(\[[^\]]+\])+/)
-    if (bracketMatch) {
-      const prefix = bracketMatch[0] // e.g., "[M][Lead][Nativo][Sétima]"
-      const remainder = value.substring(prefix.length).trim()
-      
-      // Remove leading " - " if present
-      const cleanedRemainder = remainder.startsWith(' - ') 
-        ? remainder.substring(3) 
-        : (remainder.startsWith('- ') ? remainder.substring(2) : remainder)
-      
-      // Now split the remainder by " - "
-      const remainderParts = cleanedRemainder.split(' - ').map(p => p.trim()).filter(p => p)
-      
-      if (remainderParts.length >= 3) {
-        // Reconstruct: campaign = prefix + first part, adSet = second part, creative = last part
-        return {
-          campaign: `${prefix} - ${remainderParts[0]}`,
-          adSet: remainderParts.slice(1, -1).join(' - '), // Middle parts as adset
-          creative: remainderParts[remainderParts.length - 1]
-        }
-      } else if (remainderParts.length === 2) {
-        return {
-          campaign: `${prefix} - ${remainderParts[0]}`,
-          adSet: remainderParts[1],
-          creative: 'Não informado'
-        }
-      } else if (remainderParts.length === 1) {
-        return {
-          campaign: `${prefix} - ${remainderParts[0]}`,
-          adSet: 'Não informado',
-          creative: 'Não informado'
-        }
-      }
-    }
-  }
-  
-  // Clean up each part: remove leading "- " or " - " if present
-  const cleanPart = (part: string): string => {
-    if (!part) return 'Não informado'
-    let cleaned = part.trim()
-    // Remove leading dash variations
-    if (cleaned.startsWith('- ')) {
-      cleaned = cleaned.substring(2).trim()
-    } else if (cleaned.startsWith('-')) {
-      cleaned = cleaned.substring(1).trim()
-    }
-    return cleaned || 'Não informado'
-  }
-  
-  return {
-    campaign: cleanPart(parts[0]),
-    adSet: cleanPart(parts[1]),
-    creative: cleanPart(parts[2])
-  }
+// Get the custom field keys for "Campanha:", "Conjunto:", "Anuncio:"
+interface TrackingFieldKeys {
+  campaign: string | null
+  adset: string | null
+  creative: string | null
 }
 
-// Get the custom field key for "Origem - Campanha / Conjunto / Criativo"
-async function getTrackingFieldKey(
+async function getTrackingFieldKeys(
   supabase: AnySupabaseClient,
   forceRefresh: boolean
-): Promise<string | null> {
-  const cacheKey = 'pipedrive_tracking_field_key'
+): Promise<TrackingFieldKeys> {
+  const cacheKey = 'pipedrive_tracking_field_keys_v2'
   
   if (!forceRefresh) {
     const cached = await getCachedData(supabase, cacheKey)
     if (cached) {
-      console.log('Using cached tracking field key')
-      return cached.payload as string | null
+      console.log('Using cached tracking field keys')
+      return cached.payload as TrackingFieldKeys
     }
   }
 
-  console.log('Fetching deal fields to find tracking field key')
+  console.log('Fetching deal fields to find tracking field keys')
   
   const response = await fetchFromPipedrive('/v1/dealFields') as {
     data?: Array<{
@@ -474,17 +404,31 @@ async function getTrackingFieldKey(
 
   const fields = response?.data || []
   
-  // Look for the field by name (case-insensitive, partial match)
-  const trackingField = fields.find(f => 
-    f.name.toLowerCase().includes('origem') && 
-    (f.name.toLowerCase().includes('campanha') || f.name.toLowerCase().includes('criativo'))
-  )
+  // Find the three separate fields by exact name match
+  const findFieldKey = (searchName: string): string | null => {
+    // Try exact match first (case-insensitive)
+    const exactMatch = fields.find(f => 
+      f.name.toLowerCase().trim() === searchName.toLowerCase().trim()
+    )
+    if (exactMatch) return exactMatch.key
+    
+    // Try prefix match (field name starts with search name)
+    const prefixMatch = fields.find(f => 
+      f.name.toLowerCase().trim().startsWith(searchName.toLowerCase().trim())
+    )
+    return prefixMatch?.key || null
+  }
 
-  const fieldKey = trackingField?.key || null
-  console.log('Tracking field found:', trackingField?.name, 'key:', fieldKey)
+  const result: TrackingFieldKeys = {
+    campaign: findFieldKey('Campanha'),
+    adset: findFieldKey('Conjunto'),
+    creative: findFieldKey('Anuncio')
+  }
 
-  await setCachedData(supabase, cacheKey, fieldKey, TTL_CONFIG.stages)
-  return fieldKey
+  console.log('Tracking field keys found:', result)
+
+  await setCachedData(supabase, cacheKey, result, TTL_CONFIG.stages)
+  return result
 }
 
 // Get campaign tracking data from deals
@@ -505,16 +449,17 @@ async function getCampaignTrackingData(
     }
   }
 
-  // First, get the tracking field key
-  const fieldKey = await getTrackingFieldKey(supabase, forceRefresh)
+  // First, get the tracking field keys for the 3 separate fields
+  const fieldKeys = await getTrackingFieldKeys(supabase, forceRefresh)
   
-  if (!fieldKey) {
-    console.log('Tracking field not found in Pipedrive')
+  // Check if at least one field is configured
+  if (!fieldKeys.campaign && !fieldKeys.adset && !fieldKeys.creative) {
+    console.log('No tracking fields found in Pipedrive')
     return {
       by_campaign: {},
       by_adset: {},
       by_creative: {},
-      field_key: null
+      field_keys: fieldKeys
     }
   }
 
@@ -523,7 +468,7 @@ async function getCampaignTrackingData(
   const validStageIds = new Set(pipelineStages.map(s => s.id))
   console.log(`Valid stage IDs for pipeline ${pipelineId} (period):`, Array.from(validStageIds))
 
-  console.log('Fetching deals with tracking field:', fieldKey)
+  console.log('Fetching deals with tracking fields:', fieldKeys)
 
   // Fetch all deals in the pipeline (open and won) within the date range
   const allDeals: Array<{
@@ -588,15 +533,17 @@ async function getCampaignTrackingData(
   const byAdset: Record<string, { total: number; by_stage: Record<number, number> }> = {}
   const byCreative: Record<string, { total: number; by_stage: Record<number, number> }> = {}
 
-  // Process each deal
+  // Process each deal - directly read from the 3 separate fields
   filteredDeals.forEach((deal, idx) => {
-    const trackingValue = deal[fieldKey] as string | undefined
-    const { campaign, adSet, creative } = parseTrackingField(trackingValue || '')
+    // Read directly from the 3 custom fields (no parsing needed)
+    const campaign = (fieldKeys.campaign ? deal[fieldKeys.campaign] as string : null) || 'Não informado'
+    const adSet = (fieldKeys.adset ? deal[fieldKeys.adset] as string : null) || 'Não informado'
+    const creative = (fieldKeys.creative ? deal[fieldKeys.creative] as string : null) || 'Não informado'
     const stageId = deal.stage_id || 0
     
     // Log first few deals with tracking values for debugging
-    if (idx < 5 && trackingValue) {
-      console.log(`Deal ${deal.id} tracking: "${trackingValue}" => campaign="${campaign}", adSet="${adSet}", creative="${creative}"`)
+    if (idx < 5) {
+      console.log(`Deal ${deal.id}: campaign="${campaign}", adSet="${adSet}", creative="${creative}"`)
     }
 
     // Aggregate by campaign
@@ -632,7 +579,7 @@ async function getCampaignTrackingData(
     by_campaign: sortByTotal(byCampaign),
     by_adset: sortByTotal(byAdset),
     by_creative: sortByTotal(byCreative),
-    field_key: fieldKey
+    field_keys: fieldKeys
   }
 
   console.log('Campaign tracking result:', {
@@ -840,16 +787,17 @@ async function getCampaignTrackingSnapshotData(
     }
   }
 
-  // First, get the tracking field key
-  const fieldKey = await getTrackingFieldKey(supabase, forceRefresh)
+  // First, get the tracking field keys for the 3 separate fields
+  const fieldKeys = await getTrackingFieldKeys(supabase, forceRefresh)
   
-  if (!fieldKey) {
-    console.log('Tracking field not found in Pipedrive (snapshot)')
+  // Check if at least one field is configured
+  if (!fieldKeys.campaign && !fieldKeys.adset && !fieldKeys.creative) {
+    console.log('No tracking fields found in Pipedrive (snapshot)')
     return {
       by_campaign: {},
       by_adset: {},
       by_creative: {},
-      field_key: null
+      field_keys: fieldKeys
     }
   }
 
@@ -858,7 +806,7 @@ async function getCampaignTrackingSnapshotData(
   const validStageIds = new Set(pipelineStages.map(s => s.id))
   console.log(`Valid stage IDs for pipeline ${pipelineId}:`, Array.from(validStageIds))
 
-  console.log('Fetching OPEN deals with tracking field for snapshot:', fieldKey)
+  console.log('Fetching OPEN deals with tracking fields for snapshot:', fieldKeys)
 
   // Fetch ALL OPEN deals in the pipeline - no date filter for snapshot
   const allDeals: Array<{
@@ -918,10 +866,12 @@ async function getCampaignTrackingSnapshotData(
   const byAdset: Record<string, { total: number; by_stage: Record<number, number> }> = {}
   const byCreative: Record<string, { total: number; by_stage: Record<number, number> }> = {}
 
-  // Process each deal - NO date filtering
+  // Process each deal - directly read from the 3 separate fields (NO date filtering)
   filteredDeals.forEach(deal => {
-    const trackingValue = deal[fieldKey] as string | undefined
-    const { campaign, adSet, creative } = parseTrackingField(trackingValue || '')
+    // Read directly from the 3 custom fields (no parsing needed)
+    const campaign = (fieldKeys.campaign ? deal[fieldKeys.campaign] as string : null) || 'Não informado'
+    const adSet = (fieldKeys.adset ? deal[fieldKeys.adset] as string : null) || 'Não informado'
+    const creative = (fieldKeys.creative ? deal[fieldKeys.creative] as string : null) || 'Não informado'
     const stageId = deal.stage_id || 0
 
     // Aggregate by campaign
@@ -957,7 +907,7 @@ async function getCampaignTrackingSnapshotData(
     by_campaign: sortByTotal(byCampaign),
     by_adset: sortByTotal(byAdset),
     by_creative: sortByTotal(byCreative),
-    field_key: fieldKey
+    field_keys: fieldKeys
   }
 
   console.log('Campaign tracking snapshot result:', {

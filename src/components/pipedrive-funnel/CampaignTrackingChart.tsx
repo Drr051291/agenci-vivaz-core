@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Target, AlertCircle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { CampaignTrackingData, StageInfo, TrackingLevel, ViewMode } from './types';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Target, AlertCircle, Megaphone, Layers, Film } from 'lucide-react';
+import { CampaignTrackingData, StageInfo, ViewMode } from './types';
+import { cn } from '@/lib/utils';
 
 interface CampaignTrackingChartProps {
   data?: CampaignTrackingData | null;
@@ -16,98 +16,66 @@ interface CampaignTrackingChartProps {
   pipelineId?: number;
 }
 
-const COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(var(--muted-foreground))',
-];
-
-const LEVEL_LABELS: Record<TrackingLevel, string> = {
-  campaign: 'Campanha',
-  adset: 'Conjunto',
-  creative: 'Criativo',
-};
-
-interface ChartDataItem {
+interface TrackingItem {
   name: string;
-  fullName: string;
   count: number;
   percentage: number;
-  fill: string;
 }
 
-function TrackingBarChart({ data, height = 200 }: { data: ChartDataItem[]; height?: number }) {
+interface TrackingSectionProps {
+  title: string;
+  icon: React.ReactNode;
+  data: TrackingItem[];
+  colorClass: string;
+  bgClass: string;
+}
+
+function TrackingSection({ title, icon, data, colorClass, bgClass }: TrackingSectionProps) {
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
-        Sem dados para este filtro
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          {icon}
+          <span>{title}</span>
+        </div>
+        <div className="flex items-center justify-center h-24 text-muted-foreground text-xs bg-muted/30 rounded-lg">
+          Sem dados
+        </div>
       </div>
     );
   }
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart 
-        data={data} 
-        layout="vertical" 
-        margin={{ top: 0, right: 60, left: 0, bottom: 0 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-        <XAxis 
-          type="number" 
-          tick={{ fontSize: 10 }} 
-          tickLine={false}
-          axisLine={false}
-        />
-        <YAxis 
-          type="category" 
-          dataKey="name" 
-          tick={{ fontSize: 10 }} 
-          width={140}
-          tickLine={false}
-          axisLine={false}
-        />
-        <Tooltip 
-          cursor={{ fill: 'hsl(var(--muted))' }}
-          contentStyle={{ 
-            backgroundColor: 'hsl(var(--popover))', 
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '6px',
-            fontSize: '12px'
-          }}
-          formatter={(value: number, _name: string, props: { payload?: { fullName?: string; percentage?: number } }) => [
-            `${value} negócio${value !== 1 ? 's' : ''} (${props.payload?.percentage?.toFixed(1) || 0}%)`,
-            props.payload?.fullName || 'Item'
-          ]}
-        />
-        <Bar 
-          dataKey="count" 
-          radius={[0, 4, 4, 0]}
-          maxBarSize={24}
-          label={({ x, y, width, height, value, index }) => {
-            const item = data[index];
-            return (
-              <text
-                x={x + width + 4}
-                y={y + height / 2}
-                fill="hsl(var(--foreground))"
-                fontSize={10}
-                dominantBaseline="middle"
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        {icon}
+        <span>{title}</span>
+      </div>
+      <div className="space-y-2">
+        {data.map((item, index) => (
+          <div key={index} className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span 
+                className="truncate font-medium" 
+                title={item.name}
+                style={{ maxWidth: '65%' }}
               >
-                {value} ({item.percentage.toFixed(0)}%)
-              </text>
-            );
-          }}
-        >
-          {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.fill} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+                {item.name}
+              </span>
+              <span className="text-muted-foreground shrink-0 ml-2">
+                {item.count} ({item.percentage.toFixed(0)}%)
+              </span>
+            </div>
+            <div className={cn("h-2 rounded-full", bgClass)}>
+              <div 
+                className={cn("h-full rounded-full transition-all duration-500", colorClass)}
+                style={{ width: `${Math.max(item.percentage, 2)}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -118,29 +86,19 @@ export function CampaignTrackingChart({
   loading, 
   snapshotLoading,
   viewMode = 'period',
-  pipelineId,
 }: CampaignTrackingChartProps) {
-  const [activeLevel, setActiveLevel] = useState<TrackingLevel>('campaign');
   const [activeStage, setActiveStage] = useState<string>('total');
 
   // Select the appropriate data source based on view mode
   const activeData = viewMode === 'snapshot' ? snapshotData : data;
   const isLoading = viewMode === 'snapshot' ? snapshotLoading : loading;
 
-  const getDataForLevel = (level: TrackingLevel) => {
-    if (!activeData) return {};
-    switch (level) {
-      case 'campaign': return activeData.by_campaign || {};
-      case 'adset': return activeData.by_adset || {};
-      case 'creative': return activeData.by_creative || {};
-    }
-  };
+  const processData = (
+    rawData: Record<string, { total: number; by_stage: Record<number, number> }> | undefined
+  ): TrackingItem[] => {
+    if (!rawData) return [];
 
-  const chartData = useMemo(() => {
-    const levelData = getDataForLevel(activeLevel);
-    if (!levelData) return [];
-
-    const entries = Object.entries(levelData);
+    const entries = Object.entries(rawData);
     if (entries.length === 0) return [];
 
     // Filter by stage if needed
@@ -158,45 +116,54 @@ export function CampaignTrackingChart({
         .filter(([, data]) => data.total > 0);
     }
 
-    // Sort by total and take top 10
+    // Sort by total and take top 8
     const sorted = filteredEntries
       .sort((a, b) => b[1].total - a[1].total)
-      .slice(0, 10);
+      .slice(0, 8);
 
     const totalCount = sorted.reduce((sum, [, data]) => sum + data.total, 0);
 
-    return sorted.map(([name, itemData], index) => ({
-      name: name.length > 30 ? name.substring(0, 30) + '...' : name,
-      fullName: name,
+    return sorted.map(([name, itemData]) => ({
+      name: name || 'Não informado',
       count: itemData.total,
       percentage: totalCount > 0 ? (itemData.total / totalCount) * 100 : 0,
-      fill: COLORS[index % COLORS.length]
     }));
-  }, [activeData, activeLevel, activeStage]);
+  };
+
+  const campaignData = useMemo(() => processData(activeData?.by_campaign), [activeData, activeStage]);
+  const adsetData = useMemo(() => processData(activeData?.by_adset), [activeData, activeStage]);
+  const creativeData = useMemo(() => processData(activeData?.by_creative), [activeData, activeStage]);
 
   const totalDeals = useMemo(() => {
-    const levelData = getDataForLevel(activeLevel);
-    if (!levelData) return 0;
-    return Object.values(levelData).reduce((sum, item) => sum + item.total, 0);
-  }, [activeData, activeLevel]);
+    if (!activeData?.by_campaign) return 0;
+    return Object.values(activeData.by_campaign).reduce((sum, item) => sum + item.total, 0);
+  }, [activeData]);
 
   const stagesWithData = useMemo(() => {
-    if (!allStages) return [];
-    const levelData = getDataForLevel(activeLevel);
-    if (!levelData) return [];
+    if (!allStages || !activeData?.by_campaign) return [];
 
-    // Find which stages have data
+    // Find which stages have data across all dimensions
     const stagesSet = new Set<number>();
-    Object.values(levelData).forEach(item => {
-      Object.keys(item.by_stage).forEach(stageId => {
-        if (item.by_stage[Number(stageId)] > 0) {
-          stagesSet.add(Number(stageId));
-        }
+    
+    const addStagesFromData = (dataObj: Record<string, { total: number; by_stage: Record<number, number> }> | undefined) => {
+      if (!dataObj) return;
+      Object.values(dataObj).forEach(item => {
+        Object.keys(item.by_stage).forEach(stageId => {
+          if (item.by_stage[Number(stageId)] > 0) {
+            stagesSet.add(Number(stageId));
+          }
+        });
       });
-    });
+    };
+
+    addStagesFromData(activeData.by_campaign);
+    addStagesFromData(activeData.by_adset);
+    addStagesFromData(activeData.by_creative);
 
     return allStages.filter(stage => stagesSet.has(stage.id));
-  }, [allStages, activeData, activeLevel]);
+  }, [allStages, activeData]);
+
+  const hasFieldsConfigured = activeData?.field_keys?.campaign || activeData?.field_keys?.adset || activeData?.field_keys?.creative;
 
   if (isLoading) {
     return (
@@ -206,19 +173,23 @@ export function CampaignTrackingChart({
         </CardHeader>
         <CardContent>
           <Skeleton className="h-8 w-full mb-4" />
-          <Skeleton className="h-[200px] w-full" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <Skeleton className="h-[200px] w-full" />
+            <Skeleton className="h-[200px] w-full" />
+            <Skeleton className="h-[200px] w-full" />
+          </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (!activeData || !activeData.field_key) {
+  if (!activeData || !hasFieldsConfigured) {
     return (
       <Card className="border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-8 gap-2">
           <AlertCircle className="h-8 w-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground text-center">
-            Campo "Origem - Campanha / Conjunto / Criativo" não encontrado no Pipedrive.
+            Campos de rastreamento (Campanha, Conjunto, Anuncio) não encontrados no Pipedrive.
           </p>
         </CardContent>
       </Card>
@@ -243,8 +214,8 @@ export function CampaignTrackingChart({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Target className="h-4 w-4 text-primary" />
             Rastreamento de Campanhas
             <span className="text-xs text-muted-foreground font-normal">
@@ -257,24 +228,9 @@ export function CampaignTrackingChart({
         </div>
       </CardHeader>
       <CardContent>
-        {/* Level tabs (Campanha / Conjunto / Criativo) */}
-        <Tabs value={activeLevel} onValueChange={(v) => setActiveLevel(v as TrackingLevel)} className="mb-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="campaign" className="text-xs">
-              Campanha
-            </TabsTrigger>
-            <TabsTrigger value="adset" className="text-xs">
-              Conjunto
-            </TabsTrigger>
-            <TabsTrigger value="creative" className="text-xs">
-              Criativo
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
         {/* Stage filter tabs */}
-        <Tabs value={activeStage} onValueChange={setActiveStage}>
-          <TabsList className="mb-4 w-full flex-wrap h-auto gap-1">
+        <Tabs value={activeStage} onValueChange={setActiveStage} className="mb-4">
+          <TabsList className="w-full flex-wrap h-auto gap-1">
             <TabsTrigger value="total" className="text-xs">
               Total
             </TabsTrigger>
@@ -284,11 +240,32 @@ export function CampaignTrackingChart({
               </TabsTrigger>
             ))}
           </TabsList>
-
-          <TabsContent value={activeStage} className="mt-0">
-            <TrackingBarChart data={chartData} height={Math.max(200, chartData.length * 32)} />
-          </TabsContent>
         </Tabs>
+
+        {/* Three-column layout for dimensions */}
+        <div className="grid gap-6 md:grid-cols-3">
+          <TrackingSection 
+            title="Campanha" 
+            icon={<Megaphone className="h-3.5 w-3.5" />}
+            data={campaignData} 
+            colorClass="bg-primary"
+            bgClass="bg-primary/20"
+          />
+          <TrackingSection 
+            title="Conjunto de Anúncios" 
+            icon={<Layers className="h-3.5 w-3.5" />}
+            data={adsetData} 
+            colorClass="bg-purple-500"
+            bgClass="bg-purple-500/20"
+          />
+          <TrackingSection 
+            title="Anúncio" 
+            icon={<Film className="h-3.5 w-3.5" />}
+            data={creativeData} 
+            colorClass="bg-emerald-500"
+            bgClass="bg-emerald-500/20"
+          />
+        </div>
       </CardContent>
     </Card>
   );
