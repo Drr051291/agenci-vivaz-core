@@ -208,6 +208,16 @@ const Users = () => {
       });
 
       if (authError) {
+        // Verificar se é erro de usuário já existente
+        if (authError.message.includes("already registered") || authError.message.includes("already exists")) {
+          toast({
+            title: "Email já cadastrado",
+            description: "Este email já está cadastrado no sistema. Se deseja vincular a um cliente, edite o usuário existente na lista.",
+            variant: "destructive",
+          });
+          setSaving(false);
+          return;
+        }
         throw authError;
       }
 
@@ -301,9 +311,21 @@ const Users = () => {
       await fetchUsers();
       await fetchClients();
     } catch (error: any) {
+      console.error("Erro ao criar usuário:", error);
+      let errorMessage = error.message;
+      
+      // Melhorar mensagens de erro comuns
+      if (error.message.includes("already registered") || error.message.includes("already exists")) {
+        errorMessage = "Este email já está cadastrado. Edite o usuário existente para vincular a um cliente.";
+      } else if (error.message.includes("Password should be")) {
+        errorMessage = "A senha deve ter pelo menos 6 caracteres.";
+      } else if (error.message.includes("Invalid email")) {
+        errorMessage = "Email inválido. Verifique o formato do email.";
+      }
+      
       toast({
         title: "Erro ao criar usuário",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
