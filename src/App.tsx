@@ -19,7 +19,6 @@ import ClientVivazAI from "./pages/client-area/ClientVivazAI";
 import ClientEducation from "./pages/client-area/ClientEducation";
 import Users from "./pages/Users";
 import SharedMeeting from "./pages/SharedMeeting";
-import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import NotFound from "./pages/NotFound";
 import Financial from "./pages/Financial";
 import Ferramentas from "./pages/Ferramentas";
@@ -70,7 +69,6 @@ const App = () => (
           <Route path="/educacao" element={<EducacaoProcessos />} />
           <Route path="/notificacoes" element={<Notifications />} />
           <Route path="/reunioes/:token" element={<SharedMeeting />} />
-          <Route path="/google-calendar/callback" element={<GoogleCalendarCallback />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
