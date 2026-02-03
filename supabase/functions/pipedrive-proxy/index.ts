@@ -1083,13 +1083,17 @@ async function getSectorFieldKey(
 
   const fields = response?.data || []
   
-  // Search variations
+  // Search variations - includes both 3D ("Qual o setor") and Brandspot ("Segmento") field names
   const sectorVariations = [
     'Qual o setor da sua empresa',
     'Qual o setor da sua empresa?',
+    'Segmento da sua empresa',
+    'Segmento da empresa',
+    'Segmento',
     'Setor da empresa',
     'Setor',
-    'setor'
+    'setor',
+    'segmento'
   ]
   
   for (const searchName of sectorVariations) {
