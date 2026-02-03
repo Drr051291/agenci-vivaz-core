@@ -1,82 +1,31 @@
 
 
-# Revisão e Ajuste do Relatório de Rastreamento de Campanhas - Brandspot
+# Revisão do Relatório de Rastreamento de Campanhas - Brandspot
 
-## Diagnóstico
+## ✅ Status: Implementado
 
-Após análise dos logs e do código, identifiquei os seguintes problemas:
+A função `getTrackingFieldKeys` foi atualizada com:
 
-### 1. Campo "Anuncio" não encontrado
-O sistema está buscando por `"Anuncio"` mas o campo pode estar cadastrado com nome diferente no Pipedrive:
-- `"Anúncio"` (com acento)
-- `"Anuncio:"` (com dois pontos)
-- Outra variação
+### Melhorias Implementadas
 
-**Logs confirmam:**
-```
-creative: null  ← Campo não encontrado
-```
+1. **Busca com múltiplas variações de nome**:
+   - Campanha: `Campanha`, `Campanha:`, `campanha`
+   - Conjunto: `Conjunto`, `Conjunto:`, `conjunto`, `Conjunto de Anúncios`, `Conjunto de Anuncios`
+   - Anuncio: `Anuncio`, `Anúncio`, `Anuncio:`, `Anúncio:`, `anuncio`, `anúncio`
 
-### 2. Maioria dos leads sem dados
-De 376 deals no período, apenas 1 tem campanha preenchida:
-- 375 deals: "Não informado"  
-- 1 deal: `[M][Lead][Nativo] - Brandspot`
+2. **Logging detalhado** para diagnóstico:
+   - Lista todos os campos personalizados encontrados no Pipedrive
+   - Mostra qual variação de nome foi encontrada para cada campo
+   - Indica claramente quando um campo não é encontrado
 
-Isso indica que os campos personalizados ainda não foram preenchidos na maioria dos leads no Pipedrive.
+3. **Cache atualizado** (versão v3) para garantir que novas configurações sejam aplicadas
 
----
+### Como Testar
 
-## Solução Proposta
+1. No dashboard Brandspot, clique no botão de atualização forçada (force refresh)
+2. Verifique os logs da Edge Function para ver quais campos foram encontrados
+3. Se algum campo ainda não aparecer, os logs mostrarão exatamente como o campo está nomeado no Pipedrive
 
-### 1. Melhorar busca do campo "Anuncio"
+### Observação
 
-Adicionar variações de busca para encontrar o campo:
-
-```typescript
-// Buscar "Anuncio" com múltiplas variações
-const creativeVariations = ['Anuncio', 'Anúncio', 'Anuncio:', 'Anúncio:']
-for (const variation of creativeVariations) {
-  const key = findFieldKey(variation)
-  if (key) {
-    result.creative = key
-    break
-  }
-}
-```
-
-### 2. Adicionar logging detalhado
-
-Para diagnóstico, listar todos os campos encontrados no Pipedrive:
-
-```typescript
-// Mostrar todos os campos custom para debug
-const customFields = fields.filter(f => f.key.length > 30) // Keys custom são longas
-console.log('Custom deal fields:', customFields.map(f => ({ name: f.name, key: f.key.slice(0,10) })))
-```
-
-### 3. Limpar cache antigo
-
-Invalidar o cache das tracking field keys ao fazer force refresh, garantindo que novas configurações sejam aplicadas.
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `supabase/functions/pipedrive-proxy/index.ts` | Melhorar busca de campos com variações de nomes e adicionar logs de diagnóstico |
-
----
-
-## Impacto
-
-- **Imediato**: O campo "Anúncio" será encontrado corretamente
-- **Diagnóstico**: Logs mostrarão quais campos existem no Pipedrive
-- **Dados**: Leads que já têm os campos preenchidos aparecerão corretamente
-
----
-
-## Observação Importante
-
-Se após a correção ainda aparecer muitos leads como "Não informado", significa que os campos personalizados precisam ser **preenchidos manualmente** no Pipedrive para cada lead. O sistema só pode mostrar dados que existem no CRM.
-
+Se muitos leads ainda aparecerem como "Não informado", significa que os campos personalizados no Pipedrive ainda não foram preenchidos para esses leads.

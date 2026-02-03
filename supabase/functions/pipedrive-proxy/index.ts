@@ -382,7 +382,7 @@ async function getTrackingFieldKeys(
   supabase: AnySupabaseClient,
   forceRefresh: boolean
 ): Promise<TrackingFieldKeys> {
-  const cacheKey = 'pipedrive_tracking_field_keys_v2'
+  const cacheKey = 'pipedrive_tracking_field_keys_v3'
   
   if (!forceRefresh) {
     const cached = await getCachedData(supabase, cacheKey)
@@ -404,28 +404,57 @@ async function getTrackingFieldKeys(
 
   const fields = response?.data || []
   
-  // Find the three separate fields by exact name match
-  const findFieldKey = (searchName: string): string | null => {
-    // Try exact match first (case-insensitive)
-    const exactMatch = fields.find(f => 
-      f.name.toLowerCase().trim() === searchName.toLowerCase().trim()
-    )
-    if (exactMatch) return exactMatch.key
+  // Log all custom fields for debugging (custom fields have long keys)
+  const customFields = fields.filter(f => f.key && f.key.length > 20)
+  console.log('=== CUSTOM DEAL FIELDS DEBUG ===')
+  console.log('Total custom fields found:', customFields.length)
+  customFields.forEach(f => {
+    console.log(`  Field: "${f.name}" | Key: ${f.key.substring(0, 20)}... | Type: ${f.field_type}`)
+  })
+  console.log('================================')
+  
+  // Find field key with multiple name variations
+  const findFieldKeyWithVariations = (variations: string[]): string | null => {
+    for (const searchName of variations) {
+      // Try exact match first (case-insensitive, trimmed)
+      const exactMatch = fields.find(f => 
+        f.name.toLowerCase().trim() === searchName.toLowerCase().trim()
+      )
+      if (exactMatch) {
+        console.log(`Found field "${searchName}" (exact match): ${exactMatch.name}`)
+        return exactMatch.key
+      }
+      
+      // Try prefix match (field name starts with search name)
+      const prefixMatch = fields.find(f => 
+        f.name.toLowerCase().trim().startsWith(searchName.toLowerCase().trim())
+      )
+      if (prefixMatch) {
+        console.log(`Found field "${searchName}" (prefix match): ${prefixMatch.name}`)
+        return prefixMatch.key
+      }
+    }
     
-    // Try prefix match (field name starts with search name)
-    const prefixMatch = fields.find(f => 
-      f.name.toLowerCase().trim().startsWith(searchName.toLowerCase().trim())
-    )
-    return prefixMatch?.key || null
+    console.log(`Field not found for variations: ${variations.join(', ')}`)
+    return null
   }
+
+  // Search with multiple variations for each field
+  const campaignVariations = ['Campanha', 'Campanha:', 'campanha']
+  const adsetVariations = ['Conjunto', 'Conjunto:', 'conjunto', 'Conjunto de Anúncios', 'Conjunto de Anuncios']
+  const creativeVariations = ['Anuncio', 'Anúncio', 'Anuncio:', 'Anúncio:', 'anuncio', 'anúncio']
 
   const result: TrackingFieldKeys = {
-    campaign: findFieldKey('Campanha'),
-    adset: findFieldKey('Conjunto'),
-    creative: findFieldKey('Anuncio')
+    campaign: findFieldKeyWithVariations(campaignVariations),
+    adset: findFieldKeyWithVariations(adsetVariations),
+    creative: findFieldKeyWithVariations(creativeVariations)
   }
 
-  console.log('Tracking field keys found:', result)
+  console.log('=== TRACKING FIELD KEYS RESULT ===')
+  console.log('Campaign key:', result.campaign || 'NOT FOUND')
+  console.log('Adset key:', result.adset || 'NOT FOUND')
+  console.log('Creative key:', result.creative || 'NOT FOUND')
+  console.log('==================================')
 
   await setCachedData(supabase, cacheKey, result, TTL_CONFIG.stages)
   return result
