@@ -13,7 +13,11 @@ export interface CampaignTrackingData {
   by_campaign: Record<string, { total: number; by_stage: Record<number, number> }>;
   by_adset: Record<string, { total: number; by_stage: Record<number, number> }>;
   by_creative: Record<string, { total: number; by_stage: Record<number, number> }>;
-  field_key: string | null;
+  field_keys: {
+    campaign: string | null;
+    adset: string | null;
+    creative: string | null;
+  };
   all_stages?: StageInfo[];
   fetched_at?: string;
 }
