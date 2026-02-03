@@ -1056,12 +1056,14 @@ async function getLeadSourceSnapshotData(
   return result
 }
 
-// Get the custom field key for "Qual o setor da sua empresa"
+// Get the custom field key for sector (varies by pipeline)
 async function getSectorFieldKey(
   supabase: AnySupabaseClient,
+  pipelineId: number,
   forceRefresh: boolean
 ): Promise<string | null> {
-  const cacheKey = 'pipedrive_sector_field_key_v1'
+  // Cache key is pipeline-specific to avoid cross-contamination between Brandspot and 3D
+  const cacheKey = `pipedrive_sector_field_key_${pipelineId}_v2`
   
   if (!forceRefresh) {
     const cached = await getCachedData(supabase, cacheKey)
@@ -1141,8 +1143,8 @@ async function getSectorDistributionData(
     }
   }
 
-  // Get the sector field key
-  const sectorFieldKey = await getSectorFieldKey(supabase, forceRefresh)
+  // Get the sector field key for this specific pipeline
+  const sectorFieldKey = await getSectorFieldKey(supabase, pipelineId, forceRefresh)
   
   if (!sectorFieldKey) {
     console.log('Sector field not found in Pipedrive')
@@ -1251,11 +1253,11 @@ async function getSectorDistributionSnapshotData(
     }
   }
 
-  // Get the sector field key
-  const sectorFieldKey = await getSectorFieldKey(supabase, forceRefresh)
+  // Get the sector field key for this specific pipeline
+  const sectorFieldKey = await getSectorFieldKey(supabase, pipelineId, forceRefresh)
   
   if (!sectorFieldKey) {
-    console.log('Sector field not found in Pipedrive (snapshot)')
+    console.log(`Sector field not found in Pipedrive for pipeline ${pipelineId} (snapshot)`)
     return { by_sector: {}, field_key: null }
   }
 
