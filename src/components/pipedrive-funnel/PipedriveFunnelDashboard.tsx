@@ -11,12 +11,14 @@ import { cn } from '@/lib/utils';
 import { usePipedriveFunnel } from './usePipedriveFunnel';
 import { useCampaignTracking } from './useCampaignTracking';
 import { useLeadSourceTracking } from './useLeadSourceTracking';
+import { useSectorTracking } from './useSectorTracking';
 import { FunnelStepper } from './FunnelStepper';
 import { FunnelPeriodFilter } from './FunnelPeriodFilter';
 import { ComparisonPeriodSelector } from './ComparisonPeriodSelector';
 import { LostReasonsChart } from './LostReasonsChart';
 import { CampaignTrackingChart } from './CampaignTrackingChart';
 import { LeadSourceChart } from './LeadSourceChart';
+import { SectorDistributionChart } from './SectorDistributionChart';
 import { TargetVsActualPanel } from './TargetVsActualPanel';
 import { 
   DateRange, 
@@ -79,8 +81,16 @@ export function PipedriveFunnelDashboard({
     refetch: refetchLeadSource 
   } = useLeadSourceTracking(dateRange, { pipelineId });
 
+  const { 
+    data: sectorData, 
+    snapshotData: sectorSnapshotData,
+    loading: sectorLoading, 
+    snapshotLoading: sectorSnapshotLoading,
+    refetch: refetchSector 
+  } = useSectorTracking(dateRange, { pipelineId });
+
   const handleRefresh = async () => {
-    await Promise.all([refetch(true), refetchTracking(true), refetchLeadSource(true)]);
+    await Promise.all([refetch(true), refetchTracking(true), refetchLeadSource(true), refetchSector(true)]);
   };
 
   const handleDateRangeChange = (range: DateRange, preset?: PeriodPreset) => {
@@ -236,6 +246,18 @@ export function PipedriveFunnelDashboard({
         snapshotLoading={leadSourceSnapshotLoading}
         viewMode={viewMode}
       />
+
+      {/* Sector Distribution Chart - Only for 3D pipeline */}
+      {pipelineId === PIPELINES.threeDimension.id && (
+        <SectorDistributionChart 
+          data={sectorData}
+          snapshotData={sectorSnapshotData}
+          allStages={data?.all_stages}
+          loading={sectorLoading} 
+          snapshotLoading={sectorSnapshotLoading}
+          viewMode={viewMode}
+        />
+      )}
 
       {/* Lost Reasons Chart */}
       <LostReasonsChart 
