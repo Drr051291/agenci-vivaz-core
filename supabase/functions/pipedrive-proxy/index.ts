@@ -368,21 +368,82 @@ interface LeadSourceTrackingResult {
 }
 
 // Parse the tracking field value
+// Handles various UTM structures:
+// Format A: [F][Lead][Nativo][Sétima] - RMKT / Visitantes 30D / ad04 (uses " / ")
+// Format B: [M][Lead][Nativo][Sétima] - Geral - 00 - Funciários... - Criativos Sávio - Tera (uses " - " throughout)
 function parseTrackingField(value: string): { campaign: string; adSet: string; creative: string } {
   if (!value || value.trim() === '') {
     return { campaign: 'Não informado', adSet: 'Não informado', creative: 'Não informado' }
   }
   
-  // Split by " / " (space-slash-space) first, then try just "/"
+  // Try splitting by " / " first (Format A)
   let parts = value.split(' / ').map(p => p.trim())
+  
+  // If only 1 part after splitting by " / ", maybe it uses " - " as separator
+  // We need to be smart about this because campaigns like "[M][Lead][Nativo][Sétima] - RMKT" 
+  // have " - " as part of the campaign name
   if (parts.length < 3) {
     parts = value.split('/').map(p => p.trim())
   }
   
+  // Still only 1 part? Try a smarter " - " split
+  // Pattern for 3D pipeline: [M][Lead][Nativo][Sétima] - Campanha - Conjunto - Anúncio
+  // We need to find the structure: Campanha prefix, then split remaining by " - "
+  if (parts.length < 3) {
+    // Look for pattern starting with brackets: [X][Y][Z][W]
+    const bracketMatch = value.match(/^(\[[^\]]+\])+/)
+    if (bracketMatch) {
+      const prefix = bracketMatch[0] // e.g., "[M][Lead][Nativo][Sétima]"
+      const remainder = value.substring(prefix.length).trim()
+      
+      // Remove leading " - " if present
+      const cleanedRemainder = remainder.startsWith(' - ') 
+        ? remainder.substring(3) 
+        : (remainder.startsWith('- ') ? remainder.substring(2) : remainder)
+      
+      // Now split the remainder by " - "
+      const remainderParts = cleanedRemainder.split(' - ').map(p => p.trim()).filter(p => p)
+      
+      if (remainderParts.length >= 3) {
+        // Reconstruct: campaign = prefix + first part, adSet = second part, creative = last part
+        return {
+          campaign: `${prefix} - ${remainderParts[0]}`,
+          adSet: remainderParts.slice(1, -1).join(' - '), // Middle parts as adset
+          creative: remainderParts[remainderParts.length - 1]
+        }
+      } else if (remainderParts.length === 2) {
+        return {
+          campaign: `${prefix} - ${remainderParts[0]}`,
+          adSet: remainderParts[1],
+          creative: 'Não informado'
+        }
+      } else if (remainderParts.length === 1) {
+        return {
+          campaign: `${prefix} - ${remainderParts[0]}`,
+          adSet: 'Não informado',
+          creative: 'Não informado'
+        }
+      }
+    }
+  }
+  
+  // Clean up each part: remove leading "- " or " - " if present
+  const cleanPart = (part: string): string => {
+    if (!part) return 'Não informado'
+    let cleaned = part.trim()
+    // Remove leading dash variations
+    if (cleaned.startsWith('- ')) {
+      cleaned = cleaned.substring(2).trim()
+    } else if (cleaned.startsWith('-')) {
+      cleaned = cleaned.substring(1).trim()
+    }
+    return cleaned || 'Não informado'
+  }
+  
   return {
-    campaign: parts[0] || 'Não informado',
-    adSet: parts[1] || 'Não informado',
-    creative: parts[2] || 'Não informado'
+    campaign: cleanPart(parts[0]),
+    adSet: cleanPart(parts[1]),
+    creative: cleanPart(parts[2])
   }
 }
 
@@ -528,10 +589,15 @@ async function getCampaignTrackingData(
   const byCreative: Record<string, { total: number; by_stage: Record<number, number> }> = {}
 
   // Process each deal
-  filteredDeals.forEach(deal => {
+  filteredDeals.forEach((deal, idx) => {
     const trackingValue = deal[fieldKey] as string | undefined
     const { campaign, adSet, creative } = parseTrackingField(trackingValue || '')
     const stageId = deal.stage_id || 0
+    
+    // Log first few deals with tracking values for debugging
+    if (idx < 5 && trackingValue) {
+      console.log(`Deal ${deal.id} tracking: "${trackingValue}" => campaign="${campaign}", adSet="${adSet}", creative="${creative}"`)
+    }
 
     // Aggregate by campaign
     if (!byCampaign[campaign]) {
