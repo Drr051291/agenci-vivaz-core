@@ -247,17 +247,15 @@ export function PipedriveFunnelDashboard({
         viewMode={viewMode}
       />
 
-      {/* Sector Distribution Chart - Only for 3D pipeline */}
-      {pipelineId === PIPELINES.threeDimension.id && (
-        <SectorDistributionChart 
-          data={sectorData}
-          snapshotData={sectorSnapshotData}
-          allStages={data?.all_stages}
-          loading={sectorLoading} 
-          snapshotLoading={sectorSnapshotLoading}
-          viewMode={viewMode}
-        />
-      )}
+      {/* Sector Distribution Chart - For 3D and Brandspot pipelines */}
+      <SectorDistributionChart 
+        data={sectorData}
+        snapshotData={sectorSnapshotData}
+        allStages={data?.all_stages}
+        loading={sectorLoading} 
+        snapshotLoading={sectorSnapshotLoading}
+        viewMode={viewMode}
+      />
 
       {/* Lost Reasons Chart */}
       <LostReasonsChart 
