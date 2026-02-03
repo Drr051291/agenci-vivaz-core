@@ -63,6 +63,20 @@ export interface LeadSourceResponse {
   error?: string;
 }
 
+// Sector Distribution Types
+export interface SectorDistributionData {
+  by_sector: Record<string, { total: number; by_stage: Record<number, number> }>;
+  field_key: string | null;
+  all_stages?: StageInfo[];
+  fetched_at?: string;
+}
+
+export interface SectorDistributionResponse {
+  success: boolean;
+  data?: SectorDistributionData;
+  error?: string;
+}
+
 export type PeriodPreset = 'today' | 'yesterday' | 'thisWeek' | 'last7Days' | 'last14Days' | 'last30Days' | 'last90Days' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'lastYear' | 'custom';
 
 export type ViewMode = 'period' | 'snapshot';

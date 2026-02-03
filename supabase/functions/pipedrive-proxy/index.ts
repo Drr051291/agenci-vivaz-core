@@ -371,6 +371,12 @@ interface LeadSourceTrackingResult {
   by_source: Record<LeadSource, { total: number; by_stage: Record<number, number> }>
 }
 
+// Sector distribution result type
+interface SectorDistributionResult {
+  by_sector: Record<string, { total: number; by_stage: Record<number, number> }>
+  field_key: string | null
+}
+
 // Get the custom field keys for "Campanha:", "Conjunto:", "Anuncio:"
 interface TrackingFieldKeys {
   campaign: string | null
@@ -1050,6 +1056,278 @@ async function getLeadSourceSnapshotData(
   return result
 }
 
+// Get the custom field key for "Qual o setor da sua empresa"
+async function getSectorFieldKey(
+  supabase: AnySupabaseClient,
+  forceRefresh: boolean
+): Promise<string | null> {
+  const cacheKey = 'pipedrive_sector_field_key_v1'
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached sector field key')
+      return cached.payload as string | null
+    }
+  }
+
+  console.log('Fetching deal fields to find sector field key')
+  
+  const response = await fetchFromPipedrive('/v1/dealFields') as {
+    data?: Array<{
+      key: string
+      name: string
+      field_type: string
+    }>
+  }
+
+  const fields = response?.data || []
+  
+  // Search variations
+  const sectorVariations = [
+    'Qual o setor da sua empresa',
+    'Qual o setor da sua empresa?',
+    'Setor da empresa',
+    'Setor',
+    'setor'
+  ]
+  
+  for (const searchName of sectorVariations) {
+    // Try exact match first (case-insensitive, trimmed)
+    const exactMatch = fields.find(f => 
+      f.name.toLowerCase().trim() === searchName.toLowerCase().trim()
+    )
+    if (exactMatch) {
+      console.log(`Found sector field (exact match): "${exactMatch.name}" -> ${exactMatch.key}`)
+      await setCachedData(supabase, cacheKey, exactMatch.key, TTL_CONFIG.stages)
+      return exactMatch.key
+    }
+    
+    // Try contains match
+    const containsMatch = fields.find(f => 
+      f.name.toLowerCase().includes(searchName.toLowerCase())
+    )
+    if (containsMatch) {
+      console.log(`Found sector field (contains match): "${containsMatch.name}" -> ${containsMatch.key}`)
+      await setCachedData(supabase, cacheKey, containsMatch.key, TTL_CONFIG.stages)
+      return containsMatch.key
+    }
+  }
+  
+  console.log('Sector field not found')
+  await setCachedData(supabase, cacheKey, null, TTL_CONFIG.stages)
+  return null
+}
+
+// Get sector distribution data from deals (period)
+async function getSectorDistributionData(
+  supabase: AnySupabaseClient,
+  pipelineId: number,
+  startDate: string,
+  endDate: string,
+  forceRefresh: boolean
+): Promise<SectorDistributionResult> {
+  const cacheKey = `sector_distribution_${pipelineId}_${startDate}_${endDate}`
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached sector distribution data')
+      return cached.payload as SectorDistributionResult
+    }
+  }
+
+  // Get the sector field key
+  const sectorFieldKey = await getSectorFieldKey(supabase, forceRefresh)
+  
+  if (!sectorFieldKey) {
+    console.log('Sector field not found in Pipedrive')
+    return { by_sector: {}, field_key: null }
+  }
+
+  console.log('Fetching deals with sector field:', sectorFieldKey)
+
+  // Fetch all deals in the pipeline within the date range
+  const allDeals: Array<{
+    id: number
+    add_time?: string
+    stage_id?: number
+    status?: string
+    [key: string]: unknown
+  }> = []
+  
+  let start = 0
+  const limit = 500
+  let hasMore = true
+  
+  while (hasMore) {
+    const dealsResponse = await fetchFromPipedrive('/v1/deals', {
+      pipeline_id: pipelineId.toString(),
+      limit: limit.toString(),
+      start: start.toString()
+    }) as { 
+      data?: Array<{
+        id: number
+        add_time?: string
+        stage_id?: number
+        status?: string
+        [key: string]: unknown
+      }>
+      additional_data?: {
+        pagination?: {
+          more_items_in_collection?: boolean
+        }
+      }
+    }
+
+    const deals = dealsResponse?.data || []
+    allDeals.push(...deals)
+    
+    hasMore = dealsResponse?.additional_data?.pagination?.more_items_in_collection || false
+    start += limit
+    
+    if (start > 5000) break
+  }
+
+  console.log(`Total deals fetched for sector: ${allDeals.length}`)
+
+  // Filter to deals created in the period and after the base date
+  const filteredDeals = allDeals.filter(deal => {
+    if (!deal.add_time) return false
+    const addDate = deal.add_time.split('T')[0]
+    return addDate >= DEALS_CREATED_AFTER && addDate >= startDate && addDate <= endDate
+  })
+
+  console.log(`Deals in period for sector distribution: ${filteredDeals.length}`)
+
+  // Aggregate by sector
+  const bySector: Record<string, { total: number; by_stage: Record<number, number> }> = {}
+
+  filteredDeals.forEach((deal, idx) => {
+    const sectorValue = (deal[sectorFieldKey] as string) || 'Não informado'
+    const stageId = deal.stage_id || 0
+    
+    // Log first few deals for debugging
+    if (idx < 3) {
+      console.log(`Deal ${deal.id}: sector="${sectorValue}"`)
+    }
+
+    if (!bySector[sectorValue]) {
+      bySector[sectorValue] = { total: 0, by_stage: {} }
+    }
+    bySector[sectorValue].total++
+    bySector[sectorValue].by_stage[stageId] = (bySector[sectorValue].by_stage[stageId] || 0) + 1
+  })
+
+  // Sort by total descending
+  const sortedBySector = Object.fromEntries(
+    Object.entries(bySector).sort((a, b) => b[1].total - a[1].total)
+  )
+
+  console.log('Sector distribution result:', Object.keys(sortedBySector).length, 'sectors found')
+
+  const result: SectorDistributionResult = { by_sector: sortedBySector, field_key: sectorFieldKey }
+  await setCachedData(supabase, cacheKey, result, TTL_CONFIG.deals)
+  return result
+}
+
+// Get sector distribution SNAPSHOT data - all open deals regardless of date
+async function getSectorDistributionSnapshotData(
+  supabase: AnySupabaseClient,
+  pipelineId: number,
+  forceRefresh: boolean
+): Promise<SectorDistributionResult> {
+  const cacheKey = `sector_distribution_snapshot_${pipelineId}`
+  
+  if (!forceRefresh) {
+    const cached = await getCachedData(supabase, cacheKey)
+    if (cached) {
+      console.log('Using cached sector distribution snapshot')
+      return cached.payload as SectorDistributionResult
+    }
+  }
+
+  // Get the sector field key
+  const sectorFieldKey = await getSectorFieldKey(supabase, forceRefresh)
+  
+  if (!sectorFieldKey) {
+    console.log('Sector field not found in Pipedrive (snapshot)')
+    return { by_sector: {}, field_key: null }
+  }
+
+  console.log('Fetching OPEN deals with sector field for snapshot:', sectorFieldKey)
+
+  // Fetch ALL OPEN deals in the pipeline - no date filter for snapshot
+  const allDeals: Array<{
+    id: number
+    add_time?: string
+    stage_id?: number
+    status?: string
+    [key: string]: unknown
+  }> = []
+  
+  let start = 0
+  const limit = 500
+  let hasMore = true
+  
+  while (hasMore) {
+    const dealsResponse = await fetchFromPipedrive('/v1/deals', {
+      pipeline_id: pipelineId.toString(),
+      status: 'open',
+      limit: limit.toString(),
+      start: start.toString()
+    }) as { 
+      data?: Array<{
+        id: number
+        add_time?: string
+        stage_id?: number
+        status?: string
+        [key: string]: unknown
+      }>
+      additional_data?: {
+        pagination?: {
+          more_items_in_collection?: boolean
+        }
+      }
+    }
+
+    const deals = dealsResponse?.data || []
+    allDeals.push(...deals)
+    
+    hasMore = dealsResponse?.additional_data?.pagination?.more_items_in_collection || false
+    start += limit
+    
+    if (start > 5000) break
+  }
+
+  console.log(`Total OPEN deals fetched for sector snapshot: ${allDeals.length}`)
+
+  // Aggregate by sector - NO date filtering for snapshot
+  const bySector: Record<string, { total: number; by_stage: Record<number, number> }> = {}
+
+  allDeals.forEach(deal => {
+    const sectorValue = (deal[sectorFieldKey] as string) || 'Não informado'
+    const stageId = deal.stage_id || 0
+
+    if (!bySector[sectorValue]) {
+      bySector[sectorValue] = { total: 0, by_stage: {} }
+    }
+    bySector[sectorValue].total++
+    bySector[sectorValue].by_stage[stageId] = (bySector[sectorValue].by_stage[stageId] || 0) + 1
+  })
+
+  // Sort by total descending
+  const sortedBySector = Object.fromEntries(
+    Object.entries(bySector).sort((a, b) => b[1].total - a[1].total)
+  )
+
+  console.log('Sector distribution snapshot result:', Object.keys(sortedBySector).length, 'sectors found')
+
+  const result: SectorDistributionResult = { by_sector: sortedBySector, field_key: sectorFieldKey }
+  await setCachedData(supabase, cacheKey, result, TTL_CONFIG.deals)
+  return result
+}
+
 // Get lost deals with their loss reasons
 async function getLostDealsReasons(
   supabase: AnySupabaseClient,
@@ -1428,6 +1706,56 @@ serve(async (req) => {
       case 'get_lead_source_snapshot': {
         // Get lead source SNAPSHOT data - all open deals regardless of date
         const snapshotData = await getLeadSourceSnapshotData(
+          supabase, 
+          pipeline_id, 
+          forceRefresh
+        )
+
+        // Also get stages for reference
+        const stagesResult = await getStagesMap(supabase, pipeline_id, forceRefresh)
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              ...snapshotData,
+              all_stages: stagesResult.all,
+              fetched_at: new Date().toISOString()
+            }
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      case 'get_sector_distribution': {
+        // Get sector distribution data from deals
+        const sectorData = await getSectorDistributionData(
+          supabase, 
+          pipeline_id, 
+          start_date, 
+          end_date, 
+          forceRefresh
+        )
+
+        // Also get stages for reference
+        const stagesResult = await getStagesMap(supabase, pipeline_id, forceRefresh)
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              ...sectorData,
+              all_stages: stagesResult.all,
+              fetched_at: new Date().toISOString()
+            }
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      case 'get_sector_distribution_snapshot': {
+        // Get sector distribution SNAPSHOT data - all open deals regardless of date
+        const snapshotData = await getSectorDistributionSnapshotData(
           supabase, 
           pipeline_id, 
           forceRefresh
