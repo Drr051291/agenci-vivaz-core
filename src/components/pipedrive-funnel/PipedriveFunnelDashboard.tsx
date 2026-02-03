@@ -65,7 +65,9 @@ export function PipedriveFunnelDashboard({
   
   const { 
     data: trackingData, 
-    loading: trackingLoading, 
+    snapshotData: trackingSnapshotData,
+    loading: trackingLoading,
+    snapshotLoading: trackingSnapshotLoading,
     refetch: refetchTracking 
   } = useCampaignTracking(dateRange, { pipelineId });
   
@@ -245,8 +247,11 @@ export function PipedriveFunnelDashboard({
       {/* Campaign Tracking Chart */}
       <CampaignTrackingChart 
         data={trackingData}
+        snapshotData={trackingSnapshotData}
         allStages={data?.all_stages}
         loading={trackingLoading}
+        snapshotLoading={trackingSnapshotLoading}
+        viewMode={viewMode}
         pipelineId={pipelineId}
       />
 

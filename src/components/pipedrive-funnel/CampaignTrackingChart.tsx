@@ -4,12 +4,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Target, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { CampaignTrackingData, StageInfo, TrackingLevel, PIPELINES } from './types';
+import { CampaignTrackingData, StageInfo, TrackingLevel, ViewMode } from './types';
 
 interface CampaignTrackingChartProps {
   data?: CampaignTrackingData | null;
+  snapshotData?: CampaignTrackingData | null;
   allStages?: StageInfo[];
   loading?: boolean;
+  snapshotLoading?: boolean;
+  viewMode?: ViewMode;
   pipelineId?: number;
 }
 
@@ -108,49 +111,29 @@ function TrackingBarChart({ data, height = 200 }: { data: ChartDataItem[]; heigh
   );
 }
 
-// Filter function based on pipeline
-function filterByPipeline(
-  dataObj: Record<string, { total: number; by_stage: Record<number, number> }>,
-  pipelineId: number
-): Record<string, { total: number; by_stage: Record<number, number> }> {
-  const isBrandspot = pipelineId === PIPELINES.brandspot.id;
-  const is3D = pipelineId === PIPELINES.threeDimension.id;
-  
-  return Object.fromEntries(
-    Object.entries(dataObj).filter(([name]) => {
-      const lowerName = name.toLowerCase();
-      
-      if (isBrandspot) {
-        // Brandspot: only show campaigns with "brandspot" in name
-        return lowerName.includes('brandspot');
-      } else if (is3D) {
-        // 3D: show campaigns with "setima", "sétima", "3d", or "cgi"
-        return lowerName.includes('setima') || 
-               lowerName.includes('sétima') || 
-               lowerName.includes('3d') || 
-               lowerName.includes('cgi');
-      }
-      
-      // Default: show all
-      return true;
-    })
-  );
-}
-
-export function CampaignTrackingChart({ data, allStages, loading, pipelineId = PIPELINES.brandspot.id }: CampaignTrackingChartProps) {
+export function CampaignTrackingChart({ 
+  data, 
+  snapshotData,
+  allStages, 
+  loading, 
+  snapshotLoading,
+  viewMode = 'period',
+  pipelineId,
+}: CampaignTrackingChartProps) {
   const [activeLevel, setActiveLevel] = useState<TrackingLevel>('campaign');
   const [activeStage, setActiveStage] = useState<string>('total');
 
+  // Select the appropriate data source based on view mode
+  const activeData = viewMode === 'snapshot' ? snapshotData : data;
+  const isLoading = viewMode === 'snapshot' ? snapshotLoading : loading;
+
   const getDataForLevel = (level: TrackingLevel) => {
-    if (!data) return {};
-    let levelData: Record<string, { total: number; by_stage: Record<number, number> }>;
+    if (!activeData) return {};
     switch (level) {
-      case 'campaign': levelData = data.by_campaign; break;
-      case 'adset': levelData = data.by_adset; break;
-      case 'creative': levelData = data.by_creative; break;
+      case 'campaign': return activeData.by_campaign || {};
+      case 'adset': return activeData.by_adset || {};
+      case 'creative': return activeData.by_creative || {};
     }
-    // Apply pipeline filter
-    return filterByPipeline(levelData, pipelineId);
   };
 
   const chartData = useMemo(() => {
@@ -189,13 +172,13 @@ export function CampaignTrackingChart({ data, allStages, loading, pipelineId = P
       percentage: totalCount > 0 ? (itemData.total / totalCount) * 100 : 0,
       fill: COLORS[index % COLORS.length]
     }));
-  }, [data, activeLevel, activeStage]);
+  }, [activeData, activeLevel, activeStage]);
 
   const totalDeals = useMemo(() => {
     const levelData = getDataForLevel(activeLevel);
     if (!levelData) return 0;
     return Object.values(levelData).reduce((sum, item) => sum + item.total, 0);
-  }, [data, activeLevel]);
+  }, [activeData, activeLevel]);
 
   const stagesWithData = useMemo(() => {
     if (!allStages) return [];
@@ -213,9 +196,9 @@ export function CampaignTrackingChart({ data, allStages, loading, pipelineId = P
     });
 
     return allStages.filter(stage => stagesSet.has(stage.id));
-  }, [allStages, data, activeLevel]);
+  }, [allStages, activeData, activeLevel]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader className="pb-2">
@@ -229,7 +212,7 @@ export function CampaignTrackingChart({ data, allStages, loading, pipelineId = P
     );
   }
 
-  if (!data || !data.field_key) {
+  if (!activeData || !activeData.field_key) {
     return (
       <Card className="border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-8 gap-2">
@@ -248,7 +231,9 @@ export function CampaignTrackingChart({ data, allStages, loading, pipelineId = P
         <CardContent className="flex flex-col items-center justify-center py-8 gap-2">
           <Target className="h-8 w-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground text-center">
-            Sem dados de rastreamento para o período selecionado.
+            {viewMode === 'period' 
+              ? 'Sem dados de rastreamento para o período selecionado.'
+              : 'Sem dados de rastreamento no cenário atual.'}
           </p>
         </CardContent>
       </Card>
@@ -262,6 +247,9 @@ export function CampaignTrackingChart({ data, allStages, loading, pipelineId = P
         <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Target className="h-4 w-4 text-primary" />
             Rastreamento de Campanhas
+            <span className="text-xs text-muted-foreground font-normal">
+              ({viewMode === 'snapshot' ? 'Cenário Atual' : 'Fluxo do Período'})
+            </span>
           </CardTitle>
           <span className="text-xs text-muted-foreground">
             {totalDeals} negócio{totalDeals !== 1 ? 's' : ''}
