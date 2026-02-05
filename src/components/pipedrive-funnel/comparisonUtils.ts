@@ -49,10 +49,13 @@ export function getAutoComparisonRange(
       };
     
     case 'thisMonth':
+      // Compare same period of previous month (day 1 to day X)
+      // e.g., if today is Feb 5 and range is Feb 1-5, compare with Jan 1-5
+      const daysInPeriod = differenceInDays(end, start);
       const prevMonthStart = subMonths(start, 1);
       return { 
         start: startOfMonth(prevMonthStart), 
-        end: endOfMonth(prevMonthStart) 
+        end: subDays(subMonths(end, 1), 0) // Same day of previous month
       };
     
     case 'lastMonth':
