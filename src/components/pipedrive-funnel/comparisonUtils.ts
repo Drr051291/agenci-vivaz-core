@@ -49,13 +49,18 @@ export function getAutoComparisonRange(
       };
     
     case 'thisMonth':
-      // Compare same period of previous month (day 1 to day X)
-      // e.g., if today is Feb 5 and range is Feb 1-5, compare with Jan 1-5
-      const daysInPeriod = differenceInDays(end, start);
-      const prevMonthStart = subMonths(start, 1);
+      // Compare same period of previous month (day 1 to current day)
+      // e.g., if today is Feb 5, compare Feb 1-5 with Jan 1-5
+      const today = new Date();
+      const currentDay = today.getDate();
+      const prevMonthForThisMonth = subMonths(startOfMonth(today), 1);
+      const prevMonthEnd = new Date(prevMonthForThisMonth);
+      // Set to same day of previous month (or last day if prev month is shorter)
+      const daysInPrevMonth = endOfMonth(prevMonthForThisMonth).getDate();
+      prevMonthEnd.setDate(Math.min(currentDay, daysInPrevMonth));
       return { 
-        start: startOfMonth(prevMonthStart), 
-        end: subDays(subMonths(end, 1), 0) // Same day of previous month
+        start: startOfMonth(prevMonthForThisMonth), 
+        end: prevMonthEnd
       };
     
     case 'lastMonth':
@@ -198,7 +203,7 @@ export function getComparisonLabel(
         case 'last14Days':
           return 'vs 14 dias anteriores';
         case 'thisMonth':
-          return 'vs mês passado';
+          return 'vs mesmo período mês anterior';
         case 'lastMonth':
           return 'vs mês anterior';
         case 'thisYear':
