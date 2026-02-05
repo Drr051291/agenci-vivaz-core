@@ -1823,8 +1823,11 @@ serve(async (req) => {
 
         console.log(`Fetching deals for stage ${stageId}, mode: ${viewModeParam}`)
 
-        // Fetch deals from the stage
-        const dealsResponse = await fetchFromPipedrive('/api/v2/deals', {
+        // Get tracking field keys for campaign/adset/creative
+        const trackingKeys = await getTrackingFieldKeys(supabase, false)
+
+        // Use v1 API to get custom fields (v2 doesn't return them properly)
+        const dealsResponse = await fetchFromPipedrive('/v1/deals', {
           pipeline_id: pipeline_id.toString(),
           stage_id: stageId.toString(),
           status: 'open',
@@ -1837,6 +1840,8 @@ serve(async (req) => {
           add_time?: string
           status?: string
           value?: number
+          label?: string | number
+          [key: string]: unknown
         }> }
 
         let deals = dealsResponse?.data || []
@@ -1858,20 +1863,38 @@ serve(async (req) => {
           return dateB - dateA
         })
 
-        // Return simplified deal list
-        const simplifiedDeals = deals.map(d => ({
+        // Classify lead source based on title and label
+        const classifyLeadSource = (deal: typeof deals[0]): 'Landing Page' | 'Base Sétima' | 'Lead Nativo' => {
+          const title = deal.title?.toLowerCase() || ''
+          const hasLeadSiteTag = title.includes('[lead site]') || title.startsWith('lead site')
+          
+          // Check for BASE SETIMA label - label can be a number ID or string
+          const labelValue = deal.label
+          const isBaseSetima = typeof labelValue === 'string' && labelValue.toLowerCase().includes('base setima')
+          
+          if (hasLeadSiteTag) return 'Landing Page'
+          if (isBaseSetima) return 'Base Sétima'
+          return 'Lead Nativo'
+        }
+
+        // Return enriched deal list with source and creative info
+        const enrichedDeals = deals.map(d => ({
           id: d.id,
           title: d.title,
           person_name: d.person_name || null,
           org_name: d.org_name || null,
           add_time: d.add_time,
-          value: d.value || 0
+          value: d.value || 0,
+          lead_source: classifyLeadSource(d),
+          campaign: trackingKeys.campaign ? (d[trackingKeys.campaign] as string || null) : null,
+          adset: trackingKeys.adset ? (d[trackingKeys.adset] as string || null) : null,
+          creative: trackingKeys.creative ? (d[trackingKeys.creative] as string || null) : null
         }))
 
         return new Response(
           JSON.stringify({
             success: true,
-            data: simplifiedDeals
+            data: enrichedDeals
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
