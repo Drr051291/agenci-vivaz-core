@@ -8,14 +8,14 @@ import {
   CheckCircle2, 
   Clock, 
   Circle, 
-  History,
+  ListTodo,
   RefreshCw,
   X,
   ChevronDown,
   ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, subDays, isToday, isTomorrow, isYesterday } from "date-fns";
+import { format, isToday, isTomorrow, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
@@ -53,7 +53,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   urgent: "bg-red-200 text-red-800",
 };
 
-const MAX_VISIBLE_ITEMS = 5;
+const MAX_VISIBLE_ITEMS = 8;
 
 export function RetrovisorSection({ 
   clientId, 
@@ -72,9 +72,6 @@ export function RetrovisorSection({
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const sevenDaysAgo = subDays(new Date(), 7);
-      sevenDaysAgo.setHours(0, 0, 0, 0);
-      
       let query = supabase
         .from("tasks")
         .select(`
@@ -89,7 +86,6 @@ export function RetrovisorSection({
           assigned_profile:profiles!tasks_assigned_to_fkey(full_name)
         `)
         .eq("client_id", clientId)
-        .gte("created_at", sevenDaysAgo.toISOString())
         .in("status", ["pendente", "em_andamento", "concluido", "solicitado"])
         .order("due_date", { ascending: true, nullsFirst: false });
 
@@ -123,7 +119,7 @@ export function RetrovisorSection({
     }
   }, [clientId, meetingId]);
 
-  const handleExcludeFromRetrovisor = async (taskId: string) => {
+  const handleExcludeTask = async (taskId: string) => {
     if (!meetingId) {
       toast.error("ID da reunião não disponível");
       return;
@@ -131,7 +127,6 @@ export function RetrovisorSection({
 
     setExcludingIds(prev => new Set(prev).add(taskId));
     try {
-      // Get current excluded meetings
       const { data: task, error: fetchError } = await supabase
         .from("tasks")
         .select("meeting_excluded_from")
@@ -150,11 +145,10 @@ export function RetrovisorSection({
 
       if (error) throw error;
 
-      // Remove from local state
       setCompletedTasks(prev => prev.filter(t => t.id !== taskId));
       setPendingTasks(prev => prev.filter(t => t.id !== taskId));
 
-      toast.success("Removida do retrovisor");
+      toast.success("Removida da lista");
       onTasksUpdated?.();
     } catch (error) {
       console.error("Error excluding task:", error);
@@ -178,7 +172,6 @@ export function RetrovisorSection({
   };
 
   const totalCount = completedTasks.length + pendingTasks.length;
-  const today = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
 
   if (loading) {
     return (
@@ -194,9 +187,9 @@ export function RetrovisorSection({
   if (totalCount === 0) {
     return (
       <div className="text-center py-8 border rounded-lg bg-muted/30">
-        <History className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+        <ListTodo className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
         <p className="text-sm text-muted-foreground">
-          Nenhuma atividade nos últimos 7 dias
+          Nenhuma atividade encontrada
         </p>
         <Button 
           variant="ghost" 
@@ -266,10 +259,10 @@ export function RetrovisorSection({
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleExcludeFromRetrovisor(task.id)}
+              onClick={() => handleExcludeTask(task.id)}
               disabled={isExcluding}
               className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-              title="Remover do retrovisor"
+              title="Remover da lista"
             >
               <X className="h-3.5 w-3.5" />
             </Button>
@@ -289,8 +282,8 @@ export function RetrovisorSection({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <History className="h-4 w-4" />
-          <span>Últimos 7 dias (até {today})</span>
+          <ListTodo className="h-4 w-4" />
+          <span>{totalCount} atividade{totalCount !== 1 ? 's' : ''}</span>
         </div>
         <Button 
           variant="ghost" 
