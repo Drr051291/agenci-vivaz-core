@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { BriefingEditor } from "./BriefingEditor";
+import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 import {
   Dialog,
   DialogContent,
@@ -278,12 +280,12 @@ export function TaskDetailDialog({
               // Edit mode
               <div className="space-y-4">
                 <div>
-                  <Label>Descrição</Label>
-                  <Textarea
-                    value={editForm.description}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    placeholder="Descrição da atividade"
-                    className="min-h-[80px]"
+                  <Label>Briefing / Descrição</Label>
+                  <BriefingEditor
+                    content={editForm.description}
+                    onChange={(html) => setEditForm({ ...editForm, description: html })}
+                    placeholder="Descreva o briefing da atividade com formatação, links e imagens..."
+                    minHeight="200px"
                   />
                 </div>
 
@@ -376,10 +378,10 @@ export function TaskDetailDialog({
               <>
                 {task.description && (
                   <div>
-                    <Label className="text-base font-semibold">Descrição</Label>
-                    <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
-                      {task.description}
-                    </p>
+                    <Label className="text-base font-semibold">Briefing</Label>
+                    <div className="mt-2 prose prose-sm max-w-none text-muted-foreground">
+                      <MeetingViewer content={task.description} />
+                    </div>
                   </div>
                 )}
 
