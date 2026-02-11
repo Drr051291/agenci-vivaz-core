@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { BriefingEditor } from "./BriefingEditor";
 import {
   Select,
   SelectContent,
@@ -226,11 +226,11 @@ export function TaskDialog({ open, onOpenChange, clientId, onSuccess }: TaskDial
         );
       case "textarea":
         return (
-          <Textarea
-            value={value}
-            onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
+          <BriefingEditor
+            content={value}
+            onChange={(html) => setFormData({ ...formData, [field.key]: html })}
             placeholder={field.placeholder}
-            className="min-h-[80px]"
+            minHeight="120px"
           />
         );
       case "number":
