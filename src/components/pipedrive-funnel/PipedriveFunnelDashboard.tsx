@@ -9,14 +9,14 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 import { usePipedriveFunnel } from './usePipedriveFunnel';
-import { useCampaignTracking } from './useCampaignTracking';
+
 import { useLeadSourceTracking } from './useLeadSourceTracking';
 import { useSectorTracking } from './useSectorTracking';
 import { FunnelStepper } from './FunnelStepper';
 import { FunnelPeriodFilter } from './FunnelPeriodFilter';
 import { ComparisonPeriodSelector } from './ComparisonPeriodSelector';
 import { LostReasonsChart } from './LostReasonsChart';
-import { CampaignTrackingChart } from './CampaignTrackingChart';
+
 import { LeadSourceChart } from './LeadSourceChart';
 import { SectorDistributionChart } from './SectorDistributionChart';
 import { TargetVsActualPanel } from './TargetVsActualPanel';
@@ -65,13 +65,6 @@ export function PipedriveFunnelDashboard({
     refetch 
   } = usePipedriveFunnel(dateRange, { comparisonConfig, periodPreset, pipelineId });
   
-  const { 
-    data: trackingData, 
-    snapshotData: trackingSnapshotData,
-    loading: trackingLoading,
-    snapshotLoading: trackingSnapshotLoading,
-    refetch: refetchTracking 
-  } = useCampaignTracking(dateRange, { pipelineId });
   
   const { 
     data: leadSourceData, 
@@ -90,7 +83,7 @@ export function PipedriveFunnelDashboard({
   } = useSectorTracking(dateRange, { pipelineId });
 
   const handleRefresh = async () => {
-    await Promise.all([refetch(true), refetchTracking(true), refetchLeadSource(true), refetchSector(true)]);
+    await Promise.all([refetch(true), refetchLeadSource(true), refetchSector(true)]);
   };
 
   const handleDateRangeChange = (range: DateRange, preset?: PeriodPreset) => {
@@ -264,16 +257,6 @@ export function PipedriveFunnelDashboard({
         loading={loading} 
       />
 
-      {/* Campaign Tracking Chart */}
-      <CampaignTrackingChart 
-        data={trackingData}
-        snapshotData={trackingSnapshotData}
-        allStages={data?.all_stages}
-        loading={trackingLoading}
-        snapshotLoading={trackingSnapshotLoading}
-        viewMode={viewMode}
-        pipelineId={pipelineId}
-      />
 
       {/* Empty state when no data */}
       {!loading && data && leadsCount === 0 && Object.values(conversions).every(v => v === 0) && (
