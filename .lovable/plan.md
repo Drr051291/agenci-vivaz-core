@@ -1,50 +1,47 @@
-# Remoção Completa da Integração Google Calendar
 
-## ✅ STATUS: CONCLUÍDO
 
-A integração com Google Calendar foi completamente removida do Hub Vivaz.
+# Fix: Rastreamento de Campanhas duplicado no Dashboard 3D
 
----
+## Problema Identificado
 
-## Arquivos Excluídos
+O campo "Campanha" no Pipedrive esta retornando valores como `[M][Lead][Nativo][Sétima] - Contínua/00 - Empregadores...` -- esse e o **campo legado** que concatenava campanha + conjunto + anuncio em um unico campo.
 
-| Arquivo | Status |
-|---------|--------|
-| `supabase/functions/google-calendar/index.ts` | ✅ Excluído |
-| `src/components/calendar/GoogleCalendarConnect.tsx` | ✅ Excluído |
-| `src/components/calendar/GoogleCalendarManager.tsx` | ✅ Excluído |
-| `src/components/calendar/ImportEventsDialog.tsx` | ✅ Excluído |
-| `src/pages/GoogleCalendarCallback.tsx` | ✅ Excluído |
-| `src/hooks/useGoogleCalendar.ts` | ✅ Excluído |
-| `src/hooks/useMeetingCalendarSync.ts` | ✅ Excluído |
+O usuario criou um grupo chamado **"UTM"** no Pipedrive com tres campos separados (Campanha, Conjunto, Anuncio), mas a funcao `getTK` nao esta os encontrando corretamente. O filtro atual (`grp.length >= 3`) provavelmente falha porque o grupo UTM pode ter menos de 3 campos retornados pela API, fazendo o sistema cair no fallback que pega o campo legado.
 
----
+## Solucao
 
-## Arquivos Modificados
+Ajustar a logica de `getTK` na Edge Function `pipedrive-proxy` para:
 
-| Arquivo | Mudanças | Status |
-|---------|----------|--------|
-| `src/App.tsx` | Removido import e rota do callback | ✅ |
-| `src/components/client-details/ClientMeetings.tsx` | Removida toda lógica de Google Calendar | ✅ |
-| `src/pages/MeetingEditor.tsx` | Removidos imports, estados e funções de sincronização | ✅ |
-| `supabase/config.toml` | Removida configuração da função | ✅ |
+1. **Priorizar campos do grupo UTM** -- se existir qualquer campo no grupo UTM, buscar SOMENTE dentro dele (mudar `>= 3` para `> 0`)
+2. **Adicionar log dos field keys encontrados** para diagnostico futuro
+3. **Incrementar a cache key** para `tk6` para forcar refresh
+4. **Limpar cache antigo** das campanhas para garantir dados limpos
 
----
+## Detalhes Tecnicos
 
-## Tabelas Removidas do Banco
+### Arquivo: `supabase/functions/pipedrive-proxy/index.ts`
 
-| Tabela | Status |
-|--------|--------|
-| `google_calendar_events` | ✅ Removida via migração |
-| `google_calendar_tokens` | ✅ Removida via migração |
+Alterar a funcao `getTK` (linha 40):
 
----
+**Antes:**
+```typescript
+const src = grp.length >= 3 ? grp : fds;
+```
 
-## Resumo
+**Depois:**
+```typescript
+const src = grp.length > 0 ? grp : fds;
+```
 
-- ✅ Edge Function deletada do Supabase
-- ✅ Componentes e hooks removidos
-- ✅ Rotas removidas
-- ✅ Lógica de sincronização removida
-- ✅ Tabelas do banco removidas
-- ✅ Reuniões continuam funcionando normalmente
+E incrementar cache key de `tk5` para `tk6`.
+
+### Banco de dados
+
+Executar limpeza de cache:
+```sql
+DELETE FROM pipedrive_cache 
+WHERE key LIKE 'tk%' 
+   OR key LIKE 'campaign_%';
+```
+
+Isso forcara o sistema a re-descobrir os campos UTM corretos e re-agregar os dados de campanha com os campos separados.
