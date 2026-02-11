@@ -1,47 +1,64 @@
 
+# Recriar Relatorio de Rastreamento de Campanhas
 
-# Fix: Rastreamento de Campanhas duplicado no Dashboard 3D
+## Objetivo
 
-## Problema Identificado
+Criar um relatorio limpo e focado que mostra, **por etapa do funil**, a distribuicao percentual de Campanha, Conjunto e Anuncio. O usuario seleciona uma etapa e ve de onde vieram os deals daquela etapa. Pipeline fixo: **3D Inbound (ID 13)**.
 
-O campo "Campanha" no Pipedrive esta retornando valores como `[M][Lead][Nativo][Sétima] - Contínua/00 - Empregadores...` -- esse e o **campo legado** que concatenava campanha + conjunto + anuncio em um unico campo.
+## Conceito da Interface
 
-O usuario criou um grupo chamado **"UTM"** no Pipedrive com tres campos separados (Campanha, Conjunto, Anuncio), mas a funcao `getTK` nao esta os encontrando corretamente. O filtro atual (`grp.length >= 3`) provavelmente falha porque o grupo UTM pode ter menos de 3 campos retornados pela API, fazendo o sistema cair no fallback que pega o campo legado.
+- Seletor de etapa no topo (tabs com as etapas do funil + "Todas")
+- Ao selecionar uma etapa, exibe tres secoes lado a lado: **Campanha**, **Conjunto**, **Anuncio**
+- Cada secao mostra uma lista rankeada com barra de progresso horizontal e percentual
+- Os dados vem dos campos personalizados do Pipedrive (Campanha, Conjunto, Anuncios)
+- Respeita o viewMode existente (Fluxo do Periodo / Cenario Atual)
 
-## Solucao
+## Mudancas Tecnicas
 
-Ajustar a logica de `getTK` na Edge Function `pipedrive-proxy` para:
+### 1. Reescrever `CampaignTrackingChart.tsx` (100% novo)
 
-1. **Priorizar campos do grupo UTM** -- se existir qualquer campo no grupo UTM, buscar SOMENTE dentro dele (mudar `>= 3` para `> 0`)
-2. **Adicionar log dos field keys encontrados** para diagnostico futuro
-3. **Incrementar a cache key** para `tk6` para forcar refresh
-4. **Limpar cache antigo** das campanhas para garantir dados limpos
+- Remover toda a logica de source (Landing Page, Base Setima, Lead Nativo) -- isso ja esta no `LeadSourceChart`
+- Interface simplificada:
+  - Tabs de etapas no topo
+  - Grid 3 colunas: Campanha | Conjunto | Anuncio
+  - Cada item: nome truncado + count + percentual + barra horizontal colorida proporcional
+- Quando uma etapa e selecionada, filtra `by_stage[stageId]` para cada item
+- Percentual calculado sobre o total da dimensao naquela etapa
+- Top 10 itens por dimensao, ordenados por count decrescente
+- Itens vazios ("Nao informado") agrupados no final
 
-## Detalhes Tecnicos
+### 2. Sem mudancas na Edge Function
 
-### Arquivo: `supabase/functions/pipedrive-proxy/index.ts`
+A logica do backend (`getTrk` no `pipedrive-proxy`) ja retorna `by_campaign`, `by_adset`, `by_creative` com `by_stage` por item. Os dados necessarios ja existem -- a mudanca e puramente visual/frontend.
 
-Alterar a funcao `getTK` (linha 40):
+### 3. Sem mudancas nos types ou hook
 
-**Antes:**
-```typescript
-const src = grp.length >= 3 ? grp : fds;
+Os tipos `CampaignTrackingData`, `CampaignTrackingItem` e o hook `useCampaignTracking` permanecem inalterados.
+
+## Layout Visual
+
+```text
++----------------------------------------------------------+
+| Rastreamento de Campanhas        12 negocios              |
++----------------------------------------------------------+
+| [Todas] [Lead] [MQL] [SQL] [Oportunidade] [Contrato]     |
++----------------------------------------------------------+
+| Campanha        | Conjunto         | Anuncio              |
+|                 |                  |                       |
+| Camp A  5 (42%) | Conj X  4 (33%) | Ad 1    3 (25%)      |
+| ████████░░░░░░  | ██████░░░░░░░░  | █████░░░░░░░░░       |
+|                 |                  |                       |
+| Camp B  4 (33%) | Conj Y  3 (25%) | Ad 2    3 (25%)      |
+| ██████░░░░░░░░  | █████░░░░░░░░░  | █████░░░░░░░░░       |
+|                 |                  |                       |
+| Camp C  3 (25%) | Conj Z  5 (42%) | Ad 3    6 (50%)      |
+| █████░░░░░░░░░  | ████████░░░░░░  | ██████████░░░        |
++----------------------------------------------------------+
 ```
 
-**Depois:**
-```typescript
-const src = grp.length > 0 ? grp : fds;
-```
+## Resumo
 
-E incrementar cache key de `tk5` para `tk6`.
-
-### Banco de dados
-
-Executar limpeza de cache:
-```sql
-DELETE FROM pipedrive_cache 
-WHERE key LIKE 'tk%' 
-   OR key LIKE 'campaign_%';
-```
-
-Isso forcara o sistema a re-descobrir os campos UTM corretos e re-agregar os dados de campanha com os campos separados.
+- **1 arquivo reescrito**: `src/components/pipedrive-funnel/CampaignTrackingChart.tsx`
+- **0 arquivos de backend alterados**
+- **0 tipos alterados**
+- Visual limpo focado na pergunta: "de onde vieram os deals desta etapa?"
