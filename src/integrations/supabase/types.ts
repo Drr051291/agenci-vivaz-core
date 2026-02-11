@@ -2540,6 +2540,8 @@ export type Database = {
           owner_type: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
+          share_token: string | null
+          slug: string | null
           source: string | null
           source_id: string | null
           status: string
@@ -2560,6 +2562,8 @@ export type Database = {
           owner_type?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          share_token?: string | null
+          slug?: string | null
           source?: string | null
           source_id?: string | null
           status?: string
@@ -2580,6 +2584,8 @@ export type Database = {
           owner_type?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          share_token?: string | null
+          slug?: string | null
           source?: string | null
           source_id?: string | null
           status?: string
