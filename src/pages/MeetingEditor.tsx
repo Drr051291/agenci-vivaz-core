@@ -524,8 +524,8 @@ export default function MeetingEditor() {
     if (sections.questionsAndDiscussions && sections.questionsAndDiscussions.trim() !== '' && sections.questionsAndDiscussions !== '<p></p>') {
       presentationSections.push({ id: 'questions', title: 'Dúvidas e Discussões' });
     }
-    // 8. Todo's - sempre mostra pois busca tarefas dinamicamente
-    presentationSections.push({ id: 'todos', title: "Todo's" });
+    // 8. Tasks - sempre mostra pois busca tarefas dinamicamente
+    presentationSections.push({ id: 'todos', title: "Tasks" });
     
     return presentationSections;
   };
