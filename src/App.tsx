@@ -19,6 +19,7 @@ import ClientVivazAI from "./pages/client-area/ClientVivazAI";
 import ClientEducation from "./pages/client-area/ClientEducation";
 import Users from "./pages/Users";
 import SharedMeeting from "./pages/SharedMeeting";
+import SharedTask from "./pages/SharedTask";
 import NotFound from "./pages/NotFound";
 import Financial from "./pages/Financial";
 import Ferramentas from "./pages/Ferramentas";
@@ -69,6 +70,7 @@ const App = () => (
           <Route path="/educacao" element={<EducacaoProcessos />} />
           <Route path="/notificacoes" element={<Notifications />} />
           <Route path="/reunioes/:token" element={<SharedMeeting />} />
+          <Route path="/atividades/:token" element={<SharedTask />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

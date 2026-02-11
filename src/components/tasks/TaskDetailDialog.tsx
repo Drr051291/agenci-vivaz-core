@@ -30,9 +30,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, User, X, Pencil, Trash2 } from "lucide-react";
+import { Calendar, User, X, Pencil, Trash2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { TaskComments } from "./TaskComments";
+import { ShareTaskDialog } from "./ShareTaskDialog";
 import {
   TASK_CATEGORIES,
   TaskCategory,
@@ -57,6 +58,8 @@ interface Task {
   due_date?: string;
   category: string;
   assigned_to?: string;
+  share_token?: string;
+  slug?: string;
   assigned_profile?: {
     full_name: string;
   };
@@ -83,6 +86,7 @@ export function TaskDetailDialog({
   const [updating, setUpdating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   
@@ -243,6 +247,14 @@ export function TaskDetailDialog({
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowShareDialog(true)}
+                  title="Compartilhar"
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
                 {canEdit && !isEditing && (
                   <>
                     <Button
@@ -462,6 +474,16 @@ export function TaskDetailDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {task && (
+        <ShareTaskDialog
+          open={showShareDialog}
+          onOpenChange={setShowShareDialog}
+          taskSlug={task.slug}
+          shareToken={task.share_token || task.id}
+          taskTitle={task.title}
+        />
+      )}
     </>
   );
 }
