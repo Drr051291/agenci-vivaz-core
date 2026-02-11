@@ -90,7 +90,7 @@ const ClientDashboard = () => {
         .select("id, title, status, priority, due_date")
         .eq("client_id", clientId)
         .eq("assigned_to", userId)
-        .not("status", "eq", "done")
+        .not("status", "eq", "concluido")
         .order("due_date", { ascending: true, nullsFirst: false })
         .limit(5);
 
@@ -181,14 +181,16 @@ const ClientDashboard = () => {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      pending: "bg-yellow-500/10 text-yellow-600",
-      in_progress: "bg-blue-500/10 text-blue-600",
-      done: "bg-green-500/10 text-green-600",
+      pendente: "bg-yellow-500/10 text-yellow-600",
+      em_andamento: "bg-blue-500/10 text-blue-600",
+      concluido: "bg-green-500/10 text-green-600",
+      solicitado: "bg-purple-500/10 text-purple-600",
     };
     const labels: Record<string, string> = {
-      pending: "Pendente",
-      in_progress: "Em andamento",
-      done: "Concluída",
+      pendente: "Pendente",
+      em_andamento: "Em andamento",
+      concluido: "Concluída",
+      solicitado: "Solicitado",
     };
     return (
       <Badge variant="secondary" className={styles[status] || ""}>
