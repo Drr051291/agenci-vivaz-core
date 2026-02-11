@@ -9,10 +9,16 @@ export interface LostReasonsData {
   by_stage: Record<number, Record<string, number>>;
 }
 
+export interface CampaignTrackingItem {
+  total: number;
+  by_stage: Record<number, number>;
+  by_source?: Record<string, number>;
+}
+
 export interface CampaignTrackingData {
-  by_campaign: Record<string, { total: number; by_stage: Record<number, number> }>;
-  by_adset: Record<string, { total: number; by_stage: Record<number, number> }>;
-  by_creative: Record<string, { total: number; by_stage: Record<number, number> }>;
+  by_campaign: Record<string, CampaignTrackingItem>;
+  by_adset: Record<string, CampaignTrackingItem>;
+  by_creative: Record<string, CampaignTrackingItem>;
   field_keys: {
     campaign: string | null;
     adset: string | null;
