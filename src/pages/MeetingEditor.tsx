@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, TrendingUp, Target, Wrench, Stethoscope, MessageSquare, ListTodo } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, TrendingUp, Target, Wrench, Stethoscope, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -28,7 +28,7 @@ import {
   MeetingStatusBadge,
 } from "@/components/meetings";
 import { MeetingActionPlan, ActionPlanItem } from "@/components/meetings/MeetingActionPlan";
-import { RetrovisorSection, DiagnosisPickerSection, EnhancedSidebar, SendToTasksButton } from "@/components/meetings/v2";
+import { DiagnosisPickerSection, EnhancedSidebar, SendToTasksButton } from "@/components/meetings/v2";
 import { useClientSlugResolver, useMeetingSlugResolver, getClientSlug } from "@/hooks/useSlugResolver";
 
 interface Task {
@@ -524,8 +524,6 @@ export default function MeetingEditor() {
     if (sections.questionsAndDiscussions && sections.questionsAndDiscussions.trim() !== '' && sections.questionsAndDiscussions !== '<p></p>') {
       presentationSections.push({ id: 'questions', title: 'Dúvidas e Discussões' });
     }
-    // 8. Tasks - sempre mostra pois busca tarefas dinamicamente
-    presentationSections.push({ id: 'todos', title: "Tasks" });
     
     return presentationSections;
   };
@@ -762,20 +760,6 @@ export default function MeetingEditor() {
                 </>
               )}
 
-              {section.id === 'todos' && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <ListTodo className="h-5 w-5 text-primary" />
-                    Todo's
-                  </h2>
-                  <RetrovisorSection
-                    clientId={clientId || ""}
-                    meetingId={meetingId}
-                    isEditing={false}
-                    onTasksUpdated={() => {}}
-                  />
-                </>
-              )}
             </div>
           ))}
         </div>
@@ -1102,19 +1086,6 @@ export default function MeetingEditor() {
                   </div>
                 )}
               </div>
-            </CollapsibleSection>
-
-            {/* Todo's */}
-            <CollapsibleSection 
-              title="Todo's" 
-              icon={<ListTodo className="h-5 w-5" />}
-            >
-              <RetrovisorSection
-                clientId={clientId || ""}
-                meetingId={meetingId}
-                isEditing={isEditMode}
-                onTasksUpdated={() => loadMeetingData()}
-              />
             </CollapsibleSection>
           </div>
 
