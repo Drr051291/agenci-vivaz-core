@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, TrendingUp, Target, Wrench, History, Stethoscope, MessageSquare } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, TrendingUp, Target, Wrench, Stethoscope, MessageSquare, ListTodo } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -504,29 +504,28 @@ export default function MeetingEditor() {
     if (sections.executiveSummary.length > 0) {
       presentationSections.push({ id: 'summary', title: 'Resumo Executivo' });
     }
-    // 3. Retrovisor - sempre mostra pois busca tarefas dinamicamente
-    presentationSections.push({ id: 'retrovisor', title: 'Retrovisor' });
-    
-    // 4. Análise de KPIs
+    // 3. Análise de KPIs
     if (sections.metrics.some(m => m.actual_value !== null || m.target_value !== null)) {
       presentationSections.push({ id: 'metrics', title: 'Análise de KPIs' });
     }
-    // 5. Desempenho por Canal
+    // 4. Desempenho por Canal
     if (sections.channels.length > 0) {
       presentationSections.push({ id: 'channels', title: 'Desempenho por Canal' });
     }
-    // 6. Diagnóstico
+    // 5. Diagnóstico
     if (sections.diagnosisItems.length > 0) {
       presentationSections.push({ id: 'diagnosis', title: 'Diagnóstico' });
     }
-    // 7. Plano de Ação
+    // 6. Plano de Ação
     if (sections.actionPlan.length > 0) {
       presentationSections.push({ id: 'actions', title: 'Plano de Ação' });
     }
-    // 8. Dúvidas e Discussões
+    // 7. Dúvidas e Discussões
     if (sections.questionsAndDiscussions && sections.questionsAndDiscussions.trim() !== '' && sections.questionsAndDiscussions !== '<p></p>') {
       presentationSections.push({ id: 'questions', title: 'Dúvidas e Discussões' });
     }
+    // 8. Todo's - sempre mostra pois busca tarefas dinamicamente
+    presentationSections.push({ id: 'todos', title: "Todo's" });
     
     return presentationSections;
   };
@@ -751,21 +750,6 @@ export default function MeetingEditor() {
                 </>
               )}
 
-              {section.id === 'retrovisor' && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <History className="h-5 w-5 text-primary" />
-                    Retrovisor
-                  </h2>
-                  <RetrovisorSection
-                    clientId={clientId || ""}
-                    meetingId={meetingId}
-                    isEditing={false}
-                    onTasksUpdated={() => {}}
-                  />
-                </>
-              )}
-
               {section.id === 'questions' && (
                 <>
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -775,6 +759,21 @@ export default function MeetingEditor() {
                   <div className="prose prose-sm max-w-none">
                     <MeetingViewer content={sections.questionsAndDiscussions} />
                   </div>
+                </>
+              )}
+
+              {section.id === 'todos' && (
+                <>
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <ListTodo className="h-5 w-5 text-primary" />
+                    Todo's
+                  </h2>
+                  <RetrovisorSection
+                    clientId={clientId || ""}
+                    meetingId={meetingId}
+                    isEditing={false}
+                    onTasksUpdated={() => {}}
+                  />
                 </>
               )}
             </div>
@@ -1019,18 +1018,6 @@ export default function MeetingEditor() {
               />
             </CollapsibleSection>
 
-            {/* 3. Retrovisor */}
-            <CollapsibleSection 
-              title="Retrovisor" 
-              icon={<History className="h-5 w-5" />}
-            >
-              <RetrovisorSection
-                clientId={clientId || ""}
-                meetingId={meetingId}
-                isEditing={isEditMode}
-                onTasksUpdated={() => loadMeetingData()}
-              />
-            </CollapsibleSection>
 
             {/* Análise de KPIs */}
             <CollapsibleSection 
@@ -1115,6 +1102,19 @@ export default function MeetingEditor() {
                   </div>
                 )}
               </div>
+            </CollapsibleSection>
+
+            {/* Todo's */}
+            <CollapsibleSection 
+              title="Todo's" 
+              icon={<ListTodo className="h-5 w-5" />}
+            >
+              <RetrovisorSection
+                clientId={clientId || ""}
+                meetingId={meetingId}
+                isEditing={isEditMode}
+                onTasksUpdated={() => loadMeetingData()}
+              />
             </CollapsibleSection>
           </div>
 

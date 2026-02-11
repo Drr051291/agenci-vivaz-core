@@ -152,15 +152,11 @@ export default function ClientMeetingView() {
         setActionPlanItems(contentJson.actions);
       }
 
-      // Fetch recent tasks (retrovisor)
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
+      // Fetch all tasks for this client
       const { data: tasksData } = await supabase
         .from("tasks")
         .select("id, title, status, priority, due_date, category, assigned_to, meeting_excluded_from")
         .eq("client_id", clientId)
-        .gte("created_at", sevenDaysAgo.toISOString())
         .in("status", ["pendente", "em_andamento", "concluido", "solicitado"])
         .order("created_at", { ascending: false });
 

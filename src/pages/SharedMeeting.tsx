@@ -165,16 +165,12 @@ export default function SharedMeeting() {
         setActionPlanItems(contentJson.actions);
       }
 
-      // Fetch recent tasks for retrovisor if client_id exists
+      // Fetch all tasks for this client
       if (meetingData.client_id) {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        
         const { data: tasksData } = await supabase
           .from("tasks")
           .select("id, title, status, priority, due_date, category, assigned_to, meeting_excluded_from")
           .eq("client_id", meetingData.client_id)
-          .gte("created_at", sevenDaysAgo.toISOString())
           .in("status", ["pendente", "em_andamento", "concluido", "solicitado"])
           .order("created_at", { ascending: false });
 
