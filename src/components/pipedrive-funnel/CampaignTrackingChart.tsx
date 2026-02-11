@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { Target, AlertCircle, Megaphone, Layers, Film } from 'lucide-react';
-import { CampaignTrackingData, StageInfo, ViewMode } from './types';
+import { CampaignTrackingData, CampaignTrackingItem, StageInfo, ViewMode, LeadSource } from './types';
 import { cn } from '@/lib/utils';
 
 interface CampaignTrackingChartProps {
@@ -20,7 +21,22 @@ interface TrackingItem {
   name: string;
   count: number;
   percentage: number;
+  by_source?: Record<string, number>;
 }
+
+const SOURCE_COLORS: Record<string, string> = {
+  'Landing Page': 'bg-blue-500',
+  'Base Sétima': 'bg-purple-500',
+  'Lead Nativo': 'bg-emerald-500',
+};
+
+const SOURCE_DOT_COLORS: Record<string, string> = {
+  'Landing Page': 'bg-blue-400',
+  'Base Sétima': 'bg-purple-400',
+  'Lead Nativo': 'bg-emerald-400',
+};
+
+const SOURCE_ORDER: LeadSource[] = ['Lead Nativo', 'Landing Page', 'Base Sétima'];
 
 interface TrackingSectionProps {
   title: string;
@@ -30,7 +46,49 @@ interface TrackingSectionProps {
   bgClass: string;
 }
 
-function TrackingSection({ title, icon, data, colorClass, bgClass }: TrackingSectionProps) {
+function SourceSegmentBar({ by_source, total }: { by_source?: Record<string, number>; total: number }) {
+  if (!by_source || total === 0) return null;
+  
+  return (
+    <div className="h-2 rounded-full overflow-hidden flex bg-muted/40">
+      {SOURCE_ORDER.map(source => {
+        const count = by_source[source] || 0;
+        if (count === 0) return null;
+        const pct = (count / total) * 100;
+        return (
+          <div
+            key={source}
+            className={cn("h-full transition-all duration-500", SOURCE_COLORS[source])}
+            style={{ width: `${Math.max(pct, 2)}%` }}
+            title={`${source}: ${count} (${pct.toFixed(0)}%)`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function SourceBadges({ by_source, total }: { by_source?: Record<string, number>; total: number }) {
+  if (!by_source || total === 0) return null;
+  
+  return (
+    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+      {SOURCE_ORDER.map(source => {
+        const count = by_source[source] || 0;
+        if (count === 0) return null;
+        const pct = (count / total) * 100;
+        return (
+          <span key={source} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className={cn("inline-block h-2 w-2 rounded-full", SOURCE_DOT_COLORS[source])} />
+            {count} ({pct.toFixed(0)}%)
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function TrackingSection({ title, icon, data }: TrackingSectionProps) {
   if (data.length === 0) {
     return (
       <div className="space-y-2">
@@ -51,14 +109,14 @@ function TrackingSection({ title, icon, data, colorClass, bgClass }: TrackingSec
         {icon}
         <span>{title}</span>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {data.map((item, index) => (
           <div key={index} className="space-y-1">
             <div className="flex items-center justify-between text-xs">
               <span 
                 className="truncate font-medium" 
                 title={item.name}
-                style={{ maxWidth: '65%' }}
+                style={{ maxWidth: '60%' }}
               >
                 {item.name}
               </span>
@@ -66,12 +124,8 @@ function TrackingSection({ title, icon, data, colorClass, bgClass }: TrackingSec
                 {item.count} ({item.percentage.toFixed(0)}%)
               </span>
             </div>
-            <div className={cn("h-2 rounded-full", bgClass)}>
-              <div 
-                className={cn("h-full rounded-full transition-all duration-500", colorClass)}
-                style={{ width: `${Math.max(item.percentage, 2)}%` }}
-              />
-            </div>
+            <SourceSegmentBar by_source={item.by_source} total={item.count} />
+            <SourceBadges by_source={item.by_source} total={item.count} />
           </div>
         ))}
       </div>
@@ -89,20 +143,18 @@ export function CampaignTrackingChart({
 }: CampaignTrackingChartProps) {
   const [activeStage, setActiveStage] = useState<string>('total');
 
-  // Select the appropriate data source based on view mode
   const activeData = viewMode === 'snapshot' ? snapshotData : data;
   const isLoading = viewMode === 'snapshot' ? snapshotLoading : loading;
 
   const processData = (
-    rawData: Record<string, { total: number; by_stage: Record<number, number> }> | undefined
+    rawData: Record<string, CampaignTrackingItem> | undefined
   ): TrackingItem[] => {
     if (!rawData) return [];
 
     const entries = Object.entries(rawData);
     if (entries.length === 0) return [];
 
-    // Filter by stage if needed
-    let filteredEntries: Array<[string, { total: number; by_stage: Record<number, number> }]>;
+    let filteredEntries: Array<[string, CampaignTrackingItem]>;
     
     if (activeStage === 'total') {
       filteredEntries = entries;
@@ -112,11 +164,10 @@ export function CampaignTrackingChart({
         .map(([name, data]) => [name, { 
           ...data, 
           total: data.by_stage[stageId] || 0 
-        }] as [string, { total: number; by_stage: Record<number, number> }])
+        }] as [string, CampaignTrackingItem])
         .filter(([, data]) => data.total > 0);
     }
 
-    // Sort by total and take top 8
     const sorted = filteredEntries
       .sort((a, b) => b[1].total - a[1].total)
       .slice(0, 8);
@@ -127,6 +178,7 @@ export function CampaignTrackingChart({
       name: name || 'Não informado',
       count: itemData.total,
       percentage: totalCount > 0 ? (itemData.total / totalCount) * 100 : 0,
+      by_source: itemData.by_source,
     }));
   };
 
@@ -142,10 +194,9 @@ export function CampaignTrackingChart({
   const stagesWithData = useMemo(() => {
     if (!allStages || !activeData?.by_campaign) return [];
 
-    // Find which stages have data across all dimensions
     const stagesSet = new Set<number>();
     
-    const addStagesFromData = (dataObj: Record<string, { total: number; by_stage: Record<number, number> }> | undefined) => {
+    const addStagesFromData = (dataObj: Record<string, CampaignTrackingItem> | undefined) => {
       if (!dataObj) return;
       Object.values(dataObj).forEach(item => {
         Object.keys(item.by_stage).forEach(stageId => {
@@ -222,9 +273,20 @@ export function CampaignTrackingChart({
               ({viewMode === 'snapshot' ? 'Cenário Atual' : 'Fluxo do Período'})
             </span>
           </CardTitle>
-          <span className="text-xs text-muted-foreground">
-            {totalDeals} negócio{totalDeals !== 1 ? 's' : ''}
-          </span>
+          <div className="flex items-center gap-3">
+            {/* Source legend */}
+            <div className="flex items-center gap-2">
+              {SOURCE_ORDER.map(source => (
+                <span key={source} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <span className={cn("inline-block h-2 w-2 rounded-full", SOURCE_DOT_COLORS[source])} />
+                  {source}
+                </span>
+              ))}
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {totalDeals} negócio{totalDeals !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
