@@ -31,6 +31,8 @@ interface Task {
   due_date?: string;
   category: string;
   assigned_to?: string;
+  share_token?: string;
+  slug?: string;
   assigned_profile?: {
     full_name: string;
   };
