@@ -435,13 +435,13 @@ export function MeetingPresentationView({
             </Card>
           )}
 
-          {/* 9. Todo's */}
+          {/* 9. Tasks */}
           {recentTasks.length > 0 && (
             <Card className="transition-all">
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <ListTodo className="h-5 w-5 text-primary" />
-                  Todo's
+                  Tasks
                   <Badge variant="secondary" className="text-xs font-normal">{recentTasks.length} atividades</Badge>
                 </h2>
                 
