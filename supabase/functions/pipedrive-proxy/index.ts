@@ -41,12 +41,13 @@ const getArr = async (sb: any, pid: number, st: any[], sd: string, ed: string, f
 const getAllFields = async (sb: any, f: boolean) => { const k = 'adf'; if (!f) { const c = await cache(sb, k); if (c) return c }; const r = await pd('/v1/dealFields', { limit: '500' }); const d = r?.data || []; await setC(sb, k, d, TTL.s); return d }
 
 const getTK = async (sb: any, f: boolean) => {
-  const k = 'tk7'; if (!f) { const c = await cache(sb, k); if (c) return c }
+  const k = 'tk8'; if (!f) { const c = await cache(sb, k); if (c) return c }
   const fds = await getAllFields(sb, f)
   const utmFs = fds.filter((x: any) => { const gn = typeof x.group === 'object' && x.group ? (x.group.name || '') : ''; return gn.toUpperCase().includes('UTM') })
   const src = utmFs.length > 0 ? utmFs : fds; const used = new Set<string>()
   const fn = (vs: string[]) => { for (const v of vs) { const m = src.find((x: any) => x.name.toLowerCase().includes(v.toLowerCase()) && !used.has(x.key)); if (m) { used.add(m.key); return m.key } }; return null }
-  const res = { campaign: fn(['Campanha']), adset: fn(['Conjunto']), creative: fn(['Anuncio', 'Anúncio']) }; await setC(sb, k, res, TTL.s); return res
+  const callField = fds.find((x: any) => x.name.toLowerCase().includes('call realizada'))
+  const res = { campaign: fn(['Campanha']), adset: fn(['Conjunto']), creative: fn(['Anuncio', 'Anúncio']), call_realizada: callField?.key || null, call_options: callField?.options || [] }; await setC(sb, k, res, TTL.s); return res
 }
 const getLb = async (sb: any, f: boolean) => { const k = 'lb'; if (!f) { const c = await cache(sb, k); if (c) return c }; const fds = await getAllFields(sb, f); const lf = fds.find((x: any) => x.key === 'label'); const lb = lf?.options?.map((o: any) => ({ id: o.id, name: o.label })) || []; await setC(sb, k, lb, TTL.s); return lb }
 const getSK = async (sb: any, pid: number, f: boolean) => { const k = `sk_${pid}`; if (!f) { const c = await cache(sb, k); if (c) return c }; const fds = await getAllFields(sb, f); const vs = pid === 9 ? ['Segmento'] : pid === 13 ? ['setor'] : ['Segmento', 'Setor']; for (const v of vs) { const m = fds.find((x: any) => x.name.toLowerCase().includes(v.toLowerCase())); if (m) { await setC(sb, k, m.key, TTL.s); return m.key } }; await setC(sb, k, null, TTL.s); return null }
@@ -91,7 +92,8 @@ serve(async (req) => {
       if (vm === 'period' && sd && ed) dl = dl.filter((d: any) => { const dt = d.add_time?.split('T')[0] || ''; return dt >= AFTER && dt >= sd && dt <= ed })
       dl.sort((a: any, b: any) => (b.add_time ? new Date(b.add_time).getTime() : 0) - (a.add_time ? new Date(a.add_time).getTime() : 0))
       const cls = (d: any): LS => { const t = d.title?.toLowerCase() || ''; if (t.includes('[lead site]') || t.startsWith('lead site')) return 'Landing Page'; if (typeof d.label === 'string' && d.label.toLowerCase().includes('base setima')) return 'Base Sétima'; return 'Lead Nativo' }
-      return R({ success: true, data: dl.map((d: any) => ({ id: d.id, title: d.title, person_name: d.person_name || null, org_name: d.org_name || null, add_time: d.add_time, value: d.value || 0, lead_source: cls(d), campaign: ks.campaign ? (d[ks.campaign] || null) : null, adset: ks.adset ? (d[ks.adset] || null) : null, creative: ks.creative ? (d[ks.creative] || null) : null })) })
+      const callOptMap: Record<string, string> = {}; (ks.call_options || []).forEach((o: any) => { callOptMap[String(o.id)] = o.label })
+      return R({ success: true, data: dl.map((d: any) => { const rawCall = ks.call_realizada ? d[ks.call_realizada] : null; const callValue = rawCall ? (callOptMap[String(rawCall)] || String(rawCall)) : null; return { id: d.id, title: d.title, person_name: d.person_name || null, org_name: d.org_name || null, add_time: d.add_time, value: d.value || 0, lead_source: cls(d), campaign: ks.campaign ? (d[ks.campaign] || null) : null, adset: ks.adset ? (d[ks.adset] || null) : null, creative: ks.creative ? (d[ks.creative] || null) : null, call_realizada: callValue } }) })
     }
     throw new Error(`Unknown action: ${action}`)
   } catch (e) { console.error('Error:', e); return new Response(JSON.stringify({ success: false, error: e instanceof Error ? e.message : 'Unknown error' }), { headers: { ...cors, 'Content-Type': 'application/json' }, status: 400 }) }
