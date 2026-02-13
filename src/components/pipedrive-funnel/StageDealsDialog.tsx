@@ -8,7 +8,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, User, Calendar, Building2, Tag, Megaphone } from 'lucide-react';
+import { ExternalLink, User, Calendar, Building2, Tag, Megaphone, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { StageInfo, ViewMode, PIPEDRIVE_DOMAIN, LeadSource } from './types';
 import { format, parseISO } from 'date-fns';
@@ -26,7 +26,16 @@ interface Deal {
   campaign?: string | null;
   adset?: string | null;
   creative?: string | null;
+  call_realizada?: string | null;
 }
+
+const CALL_COLORS: Record<string, string> = {
+  'sim': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  'não': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  'nao': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  'noshow': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  'no show': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+};
 
 interface StageDealsDialogProps {
   open: boolean;
@@ -245,6 +254,17 @@ export function StageDealsDialog({
                         <span className="text-[10px] text-muted-foreground italic">
                           Sem rastreamento
                         </span>
+                      )}
+
+                      {/* Call realizada badge */}
+                      {deal.call_realizada && (
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-[10px] px-1.5 py-0 ${CALL_COLORS[deal.call_realizada.toLowerCase()] || 'bg-muted text-muted-foreground'}`}
+                        >
+                          <Phone className="h-2.5 w-2.5 mr-1" />
+                          Call: {deal.call_realizada}
+                        </Badge>
                       )}
                     </div>
                   )}
