@@ -1721,6 +1721,171 @@ export type Database = {
           },
         ]
       }
+      meta_connections: {
+        Row: {
+          ad_account_id: string
+          client_id: string
+          created_at: string
+          id: string
+          last_error: string | null
+          last_sync_at: string | null
+          status: string
+          token_ciphertext: string | null
+          token_source: string
+          updated_at: string
+        }
+        Insert: {
+          ad_account_id: string
+          client_id: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          status?: string
+          token_ciphertext?: string | null
+          token_source?: string
+          updated_at?: string
+        }
+        Update: {
+          ad_account_id?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          status?: string
+          token_ciphertext?: string | null
+          token_source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_daily_insights: {
+        Row: {
+          ad_account_id: string
+          clicks: number
+          client_id: string
+          cpc: number
+          cpm: number
+          created_at: string
+          ctr: number
+          date: string
+          entity_id: string
+          entity_name: string
+          frequency: number
+          id: string
+          impressions: number
+          leads: number
+          level: string
+          purchases: number
+          raw_actions: Json | null
+          reach: number
+          results: number
+          spend: number
+          updated_at: string
+        }
+        Insert: {
+          ad_account_id: string
+          clicks?: number
+          client_id: string
+          cpc?: number
+          cpm?: number
+          created_at?: string
+          ctr?: number
+          date: string
+          entity_id: string
+          entity_name?: string
+          frequency?: number
+          id?: string
+          impressions?: number
+          leads?: number
+          level?: string
+          purchases?: number
+          raw_actions?: Json | null
+          reach?: number
+          results?: number
+          spend?: number
+          updated_at?: string
+        }
+        Update: {
+          ad_account_id?: string
+          clicks?: number
+          client_id?: string
+          cpc?: number
+          cpm?: number
+          created_at?: string
+          ctr?: number
+          date?: string
+          entity_id?: string
+          entity_name?: string
+          frequency?: number
+          id?: string
+          impressions?: number
+          leads?: number
+          level?: string
+          purchases?: number
+          raw_actions?: Json | null
+          reach?: number
+          results?: number
+          spend?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_daily_insights_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_sync_runs: {
+        Row: {
+          client_id: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          records_upserted: number | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          client_id: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          records_upserted?: number | null
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          client_id?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          records_upserted?: number | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_sync_runs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ml_pricing_simulations: {
         Row: {
           ads_cost: number
