@@ -6,7 +6,8 @@ const corsHeaders = {
 };
 
 const META_API_BASE = 'https://graph.facebook.com/v20.0';
-const INSIGHTS_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values';
+const INSIGHTS_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks';
+const CREATIVE_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks,ad_name,adset_name,campaign_name';
 
 function getToken(): string {
   const token = Deno.env.get('META_ACCESS_TOKEN');
@@ -37,14 +38,44 @@ function extractActions(rawActions: any[], actionType: string): number {
   return matches.reduce((sum, a) => sum + parseFloat(a.value || '0'), 0);
 }
 
+function extractOutboundClicks(outboundClicks: any[]): number {
+  if (!Array.isArray(outboundClicks)) return 0;
+  return outboundClicks.reduce((sum, a) => sum + parseFloat(a.value || '0'), 0);
+}
+
+// Specific lead extraction helpers
+function extractLeadsNative(rawActions: any[]): number {
+  // onsite_conversion.lead_grouped = native/instant form leads
+  if (!Array.isArray(rawActions)) return 0;
+  return rawActions
+    .filter(a => a.action_type === 'onsite_conversion.lead_grouped' || a.action_type === 'onsite_conversion.lead')
+    .reduce((sum, a) => sum + parseFloat(a.value || '0'), 0);
+}
+
+function extractLeadsLandingPage(rawActions: any[]): number {
+  // offsite_conversion.fb_pixel_lead = pixel leads (landing page)
+  if (!Array.isArray(rawActions)) return 0;
+  return rawActions
+    .filter(a => a.action_type === 'offsite_conversion.fb_pixel_lead' || a.action_type === 'lead')
+    .reduce((sum, a) => sum + parseFloat(a.value || '0'), 0);
+}
+
+function extractLandingPageViews(rawActions: any[]): number {
+  if (!Array.isArray(rawActions)) return 0;
+  return rawActions
+    .filter(a => a.action_type === 'landing_page_view')
+    .reduce((sum, a) => sum + parseFloat(a.value || '0'), 0);
+}
+
 async function fetchInsights(
   adAccountId: string,
   dateFrom: string,
   dateTo: string,
-  level: 'account' | 'campaign'
+  level: 'account' | 'campaign' | 'ad'
 ): Promise<any[]> {
+  const fields = level === 'ad' ? CREATIVE_FIELDS : INSIGHTS_FIELDS;
   const params: Record<string, string> = {
-    fields: INSIGHTS_FIELDS,
+    fields,
     time_range: JSON.stringify({ since: dateFrom, until: dateTo }),
     time_increment: '1',
     level,
@@ -74,6 +105,47 @@ async function fetchInsights(
   }
 
   return allData;
+}
+
+function deduplicateByKey(insights: any[], getKey: (d: any) => string): Record<string, any> {
+  const deduped: Record<string, any> = {};
+  insights.forEach((d: any) => {
+    const key = getKey(d);
+    if (!deduped[key]) {
+      deduped[key] = { ...d };
+    } else {
+      const existing = deduped[key];
+      existing.impressions = String(parseInt(existing.impressions || '0') + parseInt(d.impressions || '0'));
+      existing.reach = String(parseInt(existing.reach || '0') + parseInt(d.reach || '0'));
+      existing.clicks = String(parseInt(existing.clicks || '0') + parseInt(d.clicks || '0'));
+      existing.spend = String(parseFloat(existing.spend || '0') + parseFloat(d.spend || '0'));
+      // Merge actions arrays
+      const existingActions: any[] = existing.actions || [];
+      const newActions: any[] = d.actions || [];
+      newActions.forEach((a: any) => {
+        const found = existingActions.find((e: any) => e.action_type === a.action_type);
+        if (found) {
+          found.value = String(parseFloat(found.value || '0') + parseFloat(a.value || '0'));
+        } else {
+          existingActions.push({ ...a });
+        }
+      });
+      existing.actions = existingActions;
+      // Merge outbound_clicks
+      const existingOC: any[] = existing.outbound_clicks || [];
+      const newOC: any[] = d.outbound_clicks || [];
+      newOC.forEach((a: any) => {
+        const found = existingOC.find((e: any) => e.action_type === a.action_type);
+        if (found) {
+          found.value = String(parseFloat(found.value || '0') + parseFloat(a.value || '0'));
+        } else {
+          existingOC.push({ ...a });
+        }
+      });
+      existing.outbound_clicks = existingOC;
+    }
+  });
+  return deduped;
 }
 
 Deno.serve(async (req: Request) => {
@@ -146,27 +218,38 @@ Deno.serve(async (req: Request) => {
     // Fetch account-level daily insights
     const accountInsights = await fetchInsights(normalizedAccount, dateFrom, dateTo, 'account');
 
-    const accountRows = accountInsights.map((d: any) => ({
-      client_id: clientId!,
-      ad_account_id: normalizedAccount,
-      level: 'account',
-      entity_id: normalizedAccount,
-      entity_name: 'Conta',
-      date: d.date_start,
-      impressions: parseInt(d.impressions || '0'),
-      reach: parseInt(d.reach || '0'),
-      clicks: parseInt(d.clicks || '0'),
-      spend: parseFloat(d.spend || '0'),
-      cpm: parseFloat(d.cpm || '0'),
-      cpc: parseFloat(d.cpc || '0'),
-      ctr: parseFloat(d.ctr || '0'),
-      frequency: parseFloat(d.frequency || '0'),
-      leads: extractActions(d.actions || [], 'lead'),
-      purchases: extractActions(d.actions || [], 'purchase'),
-      results: extractActions(d.actions || [], 'lead') || extractActions(d.actions || [], 'purchase'),
-      raw_actions: d.actions || [],
-      updated_at: new Date().toISOString(),
-    }));
+    const accountRows = accountInsights.map((d: any) => {
+      const actions = d.actions || [];
+      const outboundClicks = d.outbound_clicks || [];
+      const leadsNative = extractLeadsNative(actions);
+      const leadsLandingPage = extractLeadsLandingPage(actions);
+      const leadsTotal = leadsNative + leadsLandingPage || extractActions(actions, 'lead');
+      return {
+        client_id: clientId!,
+        ad_account_id: normalizedAccount,
+        level: 'account',
+        entity_id: normalizedAccount,
+        entity_name: 'Conta',
+        date: d.date_start,
+        impressions: parseInt(d.impressions || '0'),
+        reach: parseInt(d.reach || '0'),
+        clicks: parseInt(d.clicks || '0'),
+        spend: parseFloat(d.spend || '0'),
+        cpm: parseFloat(d.cpm || '0'),
+        cpc: parseFloat(d.cpc || '0'),
+        ctr: parseFloat(d.ctr || '0'),
+        frequency: parseFloat(d.frequency || '0'),
+        leads: leadsTotal,
+        leads_native: leadsNative,
+        leads_landing_page: leadsLandingPage,
+        link_clicks: extractOutboundClicks(outboundClicks),
+        landing_page_views: extractLandingPageViews(actions),
+        purchases: extractActions(actions, 'purchase'),
+        results: leadsTotal || extractActions(actions, 'purchase'),
+        raw_actions: actions,
+        updated_at: new Date().toISOString(),
+      };
+    });
 
     if (accountRows.length > 0) {
       const { error: accErr } = await sb
@@ -178,56 +261,40 @@ Deno.serve(async (req: Request) => {
 
     // Fetch campaign-level daily insights
     const campaignInsights = await fetchInsights(normalizedAccount, dateFrom, dateTo, 'campaign');
+    const campaignDeduped = deduplicateByKey(campaignInsights, d => `${d.campaign_id || d.id || 'unknown'}__${d.date_start}`);
 
-    // Deduplicate campaign insights by (entity_id, date) before upsert
-    const campaignDeduped: Record<string, any> = {};
-    campaignInsights.forEach((d: any) => {
-      const key = `${d.campaign_id || d.id || 'unknown'}__${d.date_start}`;
-      if (!campaignDeduped[key]) {
-        campaignDeduped[key] = d;
-      } else {
-        // Merge numeric fields by summing
-        const existing = campaignDeduped[key];
-        existing.impressions = String(parseInt(existing.impressions || '0') + parseInt(d.impressions || '0'));
-        existing.reach = String(parseInt(existing.reach || '0') + parseInt(d.reach || '0'));
-        existing.clicks = String(parseInt(existing.clicks || '0') + parseInt(d.clicks || '0'));
-        existing.spend = String(parseFloat(existing.spend || '0') + parseFloat(d.spend || '0'));
-        // Merge actions arrays
-        const existingActions: any[] = existing.actions || [];
-        const newActions: any[] = d.actions || [];
-        newActions.forEach((a: any) => {
-          const found = existingActions.find((e: any) => e.action_type === a.action_type);
-          if (found) {
-            found.value = String(parseFloat(found.value || '0') + parseFloat(a.value || '0'));
-          } else {
-            existingActions.push({ ...a });
-          }
-        });
-        existing.actions = existingActions;
-      }
+    const campaignRows = Object.values(campaignDeduped).map((d: any) => {
+      const actions = d.actions || [];
+      const outboundClicks = d.outbound_clicks || [];
+      const leadsNative = extractLeadsNative(actions);
+      const leadsLandingPage = extractLeadsLandingPage(actions);
+      const leadsTotal = leadsNative + leadsLandingPage || extractActions(actions, 'lead');
+      return {
+        client_id: clientId!,
+        ad_account_id: normalizedAccount,
+        level: 'campaign',
+        entity_id: d.campaign_id || d.id || 'unknown',
+        entity_name: d.campaign_name || d.adset_name || 'Campanha',
+        date: d.date_start,
+        impressions: parseInt(d.impressions || '0'),
+        reach: parseInt(d.reach || '0'),
+        clicks: parseInt(d.clicks || '0'),
+        spend: parseFloat(d.spend || '0'),
+        cpm: parseFloat(d.cpm || '0'),
+        cpc: parseFloat(d.cpc || '0'),
+        ctr: parseFloat(d.ctr || '0'),
+        frequency: parseFloat(d.frequency || '0'),
+        leads: leadsTotal,
+        leads_native: leadsNative,
+        leads_landing_page: leadsLandingPage,
+        link_clicks: extractOutboundClicks(outboundClicks),
+        landing_page_views: extractLandingPageViews(actions),
+        purchases: extractActions(actions, 'purchase'),
+        results: leadsTotal || extractActions(actions, 'purchase'),
+        raw_actions: actions,
+        updated_at: new Date().toISOString(),
+      };
     });
-
-    const campaignRows = Object.values(campaignDeduped).map((d: any) => ({
-      client_id: clientId!,
-      ad_account_id: normalizedAccount,
-      level: 'campaign',
-      entity_id: d.campaign_id || d.id || 'unknown',
-      entity_name: d.campaign_name || d.adset_name || 'Campanha',
-      date: d.date_start,
-      impressions: parseInt(d.impressions || '0'),
-      reach: parseInt(d.reach || '0'),
-      clicks: parseInt(d.clicks || '0'),
-      spend: parseFloat(d.spend || '0'),
-      cpm: parseFloat(d.cpm || '0'),
-      cpc: parseFloat(d.cpc || '0'),
-      ctr: parseFloat(d.ctr || '0'),
-      frequency: parseFloat(d.frequency || '0'),
-      leads: extractActions(d.actions || [], 'lead'),
-      purchases: extractActions(d.actions || [], 'purchase'),
-      results: extractActions(d.actions || [], 'lead') || extractActions(d.actions || [], 'purchase'),
-      raw_actions: d.actions || [],
-      updated_at: new Date().toISOString(),
-    }));
 
     if (campaignRows.length > 0) {
       const { error: campErr } = await sb
@@ -235,6 +302,57 @@ Deno.serve(async (req: Request) => {
         .upsert(campaignRows, { onConflict: 'client_id,ad_account_id,level,entity_id,date' });
       if (campErr) throw new Error(`Erro ao salvar insights de campanhas: ${campErr.message}`);
       totalUpserted += campaignRows.length;
+    }
+
+    // Fetch ad-level insights for creatives
+    const adInsights = await fetchInsights(normalizedAccount, dateFrom, dateTo, 'ad');
+    const adDeduped = deduplicateByKey(adInsights, d => `${d.ad_id || d.id || 'unknown'}__${d.date_start}`);
+
+    const adRows = Object.values(adDeduped).map((d: any) => {
+      const actions = d.actions || [];
+      const outboundClicks = d.outbound_clicks || [];
+      const leadsNative = extractLeadsNative(actions);
+      const leadsLandingPage = extractLeadsLandingPage(actions);
+      const leadsTotal = leadsNative + leadsLandingPage || extractActions(actions, 'lead');
+      return {
+        client_id: clientId!,
+        ad_account_id: normalizedAccount,
+        level: 'ad',
+        entity_id: d.ad_id || d.id || 'unknown',
+        entity_name: d.ad_name || 'Anúncio',
+        // Store campaign_name in raw_actions for filtering
+        date: d.date_start,
+        impressions: parseInt(d.impressions || '0'),
+        reach: parseInt(d.reach || '0'),
+        clicks: parseInt(d.clicks || '0'),
+        spend: parseFloat(d.spend || '0'),
+        cpm: parseFloat(d.cpm || '0'),
+        cpc: parseFloat(d.cpc || '0'),
+        ctr: parseFloat(d.ctr || '0'),
+        frequency: parseFloat(d.frequency || '0'),
+        leads: leadsTotal,
+        leads_native: leadsNative,
+        leads_landing_page: leadsLandingPage,
+        link_clicks: extractOutboundClicks(outboundClicks),
+        landing_page_views: extractLandingPageViews(actions),
+        purchases: extractActions(actions, 'purchase'),
+        results: leadsTotal || extractActions(actions, 'purchase'),
+        raw_actions: {
+          actions,
+          campaign_name: d.campaign_name || '',
+          adset_name: d.adset_name || '',
+          ad_name: d.ad_name || '',
+        },
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    if (adRows.length > 0) {
+      const { error: adErr } = await sb
+        .from('meta_daily_insights')
+        .upsert(adRows, { onConflict: 'client_id,ad_account_id,level,entity_id,date' });
+      if (adErr) throw new Error(`Erro ao salvar insights de anúncios: ${adErr.message}`);
+      totalUpserted += adRows.length;
     }
 
     // Update connection last_sync_at
