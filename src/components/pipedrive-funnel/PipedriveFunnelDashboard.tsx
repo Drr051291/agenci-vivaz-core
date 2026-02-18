@@ -20,6 +20,7 @@ import { LostReasonsChart } from './LostReasonsChart';
 import { LeadSourceChart } from './LeadSourceChart';
 import { SectorDistributionChart } from './SectorDistributionChart';
 import { TargetVsActualPanel } from './TargetVsActualPanel';
+import { SQLCallMetricCard } from './SQLCallMetricCard';
 import { 
   DateRange, 
   PIPELINE_ID, 
@@ -247,6 +248,13 @@ export function PipedriveFunnelDashboard({
         allStages={data?.all_stages}
         loading={sectorLoading} 
         snapshotLoading={sectorSnapshotLoading}
+        viewMode={viewMode}
+      />
+
+      {/* SQL Call Metric Card */}
+      <SQLCallMetricCard
+        pipelineId={pipelineId}
+        allStages={data?.all_stages}
         viewMode={viewMode}
       />
 
