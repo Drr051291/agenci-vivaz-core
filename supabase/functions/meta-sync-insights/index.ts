@@ -6,8 +6,9 @@ const corsHeaders = {
 };
 
 const META_API_BASE = 'https://graph.facebook.com/v20.0';
-const INSIGHTS_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks';
-const CREATIVE_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks,ad_name,adset_name,campaign_name';
+const ACCOUNT_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks';
+const CAMPAIGN_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks,campaign_id,campaign_name';
+const CREATIVE_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks,ad_id,ad_name,adset_name,campaign_id,campaign_name';
 
 function getToken(): string {
   const token = Deno.env.get('META_ACCESS_TOKEN');
@@ -73,7 +74,7 @@ async function fetchInsights(
   dateTo: string,
   level: 'account' | 'campaign' | 'ad'
 ): Promise<any[]> {
-  const fields = level === 'ad' ? CREATIVE_FIELDS : INSIGHTS_FIELDS;
+  const fields = level === 'ad' ? CREATIVE_FIELDS : level === 'campaign' ? CAMPAIGN_FIELDS : ACCOUNT_FIELDS;
   const params: Record<string, string> = {
     fields,
     time_range: JSON.stringify({ since: dateFrom, until: dateTo }),
@@ -269,12 +270,15 @@ Deno.serve(async (req: Request) => {
       const leadsNative = extractLeadsNative(actions);
       const leadsLandingPage = extractLeadsLandingPage(actions);
       const leadsTotal = leadsNative + leadsLandingPage || extractActions(actions, 'lead');
+      // campaign_id and campaign_name are the correct fields at campaign level
+      const campaignId = d.campaign_id || d.id || 'unknown';
+      const campaignName = d.campaign_name || d.adset_name || d.ad_name || 'Campanha';
       return {
         client_id: clientId!,
         ad_account_id: normalizedAccount,
         level: 'campaign',
-        entity_id: d.campaign_id || d.id || 'unknown',
-        entity_name: d.campaign_name || d.adset_name || 'Campanha',
+        entity_id: campaignId,
+        entity_name: campaignName,
         date: d.date_start,
         impressions: parseInt(d.impressions || '0'),
         reach: parseInt(d.reach || '0'),
@@ -307,6 +311,7 @@ Deno.serve(async (req: Request) => {
     // Fetch ad-level insights for creatives
     const adInsights = await fetchInsights(normalizedAccount, dateFrom, dateTo, 'ad');
     const adDeduped = deduplicateByKey(adInsights, d => `${d.ad_id || d.id || 'unknown'}__${d.date_start}`);
+    console.log('Ad insights sample:', JSON.stringify(adInsights.slice(0, 2)));
 
     const adRows = Object.values(adDeduped).map((d: any) => {
       const actions = d.actions || [];
