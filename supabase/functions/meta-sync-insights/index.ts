@@ -179,7 +179,35 @@ Deno.serve(async (req: Request) => {
     // Fetch campaign-level daily insights
     const campaignInsights = await fetchInsights(normalizedAccount, dateFrom, dateTo, 'campaign');
 
-    const campaignRows = campaignInsights.map((d: any) => ({
+    // Deduplicate campaign insights by (entity_id, date) before upsert
+    const campaignDeduped: Record<string, any> = {};
+    campaignInsights.forEach((d: any) => {
+      const key = `${d.campaign_id || d.id || 'unknown'}__${d.date_start}`;
+      if (!campaignDeduped[key]) {
+        campaignDeduped[key] = d;
+      } else {
+        // Merge numeric fields by summing
+        const existing = campaignDeduped[key];
+        existing.impressions = String(parseInt(existing.impressions || '0') + parseInt(d.impressions || '0'));
+        existing.reach = String(parseInt(existing.reach || '0') + parseInt(d.reach || '0'));
+        existing.clicks = String(parseInt(existing.clicks || '0') + parseInt(d.clicks || '0'));
+        existing.spend = String(parseFloat(existing.spend || '0') + parseFloat(d.spend || '0'));
+        // Merge actions arrays
+        const existingActions: any[] = existing.actions || [];
+        const newActions: any[] = d.actions || [];
+        newActions.forEach((a: any) => {
+          const found = existingActions.find((e: any) => e.action_type === a.action_type);
+          if (found) {
+            found.value = String(parseFloat(found.value || '0') + parseFloat(a.value || '0'));
+          } else {
+            existingActions.push({ ...a });
+          }
+        });
+        existing.actions = existingActions;
+      }
+    });
+
+    const campaignRows = Object.values(campaignDeduped).map((d: any) => ({
       client_id: clientId!,
       ad_account_id: normalizedAccount,
       level: 'campaign',
