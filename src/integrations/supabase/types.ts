@@ -1783,8 +1783,12 @@ export type Database = {
           frequency: number
           id: string
           impressions: number
+          landing_page_views: number
           leads: number
+          leads_landing_page: number
+          leads_native: number
           level: string
+          link_clicks: number
           purchases: number
           raw_actions: Json | null
           reach: number
@@ -1806,8 +1810,12 @@ export type Database = {
           frequency?: number
           id?: string
           impressions?: number
+          landing_page_views?: number
           leads?: number
+          leads_landing_page?: number
+          leads_native?: number
           level?: string
+          link_clicks?: number
           purchases?: number
           raw_actions?: Json | null
           reach?: number
@@ -1829,8 +1837,12 @@ export type Database = {
           frequency?: number
           id?: string
           impressions?: number
+          landing_page_views?: number
           leads?: number
+          leads_landing_page?: number
+          leads_native?: number
           level?: string
+          link_clicks?: number
           purchases?: number
           raw_actions?: Json | null
           reach?: number
