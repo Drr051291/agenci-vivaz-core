@@ -319,13 +319,16 @@ Deno.serve(async (req: Request) => {
       const leadsNative = extractLeadsNative(actions);
       const leadsLandingPage = extractLeadsLandingPage(actions);
       const leadsTotal = leadsNative + leadsLandingPage || extractActions(actions, 'lead');
+      const adId = d.ad_id || d.id || 'unknown';
+      const adName = d.ad_name || 'Anúncio';
+      const campaignNameForAd = d.campaign_name || '';
       return {
         client_id: clientId!,
         ad_account_id: normalizedAccount,
         level: 'ad',
-        entity_id: d.ad_id || d.id || 'unknown',
-        entity_name: d.ad_name || 'Anúncio',
-        // Store campaign_name in raw_actions for filtering
+        entity_id: adId,
+        entity_name: adName,
+        campaign_name: campaignNameForAd,
         date: d.date_start,
         impressions: parseInt(d.impressions || '0'),
         reach: parseInt(d.reach || '0'),
@@ -344,9 +347,9 @@ Deno.serve(async (req: Request) => {
         results: leadsTotal || extractActions(actions, 'purchase'),
         raw_actions: {
           actions,
-          campaign_name: d.campaign_name || '',
+          campaign_name: campaignNameForAd,
           adset_name: d.adset_name || '',
-          ad_name: d.ad_name || '',
+          ad_name: adName,
         },
         updated_at: new Date().toISOString(),
       };
