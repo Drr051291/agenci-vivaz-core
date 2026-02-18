@@ -115,8 +115,9 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
     const checkAdmin = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const { data } = await supabase.from('user_roles').select('role').eq('user_id', session.user.id).single();
-      setIsAdmin(data?.role === 'admin' || data?.role === 'collaborator');
+      const { data } = await supabase.from('user_roles').select('role').eq('user_id', session.user.id).maybeSingle();
+      // admin, collaborator = internal team (can configure); client = view only
+      setIsAdmin(data?.role === 'admin' || data?.role === 'collaborator' || !data);
     };
     checkAdmin();
   }, []);
@@ -294,6 +295,19 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-250px)]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // If showing Meta Ads dashboard
+  if (showMetaAds) {
+    return (
+      <div className="p-4">
+        <MetaAdsDashboard
+          clientId={clientId}
+          isAdmin={isAdmin}
+          onBack={() => setShowMetaAds(false)}
+        />
       </div>
     );
   }
