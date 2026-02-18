@@ -31,11 +31,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, AlertCircle, CheckCircle2, Loader2, Filter, ArrowRight, GraduationCap, Megaphone } from "lucide-react";
+import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, AlertCircle, CheckCircle2, Loader2, Filter, ArrowRight, Megaphone, Boxes, Palette } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardViewerDialog } from "./DashboardViewerDialog";
 import { PipedriveFunnelDashboard, PIPELINES } from "@/components/pipedrive-funnel";
 import { MetaAdsDashboard } from "@/components/meta-ads/MetaAdsDashboard";
+import { MetaServiceDashboard } from "@/components/meta-ads/MetaServiceDashboard";
+import type { ServiceFilter } from "@/components/meta-ads/useMetaAdsByService";
 import { useNavigate } from "react-router-dom";
 
 interface ActiveFunnel {
@@ -109,6 +111,7 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
   
   // Meta Ads dashboard view state
   const [showMetaAds, setShowMetaAds] = useState(false);
+  const [metaServiceView, setMetaServiceView] = useState<ServiceFilter | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -299,7 +302,21 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
     );
   }
 
-  // If showing Meta Ads dashboard
+  // If showing a specific Meta Ads service dashboard (Sétima)
+  if (metaServiceView) {
+    return (
+      <div className="p-4">
+        <MetaServiceDashboard
+          clientId={clientId}
+          service={metaServiceView}
+          isAdmin={isAdmin}
+          onBack={() => setMetaServiceView(null)}
+        />
+      </div>
+    );
+  }
+
+  // If showing generic Meta Ads dashboard
   if (showMetaAds) {
     return (
       <div className="p-4">
@@ -355,29 +372,81 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
 
       {/* All Dashboard Cards - Unified Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-        {/* Meta Ads Proprietário Card */}
-        <Card className="hover:shadow-md transition-all hover:border-primary/50 group">
-          <CardContent className="p-5">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
-                  <Megaphone className="h-5 w-5" />
+        {/* Meta Ads: para Sétima mostra dois cards separados por serviço */}
+        {clientId === "c694df38-b4ec-444c-bc0d-8d8b6102b161" ? (
+          <>
+            {/* Brandspot Meta Ads */}
+            <Card className="hover:shadow-md transition-all hover:border-primary/50 group">
+              <CardContent className="p-5">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+                      <Palette className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-sm truncate">Meta Ads · Brandspot</h3>
+                      <Badge variant="secondary" className="text-xs mt-1">Mídia Paga</Badge>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    Campanhas [Brandspot] — Investimento, leads, criativos e mais
+                  </p>
+                  <Button size="sm" onClick={() => setMetaServiceView('brandspot')} className="w-full mt-1">
+                    <Eye className="h-4 w-4 mr-2" />
+                    Visualizar
+                  </Button>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm truncate">Meta Ads (Proprietário)</h3>
-                  <Badge variant="secondary" className="text-xs mt-1">Mídia Paga</Badge>
+              </CardContent>
+            </Card>
+            {/* 3D/CGI Meta Ads */}
+            <Card className="hover:shadow-md transition-all hover:border-primary/50 group">
+              <CardContent className="p-5">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+                      <Boxes className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-sm truncate">Meta Ads · 3D/CGI</h3>
+                      <Badge variant="secondary" className="text-xs mt-1">Mídia Paga</Badge>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    Campanhas [Sétima] 3D/CGI — Investimento, leads, criativos e mais
+                  </p>
+                  <Button size="sm" onClick={() => setMetaServiceView('3d_cgi')} className="w-full mt-1">
+                    <Eye className="h-4 w-4 mr-2" />
+                    Visualizar
+                  </Button>
                 </div>
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          /* Card genérico Meta Ads para outros clientes */
+          <Card className="hover:shadow-md transition-all hover:border-primary/50 group">
+            <CardContent className="p-5">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+                    <Megaphone className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-sm truncate">Meta Ads (Proprietário)</h3>
+                    <Badge variant="secondary" className="text-xs mt-1">Mídia Paga</Badge>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  Desempenho e custos da mídia (Meta Ads)
+                </p>
+                <Button size="sm" onClick={() => setShowMetaAds(true)} className="w-full mt-1">
+                  <Eye className="h-4 w-4 mr-2" />
+                  Visualizar
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground line-clamp-2">
-                Desempenho e custos da mídia (Meta Ads)
-              </p>
-              <Button size="sm" onClick={() => setShowMetaAds(true)} className="w-full mt-1">
-                <Eye className="h-4 w-4 mr-2" />
-                Visualizar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
         {/* Pipedrive Funnel Cards - Only visible for Sétima */}
         {clientId === "c694df38-b4ec-444c-bc0d-8d8b6102b161" && (
           <>
