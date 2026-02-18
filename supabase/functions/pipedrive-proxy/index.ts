@@ -54,17 +54,16 @@ const getSK = async (sb: any, pid: number, f: boolean) => { const k = `sk_${pid}
 const getLost = async (sb: any, pid: number, sd: string, ed: string, f: boolean) => { const k = `ls_${pid}_${sd}_${ed}`; if (!f) { const c = await cache(sb, k); if (c) return c }; const all = await fetchD(pid, 'lost'), ip = all.filter((d: any) => { const dt = d.lost_time?.substring(0, 10) || ''; return dt >= sd && dt <= ed }); const tot: Record<string, number> = {}, bs: Record<number, Record<string, number>> = {}; ip.forEach((d: any) => { const r = d.lost_reason || 'Não informado'; tot[r] = (tot[r] || 0) + 1; if (d.stage_id) { bs[d.stage_id] = bs[d.stage_id] || {}; bs[d.stage_id][r] = (bs[d.stage_id][r] || 0) + 1 } }); const res = { total: tot, by_stage: bs }; await setC(sb, k, res, TTL.d); return res }
 
 const getSQLCallMetrics = async (sb: any, pid: number, f: boolean, vm: string, sd?: string, ed?: string) => {
-  const sn = vm === 'snapshot'; const sfx = sn ? '_sn' : `_period_${sd}_${ed}`; const k = `sqlcall_${pid}${sfx}`; if (!f) { const c = await cache(sb, k); if (c) return c }
+  const k = `sqlcall_${pid}_sn`; if (!f) { const c = await cache(sb, k); if (c) return c }
   const st = await getStages(sb, pid, f); const sqlStage = st.find((s: any) => s.name.toLowerCase().includes('sql')); if (!sqlStage) return null
   const ks = await getTK(sb, f)
-  let dl: any[]
-  // Always use snapshot (current open deals in SQL stage) for both modes for accuracy
-  const r = await pd('/api/v2/deals', { pipeline_id: pid.toString(), stage_id: sqlStage.id.toString(), status: 'open', limit: '500' }); dl = r?.data || []
+  // Use v1 deals endpoint so custom fields are at root level (consistent with rest of codebase)
+  const r = await pd('/v1/deals', { pipeline_id: pid.toString(), stage_id: sqlStage.id.toString(), status: 'open', limit: '500' }); const dl: any[] = r?.data || []
   const metrics = { agendada: 0, sim: 0, noshow: 0, reagendada: 0, total: dl.length }
   const callOptMap: Record<string, string> = {}; (ks.call_options || []).forEach((o: any) => { callOptMap[String(o.id)] = (o.label || '').toLowerCase() })
   dl.forEach((d: any) => {
     const rawCall = ks.call_realizada ? d[ks.call_realizada] : null
-    if (!rawCall) { metrics.agendada++; return }
+    if (rawCall === null || rawCall === undefined || rawCall === '') { metrics.agendada++; return }
     const label = (callOptMap[String(rawCall)] || String(rawCall)).toLowerCase()
     if (label.includes('sim') || label === 'realizada') metrics.sim++
     else if (label.includes('noshow') || label.includes('no show') || label.includes('não compareceu')) metrics.noshow++
