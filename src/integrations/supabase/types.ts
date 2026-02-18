@@ -1771,6 +1771,7 @@ export type Database = {
       meta_daily_insights: {
         Row: {
           ad_account_id: string
+          campaign_name: string | null
           clicks: number
           client_id: string
           cpc: number
@@ -1798,6 +1799,7 @@ export type Database = {
         }
         Insert: {
           ad_account_id: string
+          campaign_name?: string | null
           clicks?: number
           client_id: string
           cpc?: number
@@ -1825,6 +1827,7 @@ export type Database = {
         }
         Update: {
           ad_account_id?: string
+          campaign_name?: string | null
           clicks?: number
           client_id?: string
           cpc?: number

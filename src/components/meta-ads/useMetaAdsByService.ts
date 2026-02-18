@@ -98,8 +98,14 @@ export interface DateRange {
 }
 
 function matchesService(name: string, service: ServiceFilter): boolean {
-  const lower = name.toLowerCase();
-  return SERVICE_PATTERNS[service].some(p => lower.includes(p));
+  const lower = (name || '').toLowerCase();
+  return SERVICE_PATTERNS[service].some(p => lower.includes(p.toLowerCase()));
+}
+
+function matchesServiceAd(row: any, service: ServiceFilter): boolean {
+  // For ad-level rows, check campaign_name column first, then raw_actions, then entity_name
+  const campaignName = row.campaign_name || row.raw_actions?.campaign_name || row.entity_name || '';
+  return matchesService(campaignName, service);
 }
 
 function sumKPIs(rows: MetaInsightRow[], activeCampaigns = 0): MetaKPIs {
@@ -260,17 +266,14 @@ export function useMetaAdsByService(
       // Fetch ad-level (creatives) for this service
       const { data: adData } = await supabase
         .from('meta_daily_insights')
-        .select('entity_id, entity_name, impressions, clicks, spend, ctr, leads, raw_actions')
+        .select('entity_id, entity_name, campaign_name, impressions, clicks, spend, ctr, leads, raw_actions')
         .eq('client_id', clientId)
         .eq('level', 'ad')
         .gte('date', fromStr)
         .lte('date', toStr);
 
-      // Filter ads by campaign name stored in raw_actions
-      const filteredAds = (adData || []).filter((r: any) => {
-        const campaignName = r.raw_actions?.campaign_name || r.entity_name || '';
-        return matchesService(campaignName, service);
-      });
+      // Filter ads by campaign name
+      const filteredAds = (adData || []).filter((r: any) => matchesServiceAd(r, service));
 
       // Aggregate creatives
       const creativeMap: Record<string, MetaCreativeRow> = {};
@@ -280,7 +283,7 @@ export function useMetaAdsByService(
             entity_id: row.entity_id,
             entity_name: row.entity_name,
             impressions: 0, clicks: 0, spend: 0, ctr: 0, leads: 0,
-            campaign_name: row.raw_actions?.campaign_name || '',
+            campaign_name: row.campaign_name || row.raw_actions?.campaign_name || '',
           };
         }
         creativeMap[row.entity_id].impressions += row.impressions || 0;
