@@ -31,10 +31,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, AlertCircle, CheckCircle2, Loader2, Filter, ArrowRight, GraduationCap } from "lucide-react";
+import { ExternalLink, BarChart3, TrendingUp, Plus, Pencil, Trash2, Info, Eye, AlertCircle, CheckCircle2, Loader2, Filter, ArrowRight, GraduationCap, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardViewerDialog } from "./DashboardViewerDialog";
 import { PipedriveFunnelDashboard, PIPELINES } from "@/components/pipedrive-funnel";
+import { MetaAdsDashboard } from "@/components/meta-ads/MetaAdsDashboard";
 import { useNavigate } from "react-router-dom";
 
 interface ActiveFunnel {
@@ -105,6 +106,20 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
   
   // Pipedrive funnel view state - now supports multiple pipelines
   const [activeFunnel, setActiveFunnel] = useState<ActiveFunnel | null>(null);
+  
+  // Meta Ads dashboard view state
+  const [showMetaAds, setShowMetaAds] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data } = await supabase.from('user_roles').select('role').eq('user_id', session.user.id).single();
+      setIsAdmin(data?.role === 'admin' || data?.role === 'collaborator');
+    };
+    checkAdmin();
+  }, []);
   
   // Form state
   const [formDialogOpen, setFormDialogOpen] = useState(false);
@@ -326,6 +341,29 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
 
       {/* All Dashboard Cards - Unified Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
+        {/* Meta Ads Proprietário Card */}
+        <Card className="hover:shadow-md transition-all hover:border-primary/50 group">
+          <CardContent className="p-5">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+                  <Megaphone className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-sm truncate">Meta Ads (Proprietário)</h3>
+                  <Badge variant="secondary" className="text-xs mt-1">Mídia Paga</Badge>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground line-clamp-2">
+                Desempenho e custos da mídia (Meta Ads)
+              </p>
+              <Button size="sm" onClick={() => setShowMetaAds(true)} className="w-full mt-1">
+                <Eye className="h-4 w-4 mr-2" />
+                Visualizar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
         {/* Pipedrive Funnel Cards - Only visible for Sétima */}
         {clientId === "c694df38-b4ec-444c-bc0d-8d8b6102b161" && (
           <>
