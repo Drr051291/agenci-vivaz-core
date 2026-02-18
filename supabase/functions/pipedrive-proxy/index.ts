@@ -53,13 +53,13 @@ const getLb = async (sb: any, f: boolean) => { const k = 'lb'; if (!f) { const c
 const getSK = async (sb: any, pid: number, f: boolean) => { const k = `sk_${pid}`; if (!f) { const c = await cache(sb, k); if (c) return c }; const fds = await getAllFields(sb, f); const vs = pid === 9 ? ['Segmento'] : pid === 13 ? ['setor'] : ['Segmento', 'Setor']; for (const v of vs) { const m = fds.find((x: any) => x.name.toLowerCase().includes(v.toLowerCase())); if (m) { await setC(sb, k, m.key, TTL.s); return m.key } }; await setC(sb, k, null, TTL.s); return null }
 const getLost = async (sb: any, pid: number, sd: string, ed: string, f: boolean) => { const k = `ls_${pid}_${sd}_${ed}`; if (!f) { const c = await cache(sb, k); if (c) return c }; const all = await fetchD(pid, 'lost'), ip = all.filter((d: any) => { const dt = d.lost_time?.substring(0, 10) || ''; return dt >= sd && dt <= ed }); const tot: Record<string, number> = {}, bs: Record<number, Record<string, number>> = {}; ip.forEach((d: any) => { const r = d.lost_reason || 'Não informado'; tot[r] = (tot[r] || 0) + 1; if (d.stage_id) { bs[d.stage_id] = bs[d.stage_id] || {}; bs[d.stage_id][r] = (bs[d.stage_id][r] || 0) + 1 } }); const res = { total: tot, by_stage: bs }; await setC(sb, k, res, TTL.d); return res }
 
-const getSQLCallMetrics = async (sb: any, pid: number, f: boolean, vm: string) => {
-  const sn = vm === 'snapshot'; const k = `sqlcall_${pid}${sn ? '_sn' : '_period'}`; if (!f) { const c = await cache(sb, k); if (c) return c }
+const getSQLCallMetrics = async (sb: any, pid: number, f: boolean, vm: string, sd?: string, ed?: string) => {
+  const sn = vm === 'snapshot'; const sfx = sn ? '_sn' : `_period_${sd}_${ed}`; const k = `sqlcall_${pid}${sfx}`; if (!f) { const c = await cache(sb, k); if (c) return c }
   const st = await getStages(sb, pid, f); const sqlStage = st.find((s: any) => s.name.toLowerCase().includes('sql')); if (!sqlStage) return null
   const ks = await getTK(sb, f)
   let dl: any[]
-  if (sn) { const r = await pd('/api/v2/deals', { pipeline_id: pid.toString(), stage_id: sqlStage.id.toString(), status: 'open', limit: '500' }); dl = r?.data || [] }
-  else { dl = (await fetchD(pid)).filter((d: any) => d.stage_id === sqlStage.id) }
+  // Always use snapshot (current open deals in SQL stage) for both modes for accuracy
+  const r = await pd('/api/v2/deals', { pipeline_id: pid.toString(), stage_id: sqlStage.id.toString(), status: 'open', limit: '500' }); dl = r?.data || []
   const metrics = { agendada: 0, sim: 0, noshow: 0, reagendada: 0, total: dl.length }
   const callOptMap: Record<string, string> = {}; (ks.call_options || []).forEach((o: any) => { callOptMap[String(o.id)] = (o.label || '').toLowerCase() })
   dl.forEach((d: any) => {

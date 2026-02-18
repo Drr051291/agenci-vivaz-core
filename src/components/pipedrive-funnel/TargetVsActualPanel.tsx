@@ -41,7 +41,7 @@ function normalizeStageKey(name: string): string {
   const normalized = name.toLowerCase().trim();
   if (normalized === 'lead' || normalized === 'leads') return 'lead';
   if (normalized === 'mql') return 'mql';
-  if (normalized === 'sql') return 'sql';
+  if (normalized.startsWith('sql') || normalized.includes('sql (')) return 'sql';
   if (normalized.includes('oportunidade') || normalized === 'opportunity') return 'oportunidade';
   if (normalized.includes('contrato') || normalized === 'contract') return 'contrato';
   return normalized;

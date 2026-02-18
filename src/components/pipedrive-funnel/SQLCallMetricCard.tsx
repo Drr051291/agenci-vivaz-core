@@ -110,7 +110,7 @@ export function SQLCallMetricCard({ pipelineId, allStages = [], viewMode }: SQLC
           <Phone className="h-4 w-4 text-primary" />
           Status de Call — Etapa {sqlStageName}
           <span className="text-xs font-normal text-muted-foreground ml-auto">
-            {viewMode === 'snapshot' ? 'Cenário Atual' : 'Período'}
+            Cenário Atual
           </span>
         </CardTitle>
         {!loading && metrics && (
