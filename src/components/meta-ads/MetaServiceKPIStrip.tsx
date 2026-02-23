@@ -35,7 +35,6 @@ const KPIS: KPIDef[] = [
   { key: 'cost_per_lead', label: 'Custo/Lead', tip: 'Investimento ÷ total de leads.', format: BRL, invertDelta: true },
   { key: 'cost_per_lead_native', label: 'CPL Nativo', tip: 'Custo por lead nativo (formulário Meta).', format: BRL, invertDelta: true },
   { key: 'cost_per_lead_lp', label: 'CPL Landing', tip: 'Custo por lead via landing page (pixel).', format: BRL, invertDelta: true },
-  { key: 'active_campaigns', label: 'Campanhas', tip: 'Campanhas ativas no período selecionado.', format: NUM },
 ];
 
 function pctDelta(current: number, prev: number): number | null {
