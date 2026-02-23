@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, Search, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
+import { Trophy, Search, ChevronUp, ChevronDown, ArrowUpDown, ImageOff } from "lucide-react";
 import type { MetaCampaignRow, MetaCreativeRow } from "./useMetaAdsByService";
 
 const BRL = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -261,8 +261,9 @@ export function MetaServiceCampaignTable({ campaignRows, creativeRows, loading }
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="text-xs w-10">#</TableHead>
+                       <TableRow className="hover:bg-transparent">
+                         <TableHead className="text-xs w-10">#</TableHead>
+                         <TableHead className="text-xs w-16">Preview</TableHead>
                         {CREATIVE_COLUMNS.map(col => (
                           <TableHead
                             key={col.key}
@@ -289,6 +290,25 @@ export function MetaServiceCampaignTable({ campaignRows, creativeRows, loading }
                               >
                                 {rank + 1}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              {row.thumbnail_url ? (
+                                <div className="w-10 h-10 rounded border border-border/60 overflow-hidden bg-muted flex items-center justify-center">
+                                  <img
+                                    src={row.thumbnail_url}
+                                    alt={row.entity_name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                      (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-muted-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>';
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-10 h-10 rounded border border-border/40 bg-muted/50 flex items-center justify-center">
+                                  <ImageOff className="h-4 w-4 text-muted-foreground/50" />
+                                </div>
+                              )}
                             </TableCell>
                             {CREATIVE_COLUMNS.map(col => (
                               <TableCell
