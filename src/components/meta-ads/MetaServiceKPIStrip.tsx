@@ -52,12 +52,12 @@ interface MetaServiceKPIStripProps {
 export function MetaServiceKPIStrip({ kpis, prevKpis, loading, showComparison }: MetaServiceKPIStripProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-2.5">
         {KPIS.map(k => (
           <Card key={k.key}>
-            <CardContent className="p-4">
-              <Skeleton className="h-3 w-16 mb-2" />
-              <Skeleton className="h-6 w-20" />
+            <CardContent className="p-3">
+              <Skeleton className="h-3 w-14 mb-2" />
+              <Skeleton className="h-5 w-18" />
             </CardContent>
           </Card>
         ))}
@@ -66,7 +66,7 @@ export function MetaServiceKPIStrip({ kpis, prevKpis, loading, showComparison }:
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-2.5">
       {KPIS.map(({ key, label, tip, format, invertDelta }) => {
         const val = kpis[key];
         const prevVal = prevKpis[key];
@@ -75,20 +75,20 @@ export function MetaServiceKPIStrip({ kpis, prevKpis, loading, showComparison }:
         const isNegative = delta !== null && (invertDelta ? delta > 0 : delta < 0);
 
         return (
-          <Card key={key}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-1 mb-1">
-                <span className="text-xs text-muted-foreground font-medium truncate">{label}</span>
+          <Card key={key} className="group hover:shadow-md transition-shadow">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1 mb-1.5">
+                <span className="text-[11px] text-muted-foreground font-medium truncate leading-none">{label}</span>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 text-muted-foreground/60 flex-shrink-0 cursor-help" />
+                    <Info className="h-3 w-3 text-muted-foreground/50 flex-shrink-0 cursor-help opacity-0 group-hover:opacity-100 transition-opacity" />
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-48">
                     <p className="text-xs">{tip}</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <p className="text-base font-bold text-foreground leading-tight">{format(val)}</p>
+              <p className="text-sm font-bold text-foreground leading-tight tabular-nums">{format(val)}</p>
               {delta !== null && (
                 <div className={cn(
                   "flex items-center gap-0.5 mt-1",
@@ -97,7 +97,7 @@ export function MetaServiceKPIStrip({ kpis, prevKpis, loading, showComparison }:
                   !isPositive && !isNegative && "text-muted-foreground"
                 )}>
                   {isPositive ? <TrendingUp className="h-3 w-3" /> : isNegative ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                  <span className="text-xs font-medium">{delta > 0 ? '+' : ''}{delta.toFixed(1)}%</span>
+                  <span className="text-[11px] font-semibold tabular-nums">{delta > 0 ? '+' : ''}{delta.toFixed(1)}%</span>
                 </div>
               )}
             </CardContent>
