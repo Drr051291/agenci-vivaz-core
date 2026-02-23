@@ -10,6 +10,34 @@ const ACCOUNT_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,act
 const CAMPAIGN_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks,campaign_id,campaign_name';
 const CREATIVE_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks,ad_id,ad_name,adset_name,campaign_id,campaign_name';
 
+async function fetchAdThumbnails(adAccountId: string, adIds: string[]): Promise<Record<string, string>> {
+  if (adIds.length === 0) return {};
+  const thumbnails: Record<string, string> = {};
+  try {
+    const token = getToken();
+    // Fetch ads with creative thumbnail_url in batches of 50
+    for (let i = 0; i < adIds.length; i += 50) {
+      const batch = adIds.slice(i, i + 50);
+      const url = new URL(`${META_API_BASE}/${adAccountId}/ads`);
+      url.searchParams.set('access_token', token);
+      url.searchParams.set('fields', 'id,creative{thumbnail_url,image_url}');
+      url.searchParams.set('filtering', JSON.stringify([{ field: 'id', operator: 'IN', value: batch }]));
+      url.searchParams.set('limit', '50');
+      const res = await fetch(url.toString());
+      const json = await res.json();
+      if (json.data) {
+        for (const ad of json.data) {
+          const thumb = ad.creative?.thumbnail_url || ad.creative?.image_url || '';
+          if (thumb) thumbnails[ad.id] = thumb;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch ad thumbnails:', e);
+  }
+  return thumbnails;
+}
+
 function getToken(): string {
   const token = Deno.env.get('META_ACCESS_TOKEN');
   if (!token) throw new Error('Token META_ACCESS_TOKEN não configurado. Configure o secret nas configurações do Lovable Cloud.');
@@ -313,6 +341,10 @@ Deno.serve(async (req: Request) => {
     // Fetch ad-level insights for creatives
     const adInsights = await fetchInsights(normalizedAccount, dateFrom, dateTo, 'ad');
     const adDeduped = deduplicateByKey(adInsights, d => `${d.ad_id || d.id || 'unknown'}__${d.date_start}`);
+
+    // Fetch thumbnails for all unique ad IDs
+    const uniqueAdIds = [...new Set(Object.values(adDeduped).map((d: any) => d.ad_id || d.id || '').filter(Boolean))];
+    const thumbnailMap = await fetchAdThumbnails(normalizedAccount, uniqueAdIds);
     console.log('Ad insights sample:', JSON.stringify(adInsights.slice(0, 2)));
 
     const adRows = Object.values(adDeduped).map((d: any) => {
@@ -352,6 +384,7 @@ Deno.serve(async (req: Request) => {
           campaign_name: campaignNameForAd,
           adset_name: d.adset_name || '',
           ad_name: adName,
+          thumbnail_url: thumbnailMap[adId] || '',
         },
         updated_at: new Date().toISOString(),
       };

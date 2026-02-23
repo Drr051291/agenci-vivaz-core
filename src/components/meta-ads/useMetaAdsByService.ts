@@ -58,6 +58,7 @@ export interface MetaCreativeRow {
   ctr: number;
   leads: number;
   campaign_name: string;
+  thumbnail_url?: string;
 }
 
 export interface MetaKPIs {
@@ -284,6 +285,7 @@ export function useMetaAdsByService(
             entity_name: row.entity_name,
             impressions: 0, clicks: 0, spend: 0, ctr: 0, leads: 0,
             campaign_name: row.campaign_name || row.raw_actions?.campaign_name || '',
+            thumbnail_url: row.raw_actions?.thumbnail_url || '',
           };
         }
         creativeMap[row.entity_id].impressions += row.impressions || 0;
