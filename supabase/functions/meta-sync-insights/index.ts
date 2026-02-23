@@ -54,10 +54,11 @@ function extractLeadsNative(rawActions: any[]): number {
 }
 
 function extractLeadsLandingPage(rawActions: any[]): number {
-  // offsite_conversion.fb_pixel_lead = pixel leads (landing page)
+  // offsite_conversion.fb_pixel_lead = pixel leads (landing page / site conversion)
+  // DO NOT include 'lead' here — 'lead' is Meta's aggregate total, not LP-specific
   if (!Array.isArray(rawActions)) return 0;
   return rawActions
-    .filter(a => a.action_type === 'offsite_conversion.fb_pixel_lead' || a.action_type === 'lead')
+    .filter(a => a.action_type === 'offsite_conversion.fb_pixel_lead')
     .reduce((sum, a) => sum + parseFloat(a.value || '0'), 0);
 }
 
@@ -224,7 +225,8 @@ Deno.serve(async (req: Request) => {
       const outboundClicks = d.outbound_clicks || [];
       const leadsNative = extractLeadsNative(actions);
       const leadsLandingPage = extractLeadsLandingPage(actions);
-      const leadsTotal = leadsNative + leadsLandingPage || extractActions(actions, 'lead');
+      // Total = native + LP; fallback to Meta's 'lead' aggregate only if both are 0
+      const leadsTotal = (leadsNative + leadsLandingPage) || extractActions(actions, 'lead');
       return {
         client_id: clientId!,
         ad_account_id: normalizedAccount,
@@ -269,8 +271,7 @@ Deno.serve(async (req: Request) => {
       const outboundClicks = d.outbound_clicks || [];
       const leadsNative = extractLeadsNative(actions);
       const leadsLandingPage = extractLeadsLandingPage(actions);
-      const leadsTotal = leadsNative + leadsLandingPage || extractActions(actions, 'lead');
-      // campaign_id and campaign_name are the correct fields at campaign level
+      const leadsTotal = (leadsNative + leadsLandingPage) || extractActions(actions, 'lead');
       const campaignId = d.campaign_id || d.id || 'unknown';
       const campaignName = d.campaign_name || d.adset_name || d.ad_name || 'Campanha';
       return {
@@ -279,6 +280,7 @@ Deno.serve(async (req: Request) => {
         level: 'campaign',
         entity_id: campaignId,
         entity_name: campaignName,
+        campaign_name: campaignName,
         date: d.date_start,
         impressions: parseInt(d.impressions || '0'),
         reach: parseInt(d.reach || '0'),
@@ -318,7 +320,7 @@ Deno.serve(async (req: Request) => {
       const outboundClicks = d.outbound_clicks || [];
       const leadsNative = extractLeadsNative(actions);
       const leadsLandingPage = extractLeadsLandingPage(actions);
-      const leadsTotal = leadsNative + leadsLandingPage || extractActions(actions, 'lead');
+      const leadsTotal = (leadsNative + leadsLandingPage) || extractActions(actions, 'lead');
       const adId = d.ad_id || d.id || 'unknown';
       const adName = d.ad_name || 'Anúncio';
       const campaignNameForAd = d.campaign_name || '';

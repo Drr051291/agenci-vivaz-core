@@ -121,9 +121,9 @@ function sumKPIs(rows: MetaInsightRow[], activeCampaigns = 0): MetaKPIs {
   const impressions = rows.reduce((s, r) => s + r.impressions, 0);
   const reach = rows.reduce((s, r) => s + r.reach, 0);
   const clicks = rows.reduce((s, r) => s + r.clicks, 0);
-  const leads = rows.reduce((s, r) => s + r.leads, 0);
   const leads_native = rows.reduce((s, r) => s + (r.leads_native || 0), 0);
   const leads_landing_page = rows.reduce((s, r) => s + (r.leads_landing_page || 0), 0);
+  const leads = leads_native + leads_landing_page;
   const link_clicks = rows.reduce((s, r) => s + (r.link_clicks || 0), 0);
   const landing_page_views = rows.reduce((s, r) => s + (r.landing_page_views || 0), 0);
   const results = rows.reduce((s, r) => s + r.results, 0);
@@ -190,9 +190,9 @@ export function useMetaAdsByService(
         .lte('date', toStr);
       if (campErr) throw campErr;
 
-      // Filter campaigns matching this service
+      // Filter campaigns matching this service using entity_name (campaign name at campaign level)
       const filteredCampaignData = (campData || []).filter((r: any) =>
-        matchesService(r.entity_name || '', service)
+        matchesService(r.entity_name || r.campaign_name || '', service)
       );
 
       // Aggregate by campaign
