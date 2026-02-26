@@ -30,22 +30,11 @@ const getConv = async (sb: any, pid: number, sd: string, ed: string, f: boolean)
 const getDPS = async (sb: any, pid: number, st: any[], f: boolean) => { const k = `dp_${pid}`; if (!f) { const c = await cache(sb, k); if (c) return c }; const res: Record<number, number> = {}; for (const s of st) { const r = await pd('/api/v2/deals', { pipeline_id: pid.toString(), stage_id: s.id.toString(), status: 'open', limit: '500' }); res[s.id] = r?.data?.length || 0 }; await setC(sb, k, res, TTL.d); return res }
 
 const getArr = async (sb: any, pid: number, st: any[], sd: string, ed: string, f: boolean) => {
-  const k = `ar3_${pid}_${sd}_${ed}`; if (!f) { const c = await cache(sb, k); if (c) return c }
-  const all = await fetchD(pid), srt = [...st].sort((a, b) => a.order_nr - b.order_nr)
-  // Filter by add_time in period — do NOT filter by stage_id since won/lost deals may have non-visible stage_ids
-  const flt = all.filter((d: any) => { const dt = d.add_time?.substring(0, 10) || ''; return dt >= AFTER && dt >= sd && dt <= ed })
+  const k = `ar2_${pid}_${sd}_${ed}`; if (!f) { const c = await cache(sb, k); if (c) return c }
+  const all = await fetchD(pid), srt = [...st].sort((a, b) => a.order_nr - b.order_nr), vi = new Set(srt.map(s => s.id))
+  const flt = all.filter((d: any) => { const dt = d.add_time?.substring(0, 10) || ''; return dt >= AFTER && dt >= sd && dt <= ed && vi.has(d.stage_id) })
   const arr: Record<number, number> = {}
-  if (srt.length > 0) {
-    arr[srt[0].id] = flt.length
-    for (let i = 1; i < srt.length; i++) {
-      arr[srt[i].id] = flt.filter((d: any) => {
-        const idx = srt.findIndex(s => s.id === d.stage_id)
-        // If stage not found in pipeline stages, check deal status: won deals passed all stages
-        if (idx === -1) return d.status === 'won'
-        return idx >= i
-      }).length
-    }
-  }
+  if (srt.length > 0) { arr[srt[0].id] = flt.length; for (let i = 1; i < srt.length; i++) arr[srt[i].id] = flt.filter((d: any) => srt.findIndex(s => s.id === d.stage_id) >= i).length }
   const res = { arrivals: arr, total: flt.length }; await setC(sb, k, res, TTL.t); return res
 }
 
