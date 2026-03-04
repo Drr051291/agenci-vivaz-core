@@ -388,6 +388,8 @@ export function getPeriodRange(preset: PeriodPreset): DateRange {
     case 'last7': { const d = new Date(now); d.setDate(d.getDate() - 6); return { from: d, to: now }; }
     case 'last30': { const d = new Date(now); d.setDate(d.getDate() - 29); return { from: d, to: now }; }
     case 'last90': { const d = new Date(now); d.setDate(d.getDate() - 89); return { from: d, to: now }; }
+    case 'thisYear': return { from: startOfYear(now), to: now };
+    case 'lastYear': { const ly = subYears(now, 1); return { from: startOfYear(ly), to: endOfYear(ly) }; }
     default: return { from: startOfMonth(now), to: now };
   }
 }
