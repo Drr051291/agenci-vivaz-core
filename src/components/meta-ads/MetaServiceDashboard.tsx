@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, Settings, ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
+import { RefreshCw, Settings, ArrowLeft, AlertCircle, Loader2, CalendarIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -13,6 +13,9 @@ import { MetaServiceKPIStrip } from "./MetaServiceKPIStrip";
 import { MetaServiceTrendChart } from "./MetaServiceTrendChart";
 import { MetaServiceCampaignTable } from "./MetaServiceCampaignTable";
 import { MetaSettingsPanel } from "./MetaSettingsPanel";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 const SERVICE_LABELS: Record<ServiceFilter, string> = {
   brandspot: 'Brandspot',
@@ -37,13 +40,18 @@ const PRESET_LABELS: Record<PeriodPreset, string> = {
   last7: 'Últimos 7 dias',
   last30: 'Últimos 30 dias',
   last90: 'Últimos 90 dias',
+  thisYear: 'Este ano',
+  lastYear: 'Ano passado',
+  custom: 'Personalizado',
 };
 
 export function MetaServiceDashboard({ clientId, service, isAdmin, onBack }: Props) {
   const [preset, setPreset] = useState<PeriodPreset>('thisMonth');
   const [showComparison, setShowComparison] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const dateRange: DateRange = getPeriodRange(preset);
+  const [customFrom, setCustomFrom] = useState<Date>(new Date());
+  const [customTo, setCustomTo] = useState<Date>(new Date());
+  const dateRange: DateRange = preset === 'custom' ? { from: customFrom, to: customTo } : getPeriodRange(preset);
 
   const {
     connection, campaignRows, dailyRows, creativeRows,
@@ -87,6 +95,34 @@ export function MetaServiceDashboard({ clientId, service, isAdmin, onBack }: Pro
               ))}
             </SelectContent>
           </Select>
+
+          {preset === 'custom' && (
+            <div className="flex items-center gap-1.5">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs w-[120px] justify-start">
+                    <CalendarIcon className="h-3 w-3 mr-1" />
+                    {format(customFrom, 'dd/MM/yyyy')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customFrom} onSelect={d => d && setCustomFrom(d)} disabled={d => d > customTo} className={cn("p-3 pointer-events-auto")} locale={ptBR} />
+                </PopoverContent>
+              </Popover>
+              <span className="text-xs text-muted-foreground">até</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs w-[120px] justify-start">
+                    <CalendarIcon className="h-3 w-3 mr-1" />
+                    {format(customTo, 'dd/MM/yyyy')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customTo} onSelect={d => d && setCustomTo(d)} disabled={d => d < customFrom} className={cn("p-3 pointer-events-auto")} locale={ptBR} />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
 
           <div className="flex items-center gap-1.5">
             <Switch id={`compare-${service}`} checked={showComparison} onCheckedChange={setShowComparison} className="h-4 w-8" />

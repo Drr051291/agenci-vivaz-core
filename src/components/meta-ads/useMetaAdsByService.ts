@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear, subYears } from "date-fns";
 
 export type ServiceFilter = 'brandspot' | '3d_cgi';
 
@@ -91,7 +91,7 @@ export interface MetaConnection {
   token_source: string;
 }
 
-export type PeriodPreset = 'thisMonth' | 'lastMonth' | 'last7' | 'last30' | 'last90';
+export type PeriodPreset = 'thisMonth' | 'lastMonth' | 'last7' | 'last30' | 'last90' | 'thisYear' | 'lastYear' | 'custom';
 
 export interface DateRange {
   from: Date;
@@ -388,6 +388,8 @@ export function getPeriodRange(preset: PeriodPreset): DateRange {
     case 'last7': { const d = new Date(now); d.setDate(d.getDate() - 6); return { from: d, to: now }; }
     case 'last30': { const d = new Date(now); d.setDate(d.getDate() - 29); return { from: d, to: now }; }
     case 'last90': { const d = new Date(now); d.setDate(d.getDate() - 89); return { from: d, to: now }; }
+    case 'thisYear': return { from: startOfYear(now), to: now };
+    case 'lastYear': { const ly = subYears(now, 1); return { from: startOfYear(ly), to: endOfYear(ly) }; }
     default: return { from: startOfMonth(now), to: now };
   }
 }
