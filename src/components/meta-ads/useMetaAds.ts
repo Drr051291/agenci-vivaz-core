@@ -54,7 +54,7 @@ export interface MetaConnection {
   token_source: string;
 }
 
-export type PeriodPreset = 'thisMonth' | 'lastMonth' | 'last7' | 'last30' | 'last90';
+export type PeriodPreset = 'thisMonth' | 'lastMonth' | 'last7' | 'last30' | 'last90' | 'thisYear' | 'lastYear' | 'custom';
 
 export interface DateRange {
   from: Date;
