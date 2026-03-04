@@ -51,21 +51,54 @@ async function metaFetch(path: string, params: Record<string, string>, retries =
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const res = await fetch(url.toString());
-    const json = await res.json();
+    try {
+      const res = await fetch(url.toString());
+      const text = await res.text();
+      
+      let json: any;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        console.error(`Meta API returned non-JSON (status ${res.status}):`, text.substring(0, 500));
+        if (attempt < retries) {
+          const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        throw new Error(`Meta API returned non-JSON response (status ${res.status})`);
+      }
 
-    if (json.error) {
-      const code = json.error.code;
-      // Transient errors (code 1, 2, 4, 17) — retry with backoff
-      if ([1, 2, 4, 17].includes(code) && attempt < retries) {
-        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
-        console.warn(`Meta API transient error (code ${code}), retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${retries})...`);
+      if (json.error) {
+        const code = json.error.code;
+        const subcode = json.error.error_subcode;
+        console.warn(`Meta API error: code=${code}, subcode=${subcode}, type=${json.error.type}, message=${json.error.message}, path=${path}`);
+        
+        // Token expired or invalid
+        if (code === 190 || subcode === 463 || subcode === 467) {
+          throw new Error(`Token Meta expirado ou inválido. Atualize o token nas configurações. (código ${code}, subcode ${subcode})`);
+        }
+        
+        // Transient errors — retry with backoff
+        if ([1, 2, 4, 17].includes(code) && attempt < retries) {
+          const delay = Math.pow(2, attempt) * 2000 + Math.random() * 1000;
+          console.warn(`Retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${retries})...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        throw new Error(`Meta API: ${json.error.message} (código ${code})`);
+      }
+      return json;
+    } catch (e: any) {
+      if (e.message?.includes('Meta API:') || e.message?.includes('Token Meta')) throw e;
+      // Network error — retry
+      if (attempt < retries) {
+        const delay = Math.pow(2, attempt) * 2000;
+        console.warn(`Network error: ${e.message}, retrying in ${delay}ms...`);
         await new Promise(r => setTimeout(r, delay));
         continue;
       }
-      throw new Error(`Meta API: ${json.error.message} (código ${code})`);
+      throw e;
     }
-    return json;
   }
 }
 
