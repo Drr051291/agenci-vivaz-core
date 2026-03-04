@@ -86,6 +86,34 @@ export function MetaAdsDashboard({ clientId, isAdmin, onBack }: Props) {
             </SelectContent>
           </Select>
 
+          {preset === 'custom' && (
+            <div className="flex items-center gap-1.5">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs w-[120px] justify-start">
+                    <CalendarIcon className="h-3 w-3 mr-1" />
+                    {format(customFrom, 'dd/MM/yyyy')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customFrom} onSelect={d => d && setCustomFrom(d)} disabled={d => d > customTo} className={cn("p-3 pointer-events-auto")} locale={ptBR} />
+                </PopoverContent>
+              </Popover>
+              <span className="text-xs text-muted-foreground">até</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs w-[120px] justify-start">
+                    <CalendarIcon className="h-3 w-3 mr-1" />
+                    {format(customTo, 'dd/MM/yyyy')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customTo} onSelect={d => d && setCustomTo(d)} disabled={d => d < customFrom} className={cn("p-3 pointer-events-auto")} locale={ptBR} />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
           {/* Comparison toggle */}
           <div className="flex items-center gap-1.5">
             <Switch id="compare" checked={showComparison} onCheckedChange={setShowComparison} className="h-4 w-8" />
