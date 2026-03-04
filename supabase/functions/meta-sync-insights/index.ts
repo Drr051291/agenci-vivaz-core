@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const META_API_BASE = 'https://graph.facebook.com/v20.0';
+const META_API_BASE = 'https://graph.facebook.com/v22.0';
 const ACCOUNT_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks';
 const CAMPAIGN_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks,campaign_id,campaign_name';
 const CREATIVE_FIELDS = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,actions,action_values,outbound_clicks,ad_id,ad_name,adset_name,campaign_id,campaign_name';
