@@ -44,19 +44,29 @@ function getToken(): string {
   return token;
 }
 
-async function metaFetch(path: string, params: Record<string, string>): Promise<any> {
+async function metaFetch(path: string, params: Record<string, string>, retries = 3): Promise<any> {
   const token = getToken();
   const url = new URL(`${META_API_BASE}${path}`);
   url.searchParams.set('access_token', token);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
-  const res = await fetch(url.toString());
-  const json = await res.json();
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url.toString());
+    const json = await res.json();
 
-  if (json.error) {
-    throw new Error(`Meta API: ${json.error.message} (código ${json.error.code})`);
+    if (json.error) {
+      const code = json.error.code;
+      // Transient errors (code 1, 2, 4, 17) — retry with backoff
+      if ([1, 2, 4, 17].includes(code) && attempt < retries) {
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+        console.warn(`Meta API transient error (code ${code}), retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${retries})...`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw new Error(`Meta API: ${json.error.message} (código ${code})`);
+    }
+    return json;
   }
-  return json;
 }
 
 function extractActions(rawActions: any[], actionType: string): number {
