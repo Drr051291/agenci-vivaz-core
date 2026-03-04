@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, Settings, ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
+import { RefreshCw, Settings, ArrowLeft, AlertCircle, Loader2, CalendarIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -14,6 +14,9 @@ import { MetaTrendChart } from "./MetaTrendChart";
 import { MetaFunnelMidia } from "./MetaFunnelMidia";
 import { MetaCampaignTable } from "./MetaCampaignTable";
 import { MetaSettingsPanel } from "./MetaSettingsPanel";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 interface Props {
   clientId: string;
@@ -27,13 +30,18 @@ const PRESET_LABELS: Record<PeriodPreset, string> = {
   last7: 'Últimos 7 dias',
   last30: 'Últimos 30 dias',
   last90: 'Últimos 90 dias',
+  thisYear: 'Este ano',
+  lastYear: 'Ano passado',
+  custom: 'Personalizado',
 };
 
 export function MetaAdsDashboard({ clientId, isAdmin, onBack }: Props) {
   const [preset, setPreset] = useState<PeriodPreset>('thisMonth');
   const [showComparison, setShowComparison] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const dateRange: DateRange = getPeriodRange(preset);
+  const [customFrom, setCustomFrom] = useState<Date>(new Date());
+  const [customTo, setCustomTo] = useState<Date>(new Date());
+  const dateRange: DateRange = preset === 'custom' ? { from: customFrom, to: customTo } : getPeriodRange(preset);
 
   const { connection, accountRows, campaignRows, kpis, prevKpis, loading, syncing, error, refetch, syncNow } = useMetaAds(
     clientId,
