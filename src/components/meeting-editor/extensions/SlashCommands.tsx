@@ -15,7 +15,8 @@ import {
   Quote,
   Columns2,
   Columns3,
-  Table
+  Table,
+  Code2
 } from 'lucide-react';
 
 interface CommandItem {
@@ -58,7 +59,7 @@ const CommandsList = ({ items, command }: CommandsListProps) => {
   );
 };
 
-const getSuggestionItems = (triggerImageUpload: () => void, triggerYoutubeDialog: () => void): CommandItem[] => [
+const getSuggestionItems = (triggerImageUpload: () => void, triggerYoutubeDialog: () => void, triggerHtmlDialog: () => void): CommandItem[] => [
   {
     title: 'Texto',
     description: 'Parágrafo de texto normal',
@@ -231,9 +232,18 @@ const getSuggestionItems = (triggerImageUpload: () => void, triggerYoutubeDialog
       editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
     },
   },
+  {
+    title: 'Bloco HTML',
+    description: 'Colar código HTML personalizado (embeds, widgets, etc.)',
+    icon: Code2,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      triggerHtmlDialog();
+    },
+  },
 ];
 
-export const createSlashCommandExtension = (triggerImageUpload: () => void, triggerYoutubeDialog: () => void) => {
+export const createSlashCommandExtension = (triggerImageUpload: () => void, triggerYoutubeDialog: () => void, triggerHtmlDialog: () => void) => {
   return Extension.create({
     name: 'slashCommands',
 
@@ -245,7 +255,7 @@ export const createSlashCommandExtension = (triggerImageUpload: () => void, trig
           allowSpaces: true,
           startOfLine: false,
           items: ({ query }) => {
-            return getSuggestionItems(triggerImageUpload, triggerYoutubeDialog)
+            return getSuggestionItems(triggerImageUpload, triggerYoutubeDialog, triggerHtmlDialog)
               .filter(item => 
                 item.title.toLowerCase().includes(query.toLowerCase()) ||
                 item.description.toLowerCase().includes(query.toLowerCase())

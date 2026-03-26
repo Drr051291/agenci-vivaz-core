@@ -3,6 +3,7 @@ import StarterKit from '@tiptap/starter-kit';
 import ResizableImageExtension from 'tiptap-extension-resize-image';
 import Youtube from '@tiptap/extension-youtube';
 import Placeholder from '@tiptap/extension-placeholder';
+import DOMPurify from 'dompurify';
 import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
@@ -29,10 +30,12 @@ import {
   Plus,
   Minus,
   Columns2,
+  Code2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
 import {
   Dialog,
@@ -52,6 +55,8 @@ interface RichTextEditorProps {
 export function RichTextEditor({ content, onChange, placeholder }: RichTextEditorProps) {
   const [youtubeDialogOpen, setYoutubeDialogOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [htmlDialogOpen, setHtmlDialogOpen] = useState(false);
+  const [htmlCode, setHtmlCode] = useState('');
 
   const triggerImageUpload = () => {
     document.getElementById('image-upload')?.click();
@@ -59,6 +64,10 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
 
   const triggerYoutubeDialog = () => {
     setYoutubeDialogOpen(true);
+  };
+
+  const triggerHtmlDialog = () => {
+    setHtmlDialogOpen(true);
   };
 
   const editor = useEditor({
@@ -109,7 +118,7 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
       ChartExtension,
       ColumnGroup,
       Column,
-      createSlashCommandExtension(triggerImageUpload, triggerYoutubeDialog),
+      createSlashCommandExtension(triggerImageUpload, triggerYoutubeDialog, triggerHtmlDialog),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -199,6 +208,21 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
     setYoutubeUrl('');
     setYoutubeDialogOpen(false);
     toast.success('Vídeo do YouTube adicionado!');
+  };
+
+  const handleHtmlInsert = () => {
+    if (!editor || !htmlCode.trim()) return;
+
+    const sanitized = DOMPurify.sanitize(htmlCode, {
+      ADD_TAGS: ['iframe', 'style'],
+      ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target', 'rel', 'style'],
+    });
+
+    editor.chain().focus().insertContent(sanitized).run();
+
+    setHtmlCode('');
+    setHtmlDialogOpen(false);
+    toast.success('Bloco HTML inserido!');
   };
 
   if (!editor) return null;
@@ -330,6 +354,15 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
         >
           <Columns2 className="h-4 w-4" />
         </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setHtmlDialogOpen(true)}
+          title="Inserir Bloco HTML"
+        >
+          <Code2 className="h-4 w-4" />
+        </Button>
         <div className="w-px h-8 bg-border mx-1" />
         {editor.isActive('table') && (
           <>
@@ -452,6 +485,41 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
             </div>
             <Button onClick={handleYoutubeEmbed} className="w-full">
               Adicionar Vídeo
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={htmlDialogOpen} onOpenChange={setHtmlDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Inserir Bloco HTML</DialogTitle>
+            <DialogDescription>
+              Cole o código HTML que deseja incorporar na reunião (tabelas, embeds, widgets, etc.)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="html-code">Código HTML</Label>
+              <Textarea
+                id="html-code"
+                value={htmlCode}
+                onChange={(e) => setHtmlCode(e.target.value)}
+                placeholder="<div>Seu HTML aqui...</div>"
+                className="min-h-[200px] font-mono text-xs"
+              />
+            </div>
+            {htmlCode.trim() && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Pré-visualização</Label>
+                <div
+                  className="mt-1 border border-border rounded-md p-3 max-h-[200px] overflow-auto bg-muted/30 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(htmlCode, { ADD_TAGS: ['iframe', 'style'], ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target', 'rel', 'style'] }) }}
+                />
+              </div>
+            )}
+            <Button onClick={handleHtmlInsert} className="w-full" disabled={!htmlCode.trim()}>
+              Inserir HTML
             </Button>
           </div>
         </DialogContent>
