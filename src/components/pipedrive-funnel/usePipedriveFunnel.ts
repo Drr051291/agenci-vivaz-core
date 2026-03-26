@@ -45,7 +45,7 @@ export function usePipedriveFunnel(
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
   // Debounce ref
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastFetchRef = useRef<string>('');
   const lastComparisonFetchRef = useRef<string>('');
 
