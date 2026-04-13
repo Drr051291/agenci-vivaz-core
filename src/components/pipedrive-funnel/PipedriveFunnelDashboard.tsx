@@ -83,8 +83,16 @@ export function PipedriveFunnelDashboard({
     refetch: refetchSector 
   } = useSectorTracking(dateRange, { pipelineId });
 
+  const {
+    data: campaignData,
+    snapshotData: campaignSnapshotData,
+    loading: campaignLoading,
+    snapshotLoading: campaignSnapshotLoading,
+    refetch: refetchCampaign,
+  } = useCampaignTracking(dateRange, { pipelineId });
+
   const handleRefresh = async () => {
-    await Promise.all([refetch(true), refetchLeadSource(true), refetchSector(true)]);
+    await Promise.all([refetch(true), refetchLeadSource(true), refetchSector(true), refetchCampaign(true)]);
   };
 
   const handleDateRangeChange = (range: DateRange, preset?: PeriodPreset) => {
