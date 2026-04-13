@@ -9,14 +9,14 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 import { usePipedriveFunnel } from './usePipedriveFunnel';
-
+import { useCampaignTracking } from './useCampaignTracking';
 import { useLeadSourceTracking } from './useLeadSourceTracking';
 import { useSectorTracking } from './useSectorTracking';
 import { FunnelStepper } from './FunnelStepper';
 import { FunnelPeriodFilter } from './FunnelPeriodFilter';
 import { ComparisonPeriodSelector } from './ComparisonPeriodSelector';
 import { LostReasonsChart } from './LostReasonsChart';
-
+import { CampaignTrackingChart } from './CampaignTrackingChart';
 import { LeadSourceChart } from './LeadSourceChart';
 import { SectorDistributionChart } from './SectorDistributionChart';
 import { TargetVsActualPanel } from './TargetVsActualPanel';
