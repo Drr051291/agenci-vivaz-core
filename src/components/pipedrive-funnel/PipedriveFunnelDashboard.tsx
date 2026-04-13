@@ -9,14 +9,14 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 import { usePipedriveFunnel } from './usePipedriveFunnel';
-
+import { useCampaignTracking } from './useCampaignTracking';
 import { useLeadSourceTracking } from './useLeadSourceTracking';
 import { useSectorTracking } from './useSectorTracking';
 import { FunnelStepper } from './FunnelStepper';
 import { FunnelPeriodFilter } from './FunnelPeriodFilter';
 import { ComparisonPeriodSelector } from './ComparisonPeriodSelector';
 import { LostReasonsChart } from './LostReasonsChart';
-
+import { CampaignTrackingChart } from './CampaignTrackingChart';
 import { LeadSourceChart } from './LeadSourceChart';
 import { SectorDistributionChart } from './SectorDistributionChart';
 import { TargetVsActualPanel } from './TargetVsActualPanel';
@@ -83,8 +83,16 @@ export function PipedriveFunnelDashboard({
     refetch: refetchSector 
   } = useSectorTracking(dateRange, { pipelineId });
 
+  const {
+    data: campaignData,
+    snapshotData: campaignSnapshotData,
+    loading: campaignLoading,
+    snapshotLoading: campaignSnapshotLoading,
+    refetch: refetchCampaign,
+  } = useCampaignTracking(dateRange, { pipelineId });
+
   const handleRefresh = async () => {
-    await Promise.all([refetch(true), refetchLeadSource(true), refetchSector(true)]);
+    await Promise.all([refetch(true), refetchLeadSource(true), refetchSector(true), refetchCampaign(true)]);
   };
 
   const handleDateRangeChange = (range: DateRange, preset?: PeriodPreset) => {
@@ -239,6 +247,17 @@ export function PipedriveFunnelDashboard({
         loading={leadSourceLoading} 
         snapshotLoading={leadSourceSnapshotLoading}
         viewMode={viewMode}
+      />
+
+      {/* Campaign / AdSet / Creative Tracking */}
+      <CampaignTrackingChart
+        data={campaignData}
+        snapshotData={campaignSnapshotData}
+        allStages={data?.all_stages}
+        loading={campaignLoading}
+        snapshotLoading={campaignSnapshotLoading}
+        viewMode={viewMode}
+        pipelineId={pipelineId}
       />
 
       {/* Sector Distribution Chart - For 3D and Brandspot pipelines */}
