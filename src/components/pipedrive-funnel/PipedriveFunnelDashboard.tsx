@@ -249,6 +249,17 @@ export function PipedriveFunnelDashboard({
         viewMode={viewMode}
       />
 
+      {/* Campaign / AdSet / Creative Tracking */}
+      <CampaignTrackingChart
+        data={campaignData}
+        snapshotData={campaignSnapshotData}
+        allStages={data?.all_stages}
+        loading={campaignLoading}
+        snapshotLoading={campaignSnapshotLoading}
+        viewMode={viewMode}
+        pipelineId={pipelineId}
+      />
+
       {/* Sector Distribution Chart - For 3D and Brandspot pipelines */}
       <SectorDistributionChart 
         data={sectorData}
