@@ -473,26 +473,13 @@ export default function MeetingEditor() {
   };
 
   const getPresentationSections = () => {
-    const presentationSections = [];
-    
-    // 1. Abertura e Alinhamento
-    if (sections.objective || sections.context) {
-      presentationSections.push({ id: 'opening', title: 'Abertura e Alinhamento' });
-    }
-    // 2. Análise de KPIs
-    if (sections.metrics.some(m => m.actual_value !== null || m.target_value !== null)) {
-      presentationSections.push({ id: 'metrics', title: 'Análise de KPIs' });
-    }
-    // 3. Plano de Ação e Discussões (combinado)
-    const hasDiscussions =
-      sections.questionsAndDiscussions &&
-      sections.questionsAndDiscussions.trim() !== '' &&
-      sections.questionsAndDiscussions !== '<p></p>';
-    if (sections.actionPlan.length > 0 || hasDiscussions) {
-      presentationSections.push({ id: 'actions', title: 'Plano de Ação e Discussões' });
-    }
-    
-    return presentationSections;
+    // Sempre exibir a estrutura completa da reunião na apresentação,
+    // mesmo quando alguma seção ainda estiver vazia.
+    return [
+      { id: 'opening', title: 'Abertura e Alinhamento' },
+      { id: 'metrics', title: 'Análise de KPIs' },
+      { id: 'actions', title: 'Plano de Ação e Discussões' },
+    ];
   };
 
   const handlePrevSection = () => {
