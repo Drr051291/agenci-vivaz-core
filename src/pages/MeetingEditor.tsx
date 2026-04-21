@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, Target, Wrench, MessageSquare } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, Target, Wrench, MessageSquare, CalendarRange } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -26,7 +26,7 @@ import {
   MeetingStatusBadge,
 } from "@/components/meetings";
 import { MeetingActionPlan, ActionPlanItem } from "@/components/meetings/MeetingActionPlan";
-import { EnhancedSidebar, SendToTasksButton, ActionPlanWorkspace } from "@/components/meetings/v2";
+import { EnhancedSidebar, SendToTasksButton, ActionPlanWorkspace, MeetingScheduleSection } from "@/components/meetings/v2";
 import { useClientSlugResolver, useMeetingSlugResolver, getClientSlug } from "@/hooks/useSlugResolver";
 
 interface Task {
@@ -479,6 +479,7 @@ export default function MeetingEditor() {
       { id: 'opening', title: 'Abertura e Alinhamento' },
       { id: 'metrics', title: 'Análise de KPIs' },
       { id: 'actions', title: 'Plano de Ação e Discussões' },
+      { id: 'schedule', title: 'Cronograma' },
     ];
   };
 
@@ -674,6 +675,24 @@ export default function MeetingEditor() {
                       readOnly
                     />
                   </div>
+                </>
+              )}
+
+              {section.id === 'schedule' && (
+                <>
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <CalendarRange className="h-5 w-5 text-primary" />
+                    Cronograma
+                  </h2>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Visão consolidada de todas as atividades do plano no calendário.
+                  </p>
+                  <MeetingScheduleSection
+                    meetingId={meetingId}
+                    clientId={clientId || ""}
+                    meetingDate={meetingData.meeting_date}
+                    readOnly
+                  />
                 </>
               )}
 
@@ -975,6 +994,23 @@ export default function MeetingEditor() {
                   />
                 </div>
               </div>
+            </CollapsibleSection>
+
+            {/* Cronograma — calendário do mês da reunião */}
+            <CollapsibleSection
+              title="Cronograma"
+              icon={<CalendarRange className="h-5 w-5" />}
+              defaultOpen={true}
+            >
+              <p className="text-sm text-muted-foreground mb-4">
+                Calendário do mês com todas as atividades do plano de ação. Clique em uma atividade para ver os detalhes.
+              </p>
+              <MeetingScheduleSection
+                meetingId={meetingId}
+                clientId={clientId || ""}
+                meetingDate={meetingData.meeting_date}
+                readOnly={!isEditMode}
+              />
             </CollapsibleSection>
           </div>
 

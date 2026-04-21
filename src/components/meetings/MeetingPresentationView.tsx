@@ -20,7 +20,8 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronRight,
-  CheckCircle2
+  CheckCircle2,
+  CalendarRange
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -30,6 +31,7 @@ import { MetricsSection } from "@/components/meetings/MetricsSection";
 import { ChannelsSection } from "@/components/meetings/ChannelsSection";
 import { DiagnosisPickerSection } from "@/components/meetings/v2/DiagnosisPickerSection";
 import { ActionPlanWorkspace } from "@/components/meetings/v2/action-plan/ActionPlanWorkspace";
+import { MeetingScheduleSection } from "@/components/meetings/v2/action-plan/MeetingScheduleSection";
 import { cn } from "@/lib/utils";
 
 interface MeetingData {
@@ -509,6 +511,27 @@ export function MeetingPresentationView({
                     );
                   })}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 7b. Cronograma — calendário do plano de ação (apenas v2) */}
+          {meeting.template_version === 'v2' && meeting.id && meeting.client_id && (
+            <Card className="transition-all">
+              <CardContent className="p-6 lg:p-8">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <CalendarRange className="h-5 w-5 text-primary" />
+                  Cronograma
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Visão consolidada das atividades do plano no calendário do mês.
+                </p>
+                <MeetingScheduleSection
+                  meetingId={meeting.id}
+                  clientId={meeting.client_id}
+                  meetingDate={meeting.meeting_date}
+                  readOnly
+                />
               </CardContent>
             </Card>
           )}
