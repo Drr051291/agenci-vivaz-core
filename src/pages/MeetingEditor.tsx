@@ -290,16 +290,25 @@ export default function MeetingEditor() {
                 loadedSections.context = (content.text as string) || "";
                 break;
               case "executive_summary":
-                loadedSections.executiveSummary = (content.items as string[]) || [];
+                {
+                  const text = content.text as string | undefined;
+                  const items = content.items as string[] | undefined;
+                  if (typeof text === "string") {
+                    loadedSections.executiveSummary = text;
+                  } else if (Array.isArray(items) && items.length > 0) {
+                    // Backwards-compat: convert legacy bullet list to a single rich-text string
+                    loadedSections.executiveSummary =
+                      "<ul>" + items.filter(Boolean).map((i) => `<li>${i}</li>`).join("") + "</ul>";
+                  } else {
+                    loadedSections.executiveSummary = "";
+                  }
+                }
                 break;
               case "action_plan":
                 loadedSections.actionPlan = (content.items as ActionPlanItem[]) || [];
                 break;
               case "questions_discussions":
                 loadedSections.questionsAndDiscussions = (content.text as string) || "";
-                break;
-              case "diagnosis_items":
-                loadedSections.diagnosisItems = (content.items as DiagnosisItem[]) || [];
                 break;
             }
           }
