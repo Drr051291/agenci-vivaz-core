@@ -678,6 +678,24 @@ export default function MeetingEditor() {
                 </>
               )}
 
+              {section.id === 'schedule' && (
+                <>
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <CalendarRange className="h-5 w-5 text-primary" />
+                    Cronograma
+                  </h2>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Visão consolidada de todas as atividades do plano no calendário.
+                  </p>
+                  <MeetingScheduleSection
+                    meetingId={meetingId}
+                    clientId={clientId || ""}
+                    meetingDate={meetingData.meeting_date}
+                    readOnly
+                  />
+                </>
+              )}
+
             </div>
           ))}
         </div>
