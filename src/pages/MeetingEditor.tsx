@@ -389,9 +389,8 @@ export default function MeetingEditor() {
       const sectionsToSave = [
         { section_key: "objective", title: "Objetivo da reunião", content_json: JSON.parse(JSON.stringify({ text: sections.objective })), sort_order: 0 },
         { section_key: "context", title: "Contexto", content_json: JSON.parse(JSON.stringify({ text: sections.context })), sort_order: 1 },
-        { section_key: "executive_summary", title: "Resumo executivo", content_json: JSON.parse(JSON.stringify({ text: sections.executiveSummary })), sort_order: 2 },
-        { section_key: "action_plan", title: "Plano de ação", content_json: JSON.parse(JSON.stringify({ items: sections.actionPlan })), sort_order: 3 },
-        { section_key: "questions_discussions", title: "Dúvidas e discussões", content_json: JSON.parse(JSON.stringify({ text: sections.questionsAndDiscussions })), sort_order: 4 },
+        { section_key: "action_plan", title: "Plano de ação", content_json: JSON.parse(JSON.stringify({ items: sections.actionPlan })), sort_order: 2 },
+        { section_key: "questions_discussions", title: "Dúvidas e discussões", content_json: JSON.parse(JSON.stringify({ text: sections.questionsAndDiscussions })), sort_order: 3 },
       ];
 
       for (const section of sectionsToSave) {
