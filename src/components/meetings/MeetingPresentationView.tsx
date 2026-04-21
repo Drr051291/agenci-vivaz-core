@@ -229,7 +229,11 @@ export function MeetingPresentationView({
   }));
 
   // Check if we have new methodology content
-  const hasNewContent = sections.length > 0 || metrics.length > 0 || channels.length > 0;
+  const hasNewContent =
+    meeting.template_version === 'v2' ||
+    sections.length > 0 ||
+    metrics.length > 0 ||
+    channels.length > 0;
 
   return (
     <div className={cn("space-y-6", className)}>
