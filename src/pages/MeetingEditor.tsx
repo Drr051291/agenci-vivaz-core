@@ -70,9 +70,6 @@ interface ChecklistItem {
   notes?: string;
 }
 
-interface DiagnosisItem {
-  tagId: string;
-  tagLabel: string;
   context: string;
   solution: string;
 }
@@ -80,12 +77,11 @@ interface DiagnosisItem {
 interface MeetingSections {
   objective: string;
   context: string;
-  executiveSummary: string[];
+  executiveSummary: string;
   metrics: Metric[];
   channels: Channel[];
   actionPlan: ActionPlanItem[];
   questionsAndDiscussions: string;
-  diagnosisItems: DiagnosisItem[];
 }
 
 const AUTOSAVE_DELAY = 3000;
