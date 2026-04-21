@@ -417,7 +417,22 @@ export function MeetingPresentationView({
           )}
 
           {/* 7. Plano de Ação */}
-          {actionPlanItems.length > 0 && (
+          {meeting.template_version === 'v2' && meeting.id && meeting.client_id ? (
+            <Card className="transition-all">
+              <CardContent className="p-6 lg:p-8">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Wrench className="h-5 w-5 text-primary" />
+                  Plano de Ação
+                </h2>
+                <ActionPlanWorkspace
+                  meetingId={meeting.id}
+                  clientId={meeting.client_id}
+                  profiles={[]}
+                  readOnly
+                />
+              </CardContent>
+            </Card>
+          ) : actionPlanItems.length > 0 && (
             <Card className="transition-all">
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">

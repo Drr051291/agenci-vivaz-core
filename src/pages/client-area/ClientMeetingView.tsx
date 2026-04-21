@@ -22,6 +22,7 @@ interface MeetingData {
   analysis_period_start?: string | null;
   analysis_period_end?: string | null;
   next_period_priority?: string | null;
+  template_version?: string | null;
 }
 
 interface MeetingSection {
@@ -104,7 +105,7 @@ export default function ClientMeetingView() {
     try {
       const { data: meeting, error: meetingError } = await supabase
         .from("meeting_minutes")
-        .select("id, title, meeting_date, participants, content, action_items, client_id, share_token, analysis_period_start, analysis_period_end, next_period_priority")
+        .select("id, title, meeting_date, participants, content, action_items, client_id, share_token, analysis_period_start, analysis_period_end, next_period_priority, template_version")
         .eq("id", meetingId)
         .eq("client_id", clientId)
         .single();
