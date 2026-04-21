@@ -609,18 +609,22 @@ export default function MeetingEditor() {
                     <Target className="h-5 w-5 text-primary" />
                     Abertura e Alinhamento
                   </h2>
-                  {sections.objective && (
-                    <div className="mb-4">
-                      <p className="text-sm text-muted-foreground mb-1">Objetivo</p>
-                      <p className="text-lg">{sections.objective}</p>
-                    </div>
-                  )}
-                  {sections.context && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Contexto</p>
-                      <p>{sections.context}</p>
-                    </div>
-                  )}
+                  <div className="mb-4">
+                    <p className="text-sm text-muted-foreground mb-1">Objetivo</p>
+                    {sections.objective ? (
+                      <p className="text-lg whitespace-pre-wrap">{sections.objective}</p>
+                    ) : (
+                      <p className="text-sm italic text-muted-foreground">Nenhum objetivo definido.</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Contexto</p>
+                    {sections.context ? (
+                      <p className="whitespace-pre-wrap">{sections.context}</p>
+                    ) : (
+                      <p className="text-sm italic text-muted-foreground">Nenhum contexto definido.</p>
+                    )}
+                  </div>
                 </>
               )}
 
