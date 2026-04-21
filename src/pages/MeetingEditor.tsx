@@ -28,7 +28,7 @@ import {
   MeetingStatusBadge,
 } from "@/components/meetings";
 import { MeetingActionPlan, ActionPlanItem } from "@/components/meetings/MeetingActionPlan";
-import { DiagnosisPickerSection, EnhancedSidebar, SendToTasksButton } from "@/components/meetings/v2";
+import { DiagnosisPickerSection, EnhancedSidebar, SendToTasksButton, ActionPlanWorkspace } from "@/components/meetings/v2";
 import { useClientSlugResolver, useMeetingSlugResolver, getClientSlug } from "@/hooks/useSlugResolver";
 
 interface Task {
@@ -1045,12 +1045,12 @@ export default function MeetingEditor() {
             <CollapsibleSection 
               title="Plano de Ação" 
               icon={<Wrench className="h-5 w-5" />}
-              badge={sections.actionPlan.length > 0 ? `${sections.actionPlan.length}` : undefined}
             >
-              <MeetingActionPlan
-                items={sections.actionPlan}
-                onChange={(items) => setSections({ ...sections, actionPlan: items })}
-                isEditing={isEditMode}
+              <ActionPlanWorkspace
+                meetingId={meetingId}
+                clientId={clientId || ""}
+                profiles={profiles}
+                readOnly={!isEditMode}
               />
             </CollapsibleSection>
 
