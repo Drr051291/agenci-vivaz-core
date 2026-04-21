@@ -970,15 +970,18 @@ export default function MeetingEditor() {
             <CollapsibleSection 
               title="Resumo Executivo" 
               icon={<FileText className="h-5 w-5" />}
-              badge={sections.executiveSummary.length > 0 ? `${sections.executiveSummary.length}` : undefined}
             >
-              <BulletsSection
-                items={sections.executiveSummary}
-                onChange={(items) => setSections({ ...sections, executiveSummary: items })}
-                isEditing={isEditMode}
-                placeholder="Adicione os pontos principais..."
-                maxItems={5}
-              />
+              {isEditMode ? (
+                <RichTextEditor
+                  content={sections.executiveSummary}
+                  onChange={(content) => setSections({ ...sections, executiveSummary: content })}
+                  placeholder="Resuma os principais pontos do período: destaques, vitórias e riscos..."
+                />
+              ) : (
+                <div className="prose max-w-none">
+                  <MeetingViewer content={sections.executiveSummary} />
+                </div>
+              )}
             </CollapsibleSection>
 
 
@@ -1003,19 +1006,6 @@ export default function MeetingEditor() {
               <ChannelsSection
                 channels={sections.channels}
                 onChange={(channels) => setSections({ ...sections, channels })}
-                isEditing={isEditMode}
-              />
-            </CollapsibleSection>
-
-            {/* Diagnóstico */}
-            <CollapsibleSection 
-              title="Diagnóstico" 
-              icon={<Stethoscope className="h-5 w-5" />}
-              badge={sections.diagnosisItems.length > 0 ? `${sections.diagnosisItems.length}` : undefined}
-            >
-              <DiagnosisPickerSection
-                items={sections.diagnosisItems}
-                onChange={(items) => setSections({ ...sections, diagnosisItems: items })}
                 isEditing={isEditMode}
               />
             </CollapsibleSection>
