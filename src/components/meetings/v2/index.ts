@@ -11,3 +11,4 @@ export { DiagnosisPickerSection } from "./DiagnosisPickerSection";
 export { EnhancedSidebar } from "./EnhancedSidebar";
 export { SendToTasksButton } from "./SendToTasksButton";
 export { ActionPlanWorkspace } from "./action-plan/ActionPlanWorkspace";
+export { MeetingScheduleSection } from "./action-plan/MeetingScheduleSection";
