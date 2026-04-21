@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, TrendingUp, Target, Wrench, MessageSquare } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, Target, Wrench, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -23,7 +23,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import {
   CollapsibleSection,
   MetricsSection,
-  ChannelsSection,
   MeetingStatusBadge,
 } from "@/components/meetings";
 import { MeetingActionPlan, ActionPlanItem } from "@/components/meetings/MeetingActionPlan";
@@ -73,7 +72,6 @@ interface ChecklistItem {
 interface MeetingSections {
   objective: string;
   context: string;
-  executiveSummary: string;
   metrics: Metric[];
   channels: Channel[];
   actionPlan: ActionPlanItem[];
@@ -85,7 +83,6 @@ const AUTOSAVE_DELAY = 3000;
 const DEFAULT_SECTIONS: MeetingSections = {
   objective: "",
   context: "",
-  executiveSummary: "",
   metrics: [
     { metric_key: "investment", metric_label: "Investimento", target_value: null, actual_value: null, unit: "R$" },
     { metric_key: "leads", metric_label: "Leads", target_value: null, actual_value: null, unit: "" },
