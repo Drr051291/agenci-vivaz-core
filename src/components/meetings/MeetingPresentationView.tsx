@@ -29,6 +29,7 @@ import { MeetingViewer } from "@/components/meeting-editor/MeetingViewer";
 import { MetricsSection } from "@/components/meetings/MetricsSection";
 import { ChannelsSection } from "@/components/meetings/ChannelsSection";
 import { DiagnosisPickerSection } from "@/components/meetings/v2/DiagnosisPickerSection";
+import { ActionPlanWorkspace } from "@/components/meetings/v2/action-plan/ActionPlanWorkspace";
 import { cn } from "@/lib/utils";
 
 interface MeetingData {
@@ -41,6 +42,8 @@ interface MeetingData {
   next_period_priority?: string | null;
   analysis_period_start?: string | null;
   analysis_period_end?: string | null;
+  client_id?: string;
+  template_version?: string | null;
 }
 
 interface Metric {
