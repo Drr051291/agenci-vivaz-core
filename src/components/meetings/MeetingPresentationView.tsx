@@ -501,8 +501,8 @@ export function MeetingPresentationView({
             </Card>
           )}
 
-          {/* 8. Dúvidas e Discussões */}
-          {questionsDiscussions?.text && questionsDiscussions.text.trim() !== '' && questionsDiscussions.text !== '<p></p>' && (
+          {/* 8. Dúvidas e Discussões (somente reuniões legadas v1; em v2 já vai junto com o Plano de Ação) */}
+          {meeting.template_version !== 'v2' && questionsDiscussions?.text && questionsDiscussions.text.trim() !== '' && questionsDiscussions.text !== '<p></p>' && (
             <Card className="transition-all">
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
