@@ -914,25 +914,6 @@ export default function MeetingEditor() {
               </div>
             </CollapsibleSection>
 
-            {/* 2. Resumo Executivo */}
-            <CollapsibleSection 
-              title="Resumo Executivo" 
-              icon={<FileText className="h-5 w-5" />}
-            >
-              {isEditMode ? (
-                <RichTextEditor
-                  content={sections.executiveSummary}
-                  onChange={(content) => setSections({ ...sections, executiveSummary: content })}
-                  placeholder="Resuma os principais pontos do período: destaques, vitórias e riscos..."
-                />
-              ) : (
-                <div className="prose max-w-none">
-                  <MeetingViewer content={sections.executiveSummary} />
-                </div>
-              )}
-            </CollapsibleSection>
-
-
             {/* Análise de KPIs */}
             <CollapsibleSection 
               title="Análise de KPIs" 
@@ -945,63 +926,64 @@ export default function MeetingEditor() {
               />
             </CollapsibleSection>
 
-            {/* Desempenho por Canal */}
-            <CollapsibleSection 
-              title="Desempenho por Canal" 
-              icon={<TrendingUp className="h-5 w-5" />}
-              badge={sections.channels.length > 0 ? `${sections.channels.length}` : undefined}
-            >
-              <ChannelsSection
-                channels={sections.channels}
-                onChange={(channels) => setSections({ ...sections, channels })}
-                isEditing={isEditMode}
-              />
-            </CollapsibleSection>
-
-            {/* Plano de Ação */}
-            <CollapsibleSection 
-              title="Plano de Ação" 
+            {/* Plano de Ação e Discussões (combinado) */}
+            <CollapsibleSection
+              title="Plano de Ação e Discussões"
               icon={<Wrench className="h-5 w-5" />}
             >
-              <ActionPlanWorkspace
-                meetingId={meetingId}
-                clientId={clientId || ""}
-                profiles={profiles}
-                readOnly={!isEditMode}
-              />
-            </CollapsibleSection>
-
-            {/* Dúvidas e Discussões */}
-            <CollapsibleSection 
-              title="Dúvidas e Discussões" 
-              icon={<MessageSquare className="h-5 w-5" />}
-            >
-              <div className="space-y-3">
-                {isEditMode ? (
-                  <>
-                    <RichTextEditor
-                      content={sections.questionsAndDiscussions}
-                      onChange={(content) => setSections({ ...sections, questionsAndDiscussions: content })}
-                      placeholder="Registre dúvidas e discussões importantes..."
-                    />
-                    {sections.questionsAndDiscussions && (
-                      <div className="flex justify-end">
-                        <SendToTasksButton
-                          clientId={clientId || ""}
-                          meetingId={meetingId}
-                          text={sections.questionsAndDiscussions.replace(/<[^>]*>/g, '').substring(0, 100)}
-                          profiles={profiles}
-                          onTaskCreated={() => loadMeetingData()}
-                          variant="popover"
-                        />
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="prose max-w-none">
-                    <MeetingViewer content={sections.questionsAndDiscussions} />
+              <div className="space-y-6">
+                {/* Discussões / notas livres */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <MessageSquare className="h-4 w-4" />
+                    Discussões e anotações
                   </div>
-                )}
+                  {isEditMode ? (
+                    <>
+                      <RichTextEditor
+                        content={sections.questionsAndDiscussions}
+                        onChange={(content) =>
+                          setSections({ ...sections, questionsAndDiscussions: content })
+                        }
+                        placeholder="Registre dúvidas, decisões e discussões importantes da reunião..."
+                      />
+                      {sections.questionsAndDiscussions && (
+                        <div className="flex justify-end">
+                          <SendToTasksButton
+                            clientId={clientId || ""}
+                            meetingId={meetingId}
+                            text={sections.questionsAndDiscussions
+                              .replace(/<[^>]*>/g, '')
+                              .substring(0, 100)}
+                            profiles={profiles}
+                            onTaskCreated={() => loadMeetingData()}
+                            variant="popover"
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="prose max-w-none">
+                      <MeetingViewer content={sections.questionsAndDiscussions} />
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Tarefas / plano de ação */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Wrench className="h-4 w-4" />
+                    Tarefas do plano
+                  </div>
+                  <ActionPlanWorkspace
+                    meetingId={meetingId}
+                    clientId={clientId || ""}
+                    profiles={profiles}
+                    readOnly={!isEditMode}
+                  />
+                </div>
               </div>
             </CollapsibleSection>
           </div>
