@@ -150,21 +150,22 @@ export function useMeetingActionPlan(meetingId: string | undefined, clientId: st
     if (!meetingId || !clientId || opts?.readOnly) return;
     try {
       const { data: userData } = await supabase.auth.getUser();
+      const taskInsert: any = {
+        client_id: clientId,
+        title: input.title,
+        priority: input.priority || "medium",
+        category: input.category || "outros",
+        owner_type: input.owner_type || "vivaz",
+        status: "pendente",
+        created_by: userData?.user?.id,
+        source: "meeting",
+        source_id: meetingId,
+      };
+      if (input.assigned_to) taskInsert.assigned_to = input.assigned_to;
+      if (input.due_date) taskInsert.due_date = input.due_date;
       const { data: newTask, error: taskErr } = await supabase
         .from("tasks")
-        .insert({
-          client_id: clientId,
-          title: input.title,
-          assigned_to: input.assigned_to || null,
-          due_date: input.due_date || null,
-          priority: input.priority || "medium",
-          category: input.category || "outros",
-          owner_type: input.owner_type || "vivaz",
-          status: "pendente",
-          created_by: userData?.user?.id,
-          source: "meeting",
-          source_id: meetingId,
-        })
+        .insert(taskInsert)
         .select("id")
         .single();
 
