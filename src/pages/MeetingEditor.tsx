@@ -637,18 +637,6 @@ export default function MeetingEditor() {
                 </>
               )}
 
-              {section.id === 'summary' && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    Resumo Executivo
-                  </h2>
-                  <div className="prose prose-sm max-w-none">
-                    <MeetingViewer content={sections.executiveSummary} />
-                  </div>
-                </>
-              )}
-
               {section.id === 'metrics' && (
                 <>
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -659,56 +647,43 @@ export default function MeetingEditor() {
                 </>
               )}
 
-              {section.id === 'channels' && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    Desempenho por Canal
-                  </h2>
-                  <ChannelsSection channels={sections.channels} onChange={() => {}} isEditing={false} />
-                </>
-              )}
-
               {section.id === 'actions' && (
                 <>
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <Wrench className="h-5 w-5 text-primary" />
-                    Plano de Ação
+                    Plano de Ação e Discussões
                   </h2>
-                  <div className="space-y-3">
-                    {sections.actionPlan.map((item, idx) => (
-                      <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm font-bold text-primary">{idx + 1}</span>
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            {item.category && (
-                              <Badge variant="secondary" className="text-xs">{item.category}</Badge>
-                            )}
-                            {item.status && (
-                              <Badge variant={item.status === 'completed' ? 'default' : 'outline'} className="text-xs">
-                                {item.status === 'completed' ? 'Concluído' : item.status === 'in_progress' ? 'Em andamento' : 'Pendente'}
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="pt-0.5">{item.title}</span>
-                        </div>
+                  {sections.questionsAndDiscussions &&
+                    sections.questionsAndDiscussions.trim() !== '' &&
+                    sections.questionsAndDiscussions !== '<p></p>' && (
+                      <div className="prose prose-sm max-w-none mb-6">
+                        <MeetingViewer content={sections.questionsAndDiscussions} />
                       </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {section.id === 'questions' && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                    Dúvidas e Discussões
-                  </h2>
-                  <div className="prose prose-sm max-w-none">
-                    <MeetingViewer content={sections.questionsAndDiscussions} />
-                  </div>
+                    )}
+                  {sections.actionPlan.length > 0 && (
+                    <div className="space-y-3">
+                      {sections.actionPlan.map((item, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <span className="text-sm font-bold text-primary">{idx + 1}</span>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {item.category && (
+                                <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+                              )}
+                              {item.status && (
+                                <Badge variant={item.status === 'completed' ? 'default' : 'outline'} className="text-xs">
+                                  {item.status === 'completed' ? 'Concluído' : item.status === 'in_progress' ? 'Em andamento' : 'Pendente'}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="pt-0.5">{item.title}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
 
