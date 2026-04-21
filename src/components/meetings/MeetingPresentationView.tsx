@@ -266,25 +266,29 @@ export function MeetingPresentationView({
       {hasNewContent ? (
         <>
           {/* 1. Abertura e Alinhamento */}
-          {(objective?.text || context?.text) && (
+          {(meeting.template_version === 'v2' || objective?.text || context?.text) && (
             <Card className="transition-all">
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Target className="h-5 w-5 text-primary" />
                   Abertura e Alinhamento
                 </h2>
-                {objective?.text && (
-                  <div className="mb-4">
-                    <p className="text-sm text-muted-foreground mb-1">Objetivo</p>
-                    <p className="text-lg">{objective.text}</p>
-                  </div>
-                )}
-                {context?.text && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Contexto</p>
-                    <p>{context.text}</p>
-                  </div>
-                )}
+                <div className="mb-4">
+                  <p className="text-sm text-muted-foreground mb-1">Objetivo</p>
+                  {objective?.text ? (
+                    <p className="text-lg whitespace-pre-wrap">{objective.text}</p>
+                  ) : (
+                    <p className="text-sm italic text-muted-foreground">Nenhum objetivo definido.</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Contexto</p>
+                  {context?.text ? (
+                    <p className="whitespace-pre-wrap">{context.text}</p>
+                  ) : (
+                    <p className="text-sm italic text-muted-foreground">Nenhum contexto definido.</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
