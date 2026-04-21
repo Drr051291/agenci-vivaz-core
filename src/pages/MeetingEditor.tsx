@@ -479,25 +479,17 @@ export default function MeetingEditor() {
     if (sections.objective || sections.context) {
       presentationSections.push({ id: 'opening', title: 'Abertura e Alinhamento' });
     }
-    // 2. Resumo Executivo
-    if (sections.executiveSummary && sections.executiveSummary.trim() !== '' && sections.executiveSummary !== '<p></p>') {
-      presentationSections.push({ id: 'summary', title: 'Resumo Executivo' });
-    }
-    // 3. Análise de KPIs
+    // 2. Análise de KPIs
     if (sections.metrics.some(m => m.actual_value !== null || m.target_value !== null)) {
       presentationSections.push({ id: 'metrics', title: 'Análise de KPIs' });
     }
-    // 4. Desempenho por Canal
-    if (sections.channels.length > 0) {
-      presentationSections.push({ id: 'channels', title: 'Desempenho por Canal' });
-    }
-    // 5. Plano de Ação
-    if (sections.actionPlan.length > 0) {
-      presentationSections.push({ id: 'actions', title: 'Plano de Ação' });
-    }
-    // 7. Dúvidas e Discussões
-    if (sections.questionsAndDiscussions && sections.questionsAndDiscussions.trim() !== '' && sections.questionsAndDiscussions !== '<p></p>') {
-      presentationSections.push({ id: 'questions', title: 'Dúvidas e Discussões' });
+    // 3. Plano de Ação e Discussões (combinado)
+    const hasDiscussions =
+      sections.questionsAndDiscussions &&
+      sections.questionsAndDiscussions.trim() !== '' &&
+      sections.questionsAndDiscussions !== '<p></p>';
+    if (sections.actionPlan.length > 0 || hasDiscussions) {
+      presentationSections.push({ id: 'actions', title: 'Plano de Ação e Discussões' });
     }
     
     return presentationSections;
