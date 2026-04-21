@@ -407,10 +407,9 @@ export default function MeetingEditor() {
       const sectionsToSave = [
         { section_key: "objective", title: "Objetivo da reunião", content_json: JSON.parse(JSON.stringify({ text: sections.objective })), sort_order: 0 },
         { section_key: "context", title: "Contexto", content_json: JSON.parse(JSON.stringify({ text: sections.context })), sort_order: 1 },
-        { section_key: "executive_summary", title: "Resumo executivo", content_json: JSON.parse(JSON.stringify({ items: sections.executiveSummary })), sort_order: 2 },
+        { section_key: "executive_summary", title: "Resumo executivo", content_json: JSON.parse(JSON.stringify({ text: sections.executiveSummary })), sort_order: 2 },
         { section_key: "action_plan", title: "Plano de ação", content_json: JSON.parse(JSON.stringify({ items: sections.actionPlan })), sort_order: 3 },
         { section_key: "questions_discussions", title: "Dúvidas e discussões", content_json: JSON.parse(JSON.stringify({ text: sections.questionsAndDiscussions })), sort_order: 4 },
-        { section_key: "diagnosis_items", title: "Diagnósticos", content_json: JSON.parse(JSON.stringify({ items: sections.diagnosisItems })), sort_order: 5 },
       ];
 
       for (const section of sectionsToSave) {
@@ -500,7 +499,7 @@ export default function MeetingEditor() {
       presentationSections.push({ id: 'opening', title: 'Abertura e Alinhamento' });
     }
     // 2. Resumo Executivo
-    if (sections.executiveSummary.length > 0) {
+    if (sections.executiveSummary && sections.executiveSummary.trim() !== '' && sections.executiveSummary !== '<p></p>') {
       presentationSections.push({ id: 'summary', title: 'Resumo Executivo' });
     }
     // 3. Análise de KPIs
@@ -511,11 +510,7 @@ export default function MeetingEditor() {
     if (sections.channels.length > 0) {
       presentationSections.push({ id: 'channels', title: 'Desempenho por Canal' });
     }
-    // 5. Diagnóstico
-    if (sections.diagnosisItems.length > 0) {
-      presentationSections.push({ id: 'diagnosis', title: 'Diagnóstico' });
-    }
-    // 6. Plano de Ação
+    // 5. Plano de Ação
     if (sections.actionPlan.length > 0) {
       presentationSections.push({ id: 'actions', title: 'Plano de Ação' });
     }
