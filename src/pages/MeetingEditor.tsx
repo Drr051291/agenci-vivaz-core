@@ -70,10 +70,6 @@ interface ChecklistItem {
   notes?: string;
 }
 
-  context: string;
-  solution: string;
-}
-
 interface MeetingSections {
   objective: string;
   context: string;
@@ -89,7 +85,7 @@ const AUTOSAVE_DELAY = 3000;
 const DEFAULT_SECTIONS: MeetingSections = {
   objective: "",
   context: "",
-  executiveSummary: [],
+  executiveSummary: "",
   metrics: [
     { metric_key: "investment", metric_label: "Investimento", target_value: null, actual_value: null, unit: "R$" },
     { metric_key: "leads", metric_label: "Leads", target_value: null, actual_value: null, unit: "" },
@@ -101,7 +97,6 @@ const DEFAULT_SECTIONS: MeetingSections = {
   channels: [],
   actionPlan: [],
   questionsAndDiscussions: "",
-  diagnosisItems: [],
 };
 
 export default function MeetingEditor() {
