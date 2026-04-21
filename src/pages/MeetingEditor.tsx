@@ -670,14 +670,9 @@ export default function MeetingEditor() {
                     <FileText className="h-5 w-5 text-primary" />
                     Resumo Executivo
                   </h2>
-                  <ul className="space-y-2">
-                    {sections.executiveSummary.map((item, i) => (
-                      <li key={i} className="flex items-start gap-3">
-                        <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="prose prose-sm max-w-none">
+                    <MeetingViewer content={sections.executiveSummary} />
+                  </div>
                 </>
               )}
 
@@ -698,16 +693,6 @@ export default function MeetingEditor() {
                     Desempenho por Canal
                   </h2>
                   <ChannelsSection channels={sections.channels} onChange={() => {}} isEditing={false} />
-                </>
-              )}
-
-              {section.id === 'diagnosis' && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Stethoscope className="h-5 w-5 text-primary" />
-                    Diagnóstico
-                  </h2>
-                  <DiagnosisPickerSection items={sections.diagnosisItems} onChange={() => {}} isEditing={false} />
                 </>
               )}
 
