@@ -515,6 +515,27 @@ export function MeetingPresentationView({
             </Card>
           )}
 
+          {/* 7b. Cronograma — calendário do plano de ação (apenas v2) */}
+          {meeting.template_version === 'v2' && meeting.id && meeting.client_id && (
+            <Card className="transition-all">
+              <CardContent className="p-6 lg:p-8">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <CalendarRange className="h-5 w-5 text-primary" />
+                  Cronograma
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Visão consolidada das atividades do plano no calendário do mês.
+                </p>
+                <MeetingScheduleSection
+                  meetingId={meeting.id}
+                  clientId={meeting.client_id}
+                  meetingDate={meeting.meeting_date}
+                  readOnly
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {/* 8. Dúvidas e Discussões (somente reuniões legadas v1; em v2 já vai junto com o Plano de Ação) */}
           {meeting.template_version !== 'v2' && questionsDiscussions?.text && questionsDiscussions.text.trim() !== '' && questionsDiscussions.text !== '<p></p>' && (
             <Card className="transition-all">
