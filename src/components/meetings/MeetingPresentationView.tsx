@@ -289,12 +289,14 @@ export function MeetingPresentationView({
             </Card>
           )}
 
-          {/* 2. Resumo Executivo */}
-          {(executiveSummary?.periodHighlights?.filter((b: string) => b).length > 0 || 
+          {/* 2. Resumo Executivo (somente reuniões legadas v1) */}
+          {meeting.template_version !== 'v2' && (
+            executiveSummary?.periodHighlights?.filter((b: string) => b).length > 0 || 
             executiveSummary?.mainWins?.filter((b: string) => b).length > 0 ||
             executiveSummary?.mainRisks?.filter((b: string) => b).length > 0 ||
             executiveSummary?.items?.filter((b: string) => b).length > 0 ||
-            meeting.next_period_priority) && (
+            meeting.next_period_priority
+          ) && (
             <Card className="transition-all">
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
