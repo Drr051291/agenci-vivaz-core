@@ -995,6 +995,23 @@ export default function MeetingEditor() {
                 </div>
               </div>
             </CollapsibleSection>
+
+            {/* Cronograma — calendário do mês da reunião */}
+            <CollapsibleSection
+              title="Cronograma"
+              icon={<CalendarRange className="h-5 w-5" />}
+              defaultOpen={true}
+            >
+              <p className="text-sm text-muted-foreground mb-4">
+                Calendário do mês com todas as atividades do plano de ação. Clique em uma atividade para ver os detalhes.
+              </p>
+              <MeetingScheduleSection
+                meetingId={meetingId}
+                clientId={clientId || ""}
+                meetingDate={meetingData.meeting_date}
+                readOnly={!isEditMode}
+              />
+            </CollapsibleSection>
           </div>
 
           {/* Enhanced Sidebar */}

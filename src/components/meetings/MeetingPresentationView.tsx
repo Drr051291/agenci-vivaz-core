@@ -20,7 +20,8 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronRight,
-  CheckCircle2
+  CheckCircle2,
+  CalendarRange
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -30,6 +31,7 @@ import { MetricsSection } from "@/components/meetings/MetricsSection";
 import { ChannelsSection } from "@/components/meetings/ChannelsSection";
 import { DiagnosisPickerSection } from "@/components/meetings/v2/DiagnosisPickerSection";
 import { ActionPlanWorkspace } from "@/components/meetings/v2/action-plan/ActionPlanWorkspace";
+import { MeetingScheduleSection } from "@/components/meetings/v2/action-plan/MeetingScheduleSection";
 import { cn } from "@/lib/utils";
 
 interface MeetingData {
