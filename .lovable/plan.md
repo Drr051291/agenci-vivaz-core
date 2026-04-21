@@ -1,64 +1,93 @@
 
-# Recriar Relatorio de Rastreamento de Campanhas
+# Otimização das Reuniões — Visual + Integração com Atividades
 
-## Objetivo
+Vou simplificar a estrutura das reuniões e transformar o **Plano de Ação** em um workspace visual estilo Monday/ClickUp/Notion, totalmente integrado ao módulo de Atividades.
 
-Criar um relatorio limpo e focado que mostra, **por etapa do funil**, a distribuicao percentual de Campanha, Conjunto e Anuncio. O usuario seleciona uma etapa e ve de onde vieram os deals daquela etapa. Pipeline fixo: **3D Inbound (ID 13)**.
+## O que muda no editor de reuniões
 
-## Conceito da Interface
+**Seções removidas / simplificadas:**
+- ❌ **Diagnóstico estruturado** (tags + contexto + solução) — removido do template padrão
+- ✏️ **Resumo Executivo** — vira **um único campo** de texto rico (em vez das 3 listas: destaques / vitórias / riscos)
 
-- Seletor de etapa no topo (tabs com as etapas do funil + "Todas")
-- Ao selecionar uma etapa, exibe tres secoes lado a lado: **Campanha**, **Conjunto**, **Anuncio**
-- Cada secao mostra uma lista rankeada com barra de progresso horizontal e percentual
-- Os dados vem dos campos personalizados do Pipedrive (Campanha, Conjunto, Anuncios)
-- Respeita o viewMode existente (Fluxo do Periodo / Cenario Atual)
+**Seções mantidas:** Abertura (Objetivo + Contexto), KPIs, Desempenho por Canal, Plano de Ação (redesenhado), Dúvidas e Discussões, Tasks.
 
-## Mudancas Tecnicas
+## Plano de Ação redesenhado (o coração da mudança)
 
-### 1. Reescrever `CampaignTrackingChart.tsx` (100% novo)
-
-- Remover toda a logica de source (Landing Page, Base Setima, Lead Nativo) -- isso ja esta no `LeadSourceChart`
-- Interface simplificada:
-  - Tabs de etapas no topo
-  - Grid 3 colunas: Campanha | Conjunto | Anuncio
-  - Cada item: nome truncado + count + percentual + barra horizontal colorida proporcional
-- Quando uma etapa e selecionada, filtra `by_stage[stageId]` para cada item
-- Percentual calculado sobre o total da dimensao naquela etapa
-- Top 10 itens por dimensao, ordenados por count decrescente
-- Itens vazios ("Nao informado") agrupados no final
-
-### 2. Sem mudancas na Edge Function
-
-A logica do backend (`getTrk` no `pipedrive-proxy`) ja retorna `by_campaign`, `by_adset`, `by_creative` com `by_stage` por item. Os dados necessarios ja existem -- a mudanca e puramente visual/frontend.
-
-### 3. Sem mudancas nos types ou hook
-
-Os tipos `CampaignTrackingData`, `CampaignTrackingItem` e o hook `useCampaignTracking` permanecem inalterados.
-
-## Layout Visual
+Substituo a lista atual por um workspace com **3 visualizações alternáveis** no mesmo bloco:
 
 ```text
-+----------------------------------------------------------+
-| Rastreamento de Campanhas        12 negocios              |
-+----------------------------------------------------------+
-| [Todas] [Lead] [MQL] [SQL] [Oportunidade] [Contrato]     |
-+----------------------------------------------------------+
-| Campanha        | Conjunto         | Anuncio              |
-|                 |                  |                       |
-| Camp A  5 (42%) | Conj X  4 (33%) | Ad 1    3 (25%)      |
-| ████████░░░░░░  | ██████░░░░░░░░  | █████░░░░░░░░░       |
-|                 |                  |                       |
-| Camp B  4 (33%) | Conj Y  3 (25%) | Ad 2    3 (25%)      |
-| ██████░░░░░░░░  | █████░░░░░░░░░  | █████░░░░░░░░░       |
-|                 |                  |                       |
-| Camp C  3 (25%) | Conj Z  5 (42%) | Ad 3    6 (50%)      |
-| █████░░░░░░░░░  | ████████░░░░░░  | ██████████░░░        |
-+----------------------------------------------------------+
+┌─────────────────────────────────────────────────────────────┐
+│  Plano de Ação    [+ Nova task] [🔗 Vincular existente]    │
+│  [Lista]  [Kanban]  [Timeline]              3/8 concluídas │
+├─────────────────────────────────────────────────────────────┤
+│  KANBAN ▼                                                   │
+│  ┌──────────┐ ┌──────────────┐ ┌─────────────┐             │
+│  │Pendente 3│ │Em andamento 2│ │Concluído 3 │             │
+│  ├──────────┤ ├──────────────┤ ├─────────────┤             │
+│  │🔴 Card   │ │🟡 Card       │ │✅ Card      │             │
+│  │ Meta Ads │ │ Criar arte   │ │ Aprovar bri │             │
+│  │ 👤 João  │ │ 👤 Ana       │ │ 👤 Vivaz    │             │
+│  │ 📅 25/04 │ │ 📅 28/04     │ │             │             │
+│  └──────────┘ └──────────────┘ └─────────────┘             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Resumo
+**Cada card mostra:** título, responsável (avatar), prazo (com cor se atrasado), prioridade (cor lateral), categoria (badge), dono (Vivaz/Cliente).
 
-- **1 arquivo reescrito**: `src/components/pipedrive-funnel/CampaignTrackingChart.tsx`
-- **0 arquivos de backend alterados**
-- **0 tipos alterados**
-- Visual limpo focado na pergunta: "de onde vieram os deals desta etapa?"
+**Visualizações:**
+- **Lista** — agrupada por Vivaz/Cliente, com checkbox de status inline
+- **Kanban** — colunas Pendente / Em andamento / Concluído com **drag & drop**
+- **Timeline** — linha do tempo horizontal por prazo (semana/mês)
+
+## Integração com Atividades (Tasks)
+
+Cada item do Plano vira uma linha em `meeting_action_links` apontando para uma `task` real:
+
+- **[+ Nova task]** — abre mini-form (título, responsável, prazo, prioridade, categoria) → cria registro em `tasks` + link em `meeting_action_links`
+- **[🔗 Vincular existente]** — popover de busca em tasks já cadastradas do cliente → cria apenas o link
+- Mudar status no card do plano → atualiza a task real (e vice-versa, por realtime)
+- Card tem botão **"Abrir task"** que leva ao TaskDetailDialog completo (briefing, comentários, anexos)
+- Excluir do plano → opção: "remover do plano" ou "remover do plano e deletar task"
+
+## Aplicação a todos os clientes
+
+- O novo template é o **default** em qualquer reunião nova (qualquer cliente, presente ou futuro) — não precisa configurar por cliente
+- **Reuniões existentes ficam como estão** (somente leitura no formato antigo) — o `MeetingPresentationView` detecta `template_version` e renderiza o layout correspondente
+- Novas reuniões salvam `template_version = 'v2'`
+
+## Apresentação ao cliente (área do cliente + link público)
+
+O `MeetingPresentationView` ganha o mesmo bloco visual (somente leitura): o cliente vê o Kanban/Timeline/Lista do Plano com os mesmos cards ricos, sem permissão de editar. Status reflete em tempo real conforme a equipe Vivaz atualiza as tasks.
+
+---
+
+## Detalhes técnicos
+
+**Banco (1 migration):**
+- Reaproveitar `meeting_action_links` (já existe: `meeting_id`, `task_id`, `action_item jsonb`, `is_task_created`)
+- Adicionar coluna `sort_order int` e `view_mode text default 'kanban'` (preferência por reunião) em `meeting_sections` (metadata)
+- Habilitar Realtime em `tasks` e `meeting_action_links`
+
+**Frontend novos componentes (`src/components/meetings/v2/action-plan/`):**
+- `ActionPlanWorkspace.tsx` — wrapper com tabs Lista/Kanban/Timeline + toolbar
+- `ActionPlanKanban.tsx` — drag & drop usando `@dnd-kit/core` (já leve, sem nova dep pesada)
+- `ActionPlanTimeline.tsx` — barras horizontais por data (CSS grid)
+- `ActionPlanList.tsx` — refator do `ActionPlanSection` atual, agrupado por owner
+- `ActionCard.tsx` — card visual reutilizado nas 3 visualizações
+- `LinkExistingTaskPopover.tsx` — busca de tasks do cliente
+- `QuickCreateTaskForm.tsx` — form compacto reutilizando lógica de `SendToTasksButton`
+
+**Hooks:**
+- `useMeetingActionPlan(meetingId, clientId)` — carrega links + tasks (join), expõe CRUD e sincroniza via Realtime
+
+**Arquivos atualizados:**
+- `MeetingEditor.tsx` — remove seção de Diagnóstico, simplifica Resumo Executivo, troca `MeetingActionPlan` por `ActionPlanWorkspace`
+- `MeetingPresentationView.tsx` — renderiza o novo workspace em modo read-only quando `template_version = 'v2'`; mantém render legado caso contrário
+- `ClientMeetingView.tsx` — passa a buscar dados via `useMeetingActionPlan` para visualização do cliente
+- `DEFAULT_SECTIONS` no editor — remove `diagnosisItems`, simplifica `executiveSummary` para string única
+
+**Compatibilidade:**
+- Reuniões com `template_version != 'v2'` continuam abrindo no layout antigo
+- `actionPlanItems` legados (jsonb em `meeting_sections.action_plan`) continuam exibidos em modo read-only
+
+**Dependência nova:** `@dnd-kit/core` + `@dnd-kit/sortable` (~15kb, padrão do ecossistema React para Kanban)
