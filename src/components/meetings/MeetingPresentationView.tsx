@@ -392,8 +392,8 @@ export function MeetingPresentationView({
             </Card>
           )}
 
-          {/* 5. Desempenho por Canal */}
-          {channels.length > 0 && (
+          {/* 5. Desempenho por Canal (somente reuniões legadas v1) */}
+          {meeting.template_version !== 'v2' && channels.length > 0 && (
             <Card className="transition-all">
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
