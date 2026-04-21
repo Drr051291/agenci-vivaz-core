@@ -384,14 +384,18 @@ export function MeetingPresentationView({
 
 
           {/* 4. Análise de KPIs */}
-          {metrics.length > 0 && (
+          {(meeting.template_version === 'v2' || metrics.length > 0) && (
             <Card className="transition-all">
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-primary" />
                   Análise de KPIs
                 </h2>
-                <MetricsSection metrics={metricsForSection} onChange={() => {}} isEditing={false} />
+                {metrics.length > 0 ? (
+                  <MetricsSection metrics={metricsForSection} onChange={() => {}} isEditing={false} />
+                ) : (
+                  <p className="text-sm italic text-muted-foreground">Nenhum KPI registrado.</p>
+                )}
               </CardContent>
             </Card>
           )}
