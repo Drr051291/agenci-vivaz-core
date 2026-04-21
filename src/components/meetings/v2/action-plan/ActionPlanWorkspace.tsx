@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, KanbanSquare, List as ListIcon, CalendarRange, Loader2 } from "lucide-react";
 import { useMeetingActionPlan, ActionPlanTask, bucketStatus } from "@/hooks/useMeetingActionPlan";
 import { ActionPlanKanban } from "./ActionPlanKanban";
 import { ActionPlanList } from "./ActionPlanList";
-import { ActionPlanTimeline } from "./ActionPlanTimeline";
 import { QuickCreateTaskForm } from "./QuickCreateTaskForm";
+import { Plus, KanbanSquare, List as ListIcon, Loader2 } from "lucide-react";
 import { LinkExistingTaskPopover } from "./LinkExistingTaskPopover";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 import {
@@ -30,7 +29,7 @@ interface ActionPlanWorkspaceProps {
   clientId: string | undefined;
   profiles: Profile[];
   readOnly?: boolean;
-  defaultView?: "list" | "kanban" | "timeline";
+  defaultView?: "list" | "kanban";
 }
 
 export function ActionPlanWorkspace({ meetingId, clientId, profiles, readOnly, defaultView = "kanban" }: ActionPlanWorkspaceProps) {
@@ -74,10 +73,6 @@ export function ActionPlanWorkspace({ meetingId, clientId, profiles, readOnly, d
             <TabsTrigger value="kanban" className="text-xs gap-1.5">
               <KanbanSquare className="h-3.5 w-3.5" />
               Kanban
-            </TabsTrigger>
-            <TabsTrigger value="timeline" className="text-xs gap-1.5">
-              <CalendarRange className="h-3.5 w-3.5" />
-              Timeline
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -160,14 +155,6 @@ export function ActionPlanWorkspace({ meetingId, clientId, profiles, readOnly, d
             <ActionPlanKanban
               tasks={items}
               onUpdateStatus={updateTaskStatus}
-              onOpenTask={(t) => setOpenTask(t)}
-              onRemove={readOnly ? undefined : (t) => setPendingRemove(t)}
-              readOnly={readOnly}
-            />
-          </TabsContent>
-          <TabsContent value="timeline" className="mt-0">
-            <ActionPlanTimeline
-              tasks={items}
               onOpenTask={(t) => setOpenTask(t)}
               onRemove={readOnly ? undefined : (t) => setPendingRemove(t)}
               readOnly={readOnly}
