@@ -644,37 +644,36 @@ export default function MeetingEditor() {
                     <Wrench className="h-5 w-5 text-primary" />
                     Plano de Ação e Discussões
                   </h2>
-                  {sections.questionsAndDiscussions &&
+                  <div className="mb-6">
+                    <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <MessageSquare className="h-4 w-4" />
+                      Discussões e anotações
+                    </p>
+                    {sections.questionsAndDiscussions &&
                     sections.questionsAndDiscussions.trim() !== '' &&
-                    sections.questionsAndDiscussions !== '<p></p>' && (
-                      <div className="prose prose-sm max-w-none mb-6">
+                    sections.questionsAndDiscussions !== '<p></p>' ? (
+                      <div className="prose prose-sm max-w-none">
                         <MeetingViewer content={sections.questionsAndDiscussions} />
                       </div>
+                    ) : (
+                      <p className="text-sm italic text-muted-foreground">
+                        Nenhuma discussão registrada.
+                      </p>
                     )}
-                  {sections.actionPlan.length > 0 && (
-                    <div className="space-y-3">
-                      {sections.actionPlan.map((item, idx) => (
-                        <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm font-bold text-primary">{idx + 1}</span>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              {item.category && (
-                                <Badge variant="secondary" className="text-xs">{item.category}</Badge>
-                              )}
-                              {item.status && (
-                                <Badge variant={item.status === 'completed' ? 'default' : 'outline'} className="text-xs">
-                                  {item.status === 'completed' ? 'Concluído' : item.status === 'in_progress' ? 'Em andamento' : 'Pendente'}
-                                </Badge>
-                              )}
-                            </div>
-                            <span className="pt-0.5">{item.title}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  </div>
+                  <Separator className="my-4" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <Wrench className="h-4 w-4" />
+                      Tarefas do plano
+                    </p>
+                    <ActionPlanWorkspace
+                      meetingId={meetingId}
+                      clientId={clientId || ""}
+                      profiles={profiles}
+                      readOnly
+                    />
+                  </div>
                 </>
               )}
 
