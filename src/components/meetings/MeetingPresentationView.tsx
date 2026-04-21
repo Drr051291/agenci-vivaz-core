@@ -424,14 +424,33 @@ export function MeetingPresentationView({
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Wrench className="h-5 w-5 text-primary" />
-                  Plano de Ação
+                  Plano de Ação e Discussões
                 </h2>
-                <ActionPlanWorkspace
-                  meetingId={meeting.id}
-                  clientId={meeting.client_id}
-                  profiles={[]}
-                  readOnly
-                />
+                {questionsDiscussions?.text &&
+                  questionsDiscussions.text.trim() !== '' &&
+                  questionsDiscussions.text !== '<p></p>' && (
+                    <div className="mb-6">
+                      <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                        <MessageSquare className="h-4 w-4" />
+                        Discussões e anotações
+                      </p>
+                      <div className="prose prose-sm max-w-none">
+                        <MeetingViewer content={questionsDiscussions.text} />
+                      </div>
+                    </div>
+                  )}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                    <Wrench className="h-4 w-4" />
+                    Tarefas do plano
+                  </p>
+                  <ActionPlanWorkspace
+                    meetingId={meeting.id}
+                    clientId={meeting.client_id}
+                    profiles={[]}
+                    readOnly
+                  />
+                </div>
               </CardContent>
             </Card>
           ) : actionPlanItems.length > 0 && (
