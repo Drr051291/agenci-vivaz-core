@@ -473,26 +473,13 @@ export default function MeetingEditor() {
   };
 
   const getPresentationSections = () => {
-    const presentationSections = [];
-    
-    // 1. Abertura e Alinhamento
-    if (sections.objective || sections.context) {
-      presentationSections.push({ id: 'opening', title: 'Abertura e Alinhamento' });
-    }
-    // 2. Análise de KPIs
-    if (sections.metrics.some(m => m.actual_value !== null || m.target_value !== null)) {
-      presentationSections.push({ id: 'metrics', title: 'Análise de KPIs' });
-    }
-    // 3. Plano de Ação e Discussões (combinado)
-    const hasDiscussions =
-      sections.questionsAndDiscussions &&
-      sections.questionsAndDiscussions.trim() !== '' &&
-      sections.questionsAndDiscussions !== '<p></p>';
-    if (sections.actionPlan.length > 0 || hasDiscussions) {
-      presentationSections.push({ id: 'actions', title: 'Plano de Ação e Discussões' });
-    }
-    
-    return presentationSections;
+    // Sempre exibir a estrutura completa da reunião na apresentação,
+    // mesmo quando alguma seção ainda estiver vazia.
+    return [
+      { id: 'opening', title: 'Abertura e Alinhamento' },
+      { id: 'metrics', title: 'Análise de KPIs' },
+      { id: 'actions', title: 'Plano de Ação e Discussões' },
+    ];
   };
 
   const handlePrevSection = () => {
@@ -622,18 +609,22 @@ export default function MeetingEditor() {
                     <Target className="h-5 w-5 text-primary" />
                     Abertura e Alinhamento
                   </h2>
-                  {sections.objective && (
-                    <div className="mb-4">
-                      <p className="text-sm text-muted-foreground mb-1">Objetivo</p>
-                      <p className="text-lg">{sections.objective}</p>
-                    </div>
-                  )}
-                  {sections.context && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Contexto</p>
-                      <p>{sections.context}</p>
-                    </div>
-                  )}
+                  <div className="mb-4">
+                    <p className="text-sm text-muted-foreground mb-1">Objetivo</p>
+                    {sections.objective ? (
+                      <p className="text-lg whitespace-pre-wrap">{sections.objective}</p>
+                    ) : (
+                      <p className="text-sm italic text-muted-foreground">Nenhum objetivo definido.</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Contexto</p>
+                    {sections.context ? (
+                      <p className="whitespace-pre-wrap">{sections.context}</p>
+                    ) : (
+                      <p className="text-sm italic text-muted-foreground">Nenhum contexto definido.</p>
+                    )}
+                  </div>
                 </>
               )}
 
@@ -653,37 +644,36 @@ export default function MeetingEditor() {
                     <Wrench className="h-5 w-5 text-primary" />
                     Plano de Ação e Discussões
                   </h2>
-                  {sections.questionsAndDiscussions &&
+                  <div className="mb-6">
+                    <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <MessageSquare className="h-4 w-4" />
+                      Discussões e anotações
+                    </p>
+                    {sections.questionsAndDiscussions &&
                     sections.questionsAndDiscussions.trim() !== '' &&
-                    sections.questionsAndDiscussions !== '<p></p>' && (
-                      <div className="prose prose-sm max-w-none mb-6">
+                    sections.questionsAndDiscussions !== '<p></p>' ? (
+                      <div className="prose prose-sm max-w-none">
                         <MeetingViewer content={sections.questionsAndDiscussions} />
                       </div>
+                    ) : (
+                      <p className="text-sm italic text-muted-foreground">
+                        Nenhuma discussão registrada.
+                      </p>
                     )}
-                  {sections.actionPlan.length > 0 && (
-                    <div className="space-y-3">
-                      {sections.actionPlan.map((item, idx) => (
-                        <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm font-bold text-primary">{idx + 1}</span>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              {item.category && (
-                                <Badge variant="secondary" className="text-xs">{item.category}</Badge>
-                              )}
-                              {item.status && (
-                                <Badge variant={item.status === 'completed' ? 'default' : 'outline'} className="text-xs">
-                                  {item.status === 'completed' ? 'Concluído' : item.status === 'in_progress' ? 'Em andamento' : 'Pendente'}
-                                </Badge>
-                              )}
-                            </div>
-                            <span className="pt-0.5">{item.title}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  </div>
+                  <Separator className="my-4" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <Wrench className="h-4 w-4" />
+                      Tarefas do plano
+                    </p>
+                    <ActionPlanWorkspace
+                      meetingId={meetingId}
+                      clientId={clientId || ""}
+                      profiles={profiles}
+                      readOnly
+                    />
+                  </div>
                 </>
               )}
 
