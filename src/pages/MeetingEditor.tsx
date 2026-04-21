@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, TrendingUp, Target, Wrench, MessageSquare } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, Target, Wrench, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -23,7 +23,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import {
   CollapsibleSection,
   MetricsSection,
-  ChannelsSection,
   MeetingStatusBadge,
 } from "@/components/meetings";
 import { MeetingActionPlan, ActionPlanItem } from "@/components/meetings/MeetingActionPlan";
@@ -73,7 +72,6 @@ interface ChecklistItem {
 interface MeetingSections {
   objective: string;
   context: string;
-  executiveSummary: string;
   metrics: Metric[];
   channels: Channel[];
   actionPlan: ActionPlanItem[];
@@ -85,7 +83,6 @@ const AUTOSAVE_DELAY = 3000;
 const DEFAULT_SECTIONS: MeetingSections = {
   objective: "",
   context: "",
-  executiveSummary: "",
   metrics: [
     { metric_key: "investment", metric_label: "Investimento", target_value: null, actual_value: null, unit: "R$" },
     { metric_key: "leads", metric_label: "Leads", target_value: null, actual_value: null, unit: "" },
@@ -289,21 +286,6 @@ export default function MeetingEditor() {
               case "context":
                 loadedSections.context = (content.text as string) || "";
                 break;
-              case "executive_summary":
-                {
-                  const text = content.text as string | undefined;
-                  const items = content.items as string[] | undefined;
-                  if (typeof text === "string") {
-                    loadedSections.executiveSummary = text;
-                  } else if (Array.isArray(items) && items.length > 0) {
-                    // Backwards-compat: convert legacy bullet list to a single rich-text string
-                    loadedSections.executiveSummary =
-                      "<ul>" + items.filter(Boolean).map((i) => `<li>${i}</li>`).join("") + "</ul>";
-                  } else {
-                    loadedSections.executiveSummary = "";
-                  }
-                }
-                break;
               case "action_plan":
                 loadedSections.actionPlan = (content.items as ActionPlanItem[]) || [];
                 break;
@@ -407,9 +389,8 @@ export default function MeetingEditor() {
       const sectionsToSave = [
         { section_key: "objective", title: "Objetivo da reunião", content_json: JSON.parse(JSON.stringify({ text: sections.objective })), sort_order: 0 },
         { section_key: "context", title: "Contexto", content_json: JSON.parse(JSON.stringify({ text: sections.context })), sort_order: 1 },
-        { section_key: "executive_summary", title: "Resumo executivo", content_json: JSON.parse(JSON.stringify({ text: sections.executiveSummary })), sort_order: 2 },
-        { section_key: "action_plan", title: "Plano de ação", content_json: JSON.parse(JSON.stringify({ items: sections.actionPlan })), sort_order: 3 },
-        { section_key: "questions_discussions", title: "Dúvidas e discussões", content_json: JSON.parse(JSON.stringify({ text: sections.questionsAndDiscussions })), sort_order: 4 },
+        { section_key: "action_plan", title: "Plano de ação", content_json: JSON.parse(JSON.stringify({ items: sections.actionPlan })), sort_order: 2 },
+        { section_key: "questions_discussions", title: "Dúvidas e discussões", content_json: JSON.parse(JSON.stringify({ text: sections.questionsAndDiscussions })), sort_order: 3 },
       ];
 
       for (const section of sectionsToSave) {
@@ -498,25 +479,17 @@ export default function MeetingEditor() {
     if (sections.objective || sections.context) {
       presentationSections.push({ id: 'opening', title: 'Abertura e Alinhamento' });
     }
-    // 2. Resumo Executivo
-    if (sections.executiveSummary && sections.executiveSummary.trim() !== '' && sections.executiveSummary !== '<p></p>') {
-      presentationSections.push({ id: 'summary', title: 'Resumo Executivo' });
-    }
-    // 3. Análise de KPIs
+    // 2. Análise de KPIs
     if (sections.metrics.some(m => m.actual_value !== null || m.target_value !== null)) {
       presentationSections.push({ id: 'metrics', title: 'Análise de KPIs' });
     }
-    // 4. Desempenho por Canal
-    if (sections.channels.length > 0) {
-      presentationSections.push({ id: 'channels', title: 'Desempenho por Canal' });
-    }
-    // 5. Plano de Ação
-    if (sections.actionPlan.length > 0) {
-      presentationSections.push({ id: 'actions', title: 'Plano de Ação' });
-    }
-    // 7. Dúvidas e Discussões
-    if (sections.questionsAndDiscussions && sections.questionsAndDiscussions.trim() !== '' && sections.questionsAndDiscussions !== '<p></p>') {
-      presentationSections.push({ id: 'questions', title: 'Dúvidas e Discussões' });
+    // 3. Plano de Ação e Discussões (combinado)
+    const hasDiscussions =
+      sections.questionsAndDiscussions &&
+      sections.questionsAndDiscussions.trim() !== '' &&
+      sections.questionsAndDiscussions !== '<p></p>';
+    if (sections.actionPlan.length > 0 || hasDiscussions) {
+      presentationSections.push({ id: 'actions', title: 'Plano de Ação e Discussões' });
     }
     
     return presentationSections;
@@ -664,18 +637,6 @@ export default function MeetingEditor() {
                 </>
               )}
 
-              {section.id === 'summary' && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    Resumo Executivo
-                  </h2>
-                  <div className="prose prose-sm max-w-none">
-                    <MeetingViewer content={sections.executiveSummary} />
-                  </div>
-                </>
-              )}
-
               {section.id === 'metrics' && (
                 <>
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -686,56 +647,43 @@ export default function MeetingEditor() {
                 </>
               )}
 
-              {section.id === 'channels' && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    Desempenho por Canal
-                  </h2>
-                  <ChannelsSection channels={sections.channels} onChange={() => {}} isEditing={false} />
-                </>
-              )}
-
               {section.id === 'actions' && (
                 <>
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <Wrench className="h-5 w-5 text-primary" />
-                    Plano de Ação
+                    Plano de Ação e Discussões
                   </h2>
-                  <div className="space-y-3">
-                    {sections.actionPlan.map((item, idx) => (
-                      <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm font-bold text-primary">{idx + 1}</span>
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            {item.category && (
-                              <Badge variant="secondary" className="text-xs">{item.category}</Badge>
-                            )}
-                            {item.status && (
-                              <Badge variant={item.status === 'completed' ? 'default' : 'outline'} className="text-xs">
-                                {item.status === 'completed' ? 'Concluído' : item.status === 'in_progress' ? 'Em andamento' : 'Pendente'}
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="pt-0.5">{item.title}</span>
-                        </div>
+                  {sections.questionsAndDiscussions &&
+                    sections.questionsAndDiscussions.trim() !== '' &&
+                    sections.questionsAndDiscussions !== '<p></p>' && (
+                      <div className="prose prose-sm max-w-none mb-6">
+                        <MeetingViewer content={sections.questionsAndDiscussions} />
                       </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {section.id === 'questions' && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                    Dúvidas e Discussões
-                  </h2>
-                  <div className="prose prose-sm max-w-none">
-                    <MeetingViewer content={sections.questionsAndDiscussions} />
-                  </div>
+                    )}
+                  {sections.actionPlan.length > 0 && (
+                    <div className="space-y-3">
+                      {sections.actionPlan.map((item, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <span className="text-sm font-bold text-primary">{idx + 1}</span>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {item.category && (
+                                <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+                              )}
+                              {item.status && (
+                                <Badge variant={item.status === 'completed' ? 'default' : 'outline'} className="text-xs">
+                                  {item.status === 'completed' ? 'Concluído' : item.status === 'in_progress' ? 'Em andamento' : 'Pendente'}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="pt-0.5">{item.title}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
 
@@ -966,25 +914,6 @@ export default function MeetingEditor() {
               </div>
             </CollapsibleSection>
 
-            {/* 2. Resumo Executivo */}
-            <CollapsibleSection 
-              title="Resumo Executivo" 
-              icon={<FileText className="h-5 w-5" />}
-            >
-              {isEditMode ? (
-                <RichTextEditor
-                  content={sections.executiveSummary}
-                  onChange={(content) => setSections({ ...sections, executiveSummary: content })}
-                  placeholder="Resuma os principais pontos do período: destaques, vitórias e riscos..."
-                />
-              ) : (
-                <div className="prose max-w-none">
-                  <MeetingViewer content={sections.executiveSummary} />
-                </div>
-              )}
-            </CollapsibleSection>
-
-
             {/* Análise de KPIs */}
             <CollapsibleSection 
               title="Análise de KPIs" 
@@ -997,63 +926,64 @@ export default function MeetingEditor() {
               />
             </CollapsibleSection>
 
-            {/* Desempenho por Canal */}
-            <CollapsibleSection 
-              title="Desempenho por Canal" 
-              icon={<TrendingUp className="h-5 w-5" />}
-              badge={sections.channels.length > 0 ? `${sections.channels.length}` : undefined}
-            >
-              <ChannelsSection
-                channels={sections.channels}
-                onChange={(channels) => setSections({ ...sections, channels })}
-                isEditing={isEditMode}
-              />
-            </CollapsibleSection>
-
-            {/* Plano de Ação */}
-            <CollapsibleSection 
-              title="Plano de Ação" 
+            {/* Plano de Ação e Discussões (combinado) */}
+            <CollapsibleSection
+              title="Plano de Ação e Discussões"
               icon={<Wrench className="h-5 w-5" />}
             >
-              <ActionPlanWorkspace
-                meetingId={meetingId}
-                clientId={clientId || ""}
-                profiles={profiles}
-                readOnly={!isEditMode}
-              />
-            </CollapsibleSection>
-
-            {/* Dúvidas e Discussões */}
-            <CollapsibleSection 
-              title="Dúvidas e Discussões" 
-              icon={<MessageSquare className="h-5 w-5" />}
-            >
-              <div className="space-y-3">
-                {isEditMode ? (
-                  <>
-                    <RichTextEditor
-                      content={sections.questionsAndDiscussions}
-                      onChange={(content) => setSections({ ...sections, questionsAndDiscussions: content })}
-                      placeholder="Registre dúvidas e discussões importantes..."
-                    />
-                    {sections.questionsAndDiscussions && (
-                      <div className="flex justify-end">
-                        <SendToTasksButton
-                          clientId={clientId || ""}
-                          meetingId={meetingId}
-                          text={sections.questionsAndDiscussions.replace(/<[^>]*>/g, '').substring(0, 100)}
-                          profiles={profiles}
-                          onTaskCreated={() => loadMeetingData()}
-                          variant="popover"
-                        />
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="prose max-w-none">
-                    <MeetingViewer content={sections.questionsAndDiscussions} />
+              <div className="space-y-6">
+                {/* Discussões / notas livres */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <MessageSquare className="h-4 w-4" />
+                    Discussões e anotações
                   </div>
-                )}
+                  {isEditMode ? (
+                    <>
+                      <RichTextEditor
+                        content={sections.questionsAndDiscussions}
+                        onChange={(content) =>
+                          setSections({ ...sections, questionsAndDiscussions: content })
+                        }
+                        placeholder="Registre dúvidas, decisões e discussões importantes da reunião..."
+                      />
+                      {sections.questionsAndDiscussions && (
+                        <div className="flex justify-end">
+                          <SendToTasksButton
+                            clientId={clientId || ""}
+                            meetingId={meetingId}
+                            text={sections.questionsAndDiscussions
+                              .replace(/<[^>]*>/g, '')
+                              .substring(0, 100)}
+                            profiles={profiles}
+                            onTaskCreated={() => loadMeetingData()}
+                            variant="popover"
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="prose max-w-none">
+                      <MeetingViewer content={sections.questionsAndDiscussions} />
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Tarefas / plano de ação */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Wrench className="h-4 w-4" />
+                    Tarefas do plano
+                  </div>
+                  <ActionPlanWorkspace
+                    meetingId={meetingId}
+                    clientId={clientId || ""}
+                    profiles={profiles}
+                    readOnly={!isEditMode}
+                  />
+                </div>
               </div>
             </CollapsibleSection>
           </div>

@@ -289,12 +289,14 @@ export function MeetingPresentationView({
             </Card>
           )}
 
-          {/* 2. Resumo Executivo */}
-          {(executiveSummary?.periodHighlights?.filter((b: string) => b).length > 0 || 
+          {/* 2. Resumo Executivo (somente reuniões legadas v1) */}
+          {meeting.template_version !== 'v2' && (
+            executiveSummary?.periodHighlights?.filter((b: string) => b).length > 0 || 
             executiveSummary?.mainWins?.filter((b: string) => b).length > 0 ||
             executiveSummary?.mainRisks?.filter((b: string) => b).length > 0 ||
             executiveSummary?.items?.filter((b: string) => b).length > 0 ||
-            meeting.next_period_priority) && (
+            meeting.next_period_priority
+          ) && (
             <Card className="transition-all">
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -390,8 +392,8 @@ export function MeetingPresentationView({
             </Card>
           )}
 
-          {/* 5. Desempenho por Canal */}
-          {channels.length > 0 && (
+          {/* 5. Desempenho por Canal (somente reuniões legadas v1) */}
+          {meeting.template_version !== 'v2' && channels.length > 0 && (
             <Card className="transition-all">
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -422,14 +424,33 @@ export function MeetingPresentationView({
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Wrench className="h-5 w-5 text-primary" />
-                  Plano de Ação
+                  Plano de Ação e Discussões
                 </h2>
-                <ActionPlanWorkspace
-                  meetingId={meeting.id}
-                  clientId={meeting.client_id}
-                  profiles={[]}
-                  readOnly
-                />
+                {questionsDiscussions?.text &&
+                  questionsDiscussions.text.trim() !== '' &&
+                  questionsDiscussions.text !== '<p></p>' && (
+                    <div className="mb-6">
+                      <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                        <MessageSquare className="h-4 w-4" />
+                        Discussões e anotações
+                      </p>
+                      <div className="prose prose-sm max-w-none">
+                        <MeetingViewer content={questionsDiscussions.text} />
+                      </div>
+                    </div>
+                  )}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                    <Wrench className="h-4 w-4" />
+                    Tarefas do plano
+                  </p>
+                  <ActionPlanWorkspace
+                    meetingId={meeting.id}
+                    clientId={meeting.client_id}
+                    profiles={[]}
+                    readOnly
+                  />
+                </div>
               </CardContent>
             </Card>
           ) : actionPlanItems.length > 0 && (
@@ -480,8 +501,8 @@ export function MeetingPresentationView({
             </Card>
           )}
 
-          {/* 8. Dúvidas e Discussões */}
-          {questionsDiscussions?.text && questionsDiscussions.text.trim() !== '' && questionsDiscussions.text !== '<p></p>' && (
+          {/* 8. Dúvidas e Discussões (somente reuniões legadas v1; em v2 já vai junto com o Plano de Ação) */}
+          {meeting.template_version !== 'v2' && questionsDiscussions?.text && questionsDiscussions.text.trim() !== '' && questionsDiscussions.text !== '<p></p>' && (
             <Card className="transition-all">
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
