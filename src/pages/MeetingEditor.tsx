@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, TrendingUp, Target, Wrench, Stethoscope, MessageSquare } from "lucide-react";
+import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, TrendingUp, Target, Wrench, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -24,11 +24,10 @@ import {
   CollapsibleSection,
   MetricsSection,
   ChannelsSection,
-  BulletsSection,
   MeetingStatusBadge,
 } from "@/components/meetings";
 import { MeetingActionPlan, ActionPlanItem } from "@/components/meetings/MeetingActionPlan";
-import { DiagnosisPickerSection, EnhancedSidebar, SendToTasksButton, ActionPlanWorkspace } from "@/components/meetings/v2";
+import { EnhancedSidebar, SendToTasksButton, ActionPlanWorkspace } from "@/components/meetings/v2";
 import { useClientSlugResolver, useMeetingSlugResolver, getClientSlug } from "@/hooks/useSlugResolver";
 
 interface Task {
@@ -71,22 +70,14 @@ interface ChecklistItem {
   notes?: string;
 }
 
-interface DiagnosisItem {
-  tagId: string;
-  tagLabel: string;
-  context: string;
-  solution: string;
-}
-
 interface MeetingSections {
   objective: string;
   context: string;
-  executiveSummary: string[];
+  executiveSummary: string;
   metrics: Metric[];
   channels: Channel[];
   actionPlan: ActionPlanItem[];
   questionsAndDiscussions: string;
-  diagnosisItems: DiagnosisItem[];
 }
 
 const AUTOSAVE_DELAY = 3000;
@@ -94,7 +85,7 @@ const AUTOSAVE_DELAY = 3000;
 const DEFAULT_SECTIONS: MeetingSections = {
   objective: "",
   context: "",
-  executiveSummary: [],
+  executiveSummary: "",
   metrics: [
     { metric_key: "investment", metric_label: "Investimento", target_value: null, actual_value: null, unit: "R$" },
     { metric_key: "leads", metric_label: "Leads", target_value: null, actual_value: null, unit: "" },
@@ -106,7 +97,6 @@ const DEFAULT_SECTIONS: MeetingSections = {
   channels: [],
   actionPlan: [],
   questionsAndDiscussions: "",
-  diagnosisItems: [],
 };
 
 export default function MeetingEditor() {
@@ -300,16 +290,25 @@ export default function MeetingEditor() {
                 loadedSections.context = (content.text as string) || "";
                 break;
               case "executive_summary":
-                loadedSections.executiveSummary = (content.items as string[]) || [];
+                {
+                  const text = content.text as string | undefined;
+                  const items = content.items as string[] | undefined;
+                  if (typeof text === "string") {
+                    loadedSections.executiveSummary = text;
+                  } else if (Array.isArray(items) && items.length > 0) {
+                    // Backwards-compat: convert legacy bullet list to a single rich-text string
+                    loadedSections.executiveSummary =
+                      "<ul>" + items.filter(Boolean).map((i) => `<li>${i}</li>`).join("") + "</ul>";
+                  } else {
+                    loadedSections.executiveSummary = "";
+                  }
+                }
                 break;
               case "action_plan":
                 loadedSections.actionPlan = (content.items as ActionPlanItem[]) || [];
                 break;
               case "questions_discussions":
                 loadedSections.questionsAndDiscussions = (content.text as string) || "";
-                break;
-              case "diagnosis_items":
-                loadedSections.diagnosisItems = (content.items as DiagnosisItem[]) || [];
                 break;
             }
           }
@@ -408,10 +407,9 @@ export default function MeetingEditor() {
       const sectionsToSave = [
         { section_key: "objective", title: "Objetivo da reunião", content_json: JSON.parse(JSON.stringify({ text: sections.objective })), sort_order: 0 },
         { section_key: "context", title: "Contexto", content_json: JSON.parse(JSON.stringify({ text: sections.context })), sort_order: 1 },
-        { section_key: "executive_summary", title: "Resumo executivo", content_json: JSON.parse(JSON.stringify({ items: sections.executiveSummary })), sort_order: 2 },
+        { section_key: "executive_summary", title: "Resumo executivo", content_json: JSON.parse(JSON.stringify({ text: sections.executiveSummary })), sort_order: 2 },
         { section_key: "action_plan", title: "Plano de ação", content_json: JSON.parse(JSON.stringify({ items: sections.actionPlan })), sort_order: 3 },
         { section_key: "questions_discussions", title: "Dúvidas e discussões", content_json: JSON.parse(JSON.stringify({ text: sections.questionsAndDiscussions })), sort_order: 4 },
-        { section_key: "diagnosis_items", title: "Diagnósticos", content_json: JSON.parse(JSON.stringify({ items: sections.diagnosisItems })), sort_order: 5 },
       ];
 
       for (const section of sectionsToSave) {
@@ -501,7 +499,7 @@ export default function MeetingEditor() {
       presentationSections.push({ id: 'opening', title: 'Abertura e Alinhamento' });
     }
     // 2. Resumo Executivo
-    if (sections.executiveSummary.length > 0) {
+    if (sections.executiveSummary && sections.executiveSummary.trim() !== '' && sections.executiveSummary !== '<p></p>') {
       presentationSections.push({ id: 'summary', title: 'Resumo Executivo' });
     }
     // 3. Análise de KPIs
@@ -512,11 +510,7 @@ export default function MeetingEditor() {
     if (sections.channels.length > 0) {
       presentationSections.push({ id: 'channels', title: 'Desempenho por Canal' });
     }
-    // 5. Diagnóstico
-    if (sections.diagnosisItems.length > 0) {
-      presentationSections.push({ id: 'diagnosis', title: 'Diagnóstico' });
-    }
-    // 6. Plano de Ação
+    // 5. Plano de Ação
     if (sections.actionPlan.length > 0) {
       presentationSections.push({ id: 'actions', title: 'Plano de Ação' });
     }
@@ -676,14 +670,9 @@ export default function MeetingEditor() {
                     <FileText className="h-5 w-5 text-primary" />
                     Resumo Executivo
                   </h2>
-                  <ul className="space-y-2">
-                    {sections.executiveSummary.map((item, i) => (
-                      <li key={i} className="flex items-start gap-3">
-                        <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="prose prose-sm max-w-none">
+                    <MeetingViewer content={sections.executiveSummary} />
+                  </div>
                 </>
               )}
 
@@ -704,16 +693,6 @@ export default function MeetingEditor() {
                     Desempenho por Canal
                   </h2>
                   <ChannelsSection channels={sections.channels} onChange={() => {}} isEditing={false} />
-                </>
-              )}
-
-              {section.id === 'diagnosis' && (
-                <>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Stethoscope className="h-5 w-5 text-primary" />
-                    Diagnóstico
-                  </h2>
-                  <DiagnosisPickerSection items={sections.diagnosisItems} onChange={() => {}} isEditing={false} />
                 </>
               )}
 
@@ -991,15 +970,18 @@ export default function MeetingEditor() {
             <CollapsibleSection 
               title="Resumo Executivo" 
               icon={<FileText className="h-5 w-5" />}
-              badge={sections.executiveSummary.length > 0 ? `${sections.executiveSummary.length}` : undefined}
             >
-              <BulletsSection
-                items={sections.executiveSummary}
-                onChange={(items) => setSections({ ...sections, executiveSummary: items })}
-                isEditing={isEditMode}
-                placeholder="Adicione os pontos principais..."
-                maxItems={5}
-              />
+              {isEditMode ? (
+                <RichTextEditor
+                  content={sections.executiveSummary}
+                  onChange={(content) => setSections({ ...sections, executiveSummary: content })}
+                  placeholder="Resuma os principais pontos do período: destaques, vitórias e riscos..."
+                />
+              ) : (
+                <div className="prose max-w-none">
+                  <MeetingViewer content={sections.executiveSummary} />
+                </div>
+              )}
             </CollapsibleSection>
 
 
@@ -1024,19 +1006,6 @@ export default function MeetingEditor() {
               <ChannelsSection
                 channels={sections.channels}
                 onChange={(channels) => setSections({ ...sections, channels })}
-                isEditing={isEditMode}
-              />
-            </CollapsibleSection>
-
-            {/* Diagnóstico */}
-            <CollapsibleSection 
-              title="Diagnóstico" 
-              icon={<Stethoscope className="h-5 w-5" />}
-              badge={sections.diagnosisItems.length > 0 ? `${sections.diagnosisItems.length}` : undefined}
-            >
-              <DiagnosisPickerSection
-                items={sections.diagnosisItems}
-                onChange={(items) => setSections({ ...sections, diagnosisItems: items })}
                 isEditing={isEditMode}
               />
             </CollapsibleSection>
