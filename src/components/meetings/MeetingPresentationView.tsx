@@ -551,8 +551,8 @@ export function MeetingPresentationView({
             </Card>
           )}
 
-          {/* 9. Tasks */}
-          {recentTasks.length > 0 && (
+          {/* 9. Tasks (somente reuniões legadas v1; em v2 o plano de ação já cobre as tarefas) */}
+          {meeting.template_version !== 'v2' && recentTasks.length > 0 && (
             <Card className="transition-all">
               <CardContent className="p-6 lg:p-8">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
