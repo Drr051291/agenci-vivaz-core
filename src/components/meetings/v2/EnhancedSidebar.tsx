@@ -26,6 +26,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface Task {
   id: string;
@@ -218,20 +219,21 @@ export function EnhancedSidebar({
               >
                 <CalendarIcon className="h-3 w-3 mr-1.5 text-muted-foreground" />
                 {newTask.due_date 
-                  ? format(new Date(newTask.due_date), "dd 'de' MMMM", { locale: ptBR })
+                  ? format(parseLocalDate(newTask.due_date), "dd 'de' MMMM", { locale: ptBR })
                   : "Prazo (opcional)"}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={newTask.due_date ? new Date(newTask.due_date) : undefined}
+                selected={newTask.due_date ? parseLocalDate(newTask.due_date) : undefined}
                 onSelect={(date) => {
                   if (date) {
                     setNewTask(prev => ({ ...prev, due_date: format(date, "yyyy-MM-dd") }));
                   }
                 }}
                 initialFocus
+                className="p-3 pointer-events-auto"
               />
             </PopoverContent>
           </Popover>
