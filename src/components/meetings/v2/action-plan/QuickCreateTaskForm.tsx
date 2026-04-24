@@ -8,6 +8,7 @@ import { Calendar as CalendarIcon, Loader2, Plus, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TASK_CATEGORIES } from "@/lib/taskCategories";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface Profile {
   id: string;
@@ -133,17 +134,18 @@ export function QuickCreateTaskForm({ profiles, onSubmit, onCancel }: QuickCreat
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="w-full h-8 justify-start text-xs font-normal">
             <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
-            {dueDate ? format(new Date(dueDate), "dd 'de' MMM, yyyy", { locale: ptBR }) : "Definir prazo (opcional)"}
+            {dueDate ? format(parseLocalDate(dueDate), "dd 'de' MMM, yyyy", { locale: ptBR }) : "Definir prazo (opcional)"}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <Calendar
             mode="single"
-            selected={dueDate ? new Date(dueDate) : undefined}
+            selected={dueDate ? parseLocalDate(dueDate) : undefined}
             onSelect={(d) => {
               if (d) setDueDate(format(d, "yyyy-MM-dd"));
             }}
             initialFocus
+            className="p-3 pointer-events-auto"
           />
         </PopoverContent>
       </Popover>
