@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import MeetingEditorV3 from "./MeetingEditorV3";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -120,6 +121,46 @@ const DEFAULT_SECTIONS: MeetingSections = {
 };
 
 export default function MeetingEditor() {
+  return <MeetingEditorRouter />;
+}
+
+function MeetingEditorRouter() {
+  const { meetingId: meetingSlugOrId, clientId: clientSlugOrId } = useParams();
+  const [version, setVersion] = useState<"legacy" | "v3" | null>(null);
+
+  useEffect(() => {
+    if (!meetingSlugOrId) {
+      setVersion("legacy");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      // The route param can be a UUID or a slug; query both to be safe
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(meetingSlugOrId);
+      const query = supabase.from("meeting_minutes").select("template_version");
+      const { data } = isUuid
+        ? await query.eq("id", meetingSlugOrId).maybeSingle()
+        : await query.eq("slug", meetingSlugOrId).maybeSingle();
+      if (cancelled) return;
+      setVersion(data?.template_version === "v3" ? "v3" : "legacy");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [meetingSlugOrId, clientSlugOrId]);
+
+  if (version === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+  if (version === "v3") return <MeetingEditorV3 />;
+  return <MeetingEditorLegacy />;
+}
+
+function MeetingEditorLegacy() {
   const { clientId: clientSlugOrId, meetingId: meetingSlugOrId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();

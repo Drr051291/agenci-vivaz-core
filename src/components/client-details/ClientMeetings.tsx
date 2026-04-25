@@ -216,6 +216,7 @@ export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
           meeting_date: localDateTime,
           content: getMeetingTemplate(templateType),
           created_by: user?.id,
+          template_version: "v3",
         })
         .select()
         .single();
