@@ -11,7 +11,30 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, Target, Wrench, MessageSquare, CalendarRange } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Calendar as CalendarIcon,
+  Users,
+  Presentation,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  CalendarDays,
+  FileText,
+  BarChart3,
+  Target,
+  Wrench,
+  MessageSquare,
+  CalendarRange,
+  ChevronRight as ChevronRightIcon,
+  Info,
+  ListChecks,
+  Sparkles,
+  Clock,
+  Link2,
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
