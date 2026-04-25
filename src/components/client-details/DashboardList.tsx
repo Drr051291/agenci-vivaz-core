@@ -358,9 +358,7 @@ export function DashboardList({ clientId, clientName }: DashboardListProps) {
       <div className="flex items-center justify-between p-4 border-b">
         <div>
           <h2 className="text-lg font-semibold">Dashboards</h2>
-          <p className="text-sm text-muted-foreground">
-            Gerencie os dashboards do cliente (Reportei e Pipedrive)
-          </p>
+          <p className="text-sm text-muted-foreground">Gerencie os dashboards do cliente</p>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={openCreateDialog}>
