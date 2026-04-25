@@ -11,7 +11,30 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calendar as CalendarIcon, Users, Presentation, X, ChevronLeft, ChevronRight, Pencil, CalendarDays, FileText, BarChart3, Target, Wrench, MessageSquare, CalendarRange } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Calendar as CalendarIcon,
+  Users,
+  Presentation,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  CalendarDays,
+  FileText,
+  BarChart3,
+  Target,
+  Wrench,
+  MessageSquare,
+  CalendarRange,
+  ChevronRight as ChevronRightIcon,
+  Info,
+  ListChecks,
+  Sparkles,
+  Clock,
+  Link2,
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -703,48 +726,78 @@ export default function MeetingEditor() {
     );
   }
 
+  const formattedFullDate = meetingData.meeting_date
+    ? format(
+        parseLocalDate(meetingData.meeting_date.split("T")[0]),
+        "dd 'de' MMMM 'de' yyyy",
+        { locale: ptBR }
+      )
+    : "Data não definida";
+
+  const linkedTasksCount = selectedTasks.length;
+
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
-      <div className="border-b bg-background sticky top-0 z-10">
+      <header className="border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(`/clientes/${clientSlug || clientSlugOrId}?tab=meetings`)}
-                className="rounded-full"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-                <div className="flex items-center gap-3">
-                <div>
-                  {isEditMode ? (
-                    <Input
-                      value={meetingData.title}
-                      onChange={(e) => setMeetingData({ ...meetingData, title: e.target.value })}
-                      placeholder="Nome da reunião..."
-                      className="text-xl font-semibold h-9 border-0 bg-transparent px-0 focus-visible:ring-0"
-                    />
-                  ) : (
-                    <h1 className="text-xl font-semibold">
-                      {meetingData.title || "Nova Reunião"}
-                    </h1>
-                  )}
-                  <p className="text-sm text-muted-foreground">{clientName}</p>
+          {/* Breadcrumb row */}
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                navigate(`/clientes/${clientSlug || clientSlugOrId}?tab=meetings`)
+              }
+              className="h-7 px-2 -ml-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+              {clientName || "Cliente"}
+            </Button>
+            <ChevronRightIcon className="h-3.5 w-3.5 opacity-50" />
+            <span className="font-medium text-foreground">Reuniões</span>
+            <ChevronRightIcon className="h-3.5 w-3.5 opacity-50" />
+            <span className="truncate max-w-[280px]">
+              {meetingData.title || "Nova Reunião"}
+            </span>
+          </div>
+
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              {isEditMode ? (
+                <Input
+                  value={meetingData.title}
+                  onChange={(e) =>
+                    setMeetingData({ ...meetingData, title: e.target.value })
+                  }
+                  placeholder="Nome da reunião..."
+                  className="text-2xl font-bold h-10 border-0 bg-transparent px-0 focus-visible:ring-0 shadow-none"
+                />
+              ) : (
+                <h1 className="text-2xl font-bold leading-tight tracking-tight">
+                  {meetingData.title || "Nova Reunião"}
+                </h1>
+              )}
+              <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  <span>{formattedFullDate}</span>
                 </div>
+                <span className="text-border">•</span>
                 <MeetingStatusBadge status={meetingData.status} />
               </div>
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-2 shrink-0">
               {isEditMode && (
-                <span className={cn(
-                  "text-xs px-2.5 py-1 rounded-full",
-                  isSaving 
-                    ? "text-muted-foreground bg-muted animate-pulse" 
-                    : "text-emerald-700 bg-emerald-50"
-                )}>
+                <span
+                  className={cn(
+                    "text-xs px-2.5 py-1 rounded-full font-medium",
+                    isSaving
+                      ? "text-muted-foreground bg-muted animate-pulse"
+                      : "text-primary bg-primary/10"
+                  )}
+                >
                   {isSaving ? "Salvando..." : "Salvo"}
                 </span>
               )}
@@ -757,12 +810,32 @@ export default function MeetingEditor() {
                 Apresentar
               </Button>
               {isEditMode ? (
-                <Button onClick={handleSave} size="sm">
-                  <Save className="h-4 w-4 mr-1.5" />
-                  Salvar
-                </Button>
+                <>
+                  <Button
+                    onClick={() =>
+                      navigate(
+                        `/clientes/${clientSlug || clientSlugOrId}/reunioes/${meetingSlug || meetingSlugOrId}`
+                      )
+                    }
+                    variant="ghost"
+                    size="sm"
+                  >
+                    Descartar
+                  </Button>
+                  <Button onClick={handleSave} size="sm">
+                    <Save className="h-4 w-4 mr-1.5" />
+                    Salvar Reunião
+                  </Button>
+                </>
               ) : (
-                <Button onClick={() => navigate(`/clientes/${clientSlug || clientSlugOrId}/reunioes/${meetingSlug || meetingSlugOrId}?mode=edit`)} size="sm">
+                <Button
+                  onClick={() =>
+                    navigate(
+                      `/clientes/${clientSlug || clientSlugOrId}/reunioes/${meetingSlug || meetingSlugOrId}?mode=edit`
+                    )
+                  }
+                  size="sm"
+                >
                   <Pencil className="h-4 w-4 mr-1.5" />
                   Editar
                 </Button>
@@ -770,162 +843,264 @@ export default function MeetingEditor() {
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Metadata */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <CalendarDays className="h-5 w-5 text-primary" />
-              </div>
-              <span className="font-medium">Data</span>
-            </div>
-            {isEditMode ? (
-              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start font-normal h-10",
-                      !meetingData.meeting_date && "text-muted-foreground"
-                    )}
-                  >
-                    {meetingData.meeting_date 
-                      ? format(parseLocalDate(meetingData.meeting_date.split('T')[0]), "dd/MM/yyyy", { locale: ptBR })
-                      : "Selecionar data"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={meetingData.meeting_date ? parseLocalDate(meetingData.meeting_date.split('T')[0]) : undefined}
-                    onSelect={(date) => {
-                      if (date) {
-                        setMeetingData({
-                          ...meetingData,
-                          meeting_date: format(date, "yyyy-MM-dd"),
-                        });
-                      }
-                      setDatePickerOpen(false);
-                    }}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {meetingData.meeting_date 
-                  ? format(parseLocalDate(meetingData.meeting_date.split('T')[0]), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) 
-                  : "Não definida"}
-              </p>
-            )}
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <span className="font-medium">Participantes</span>
-            </div>
-            {isEditMode ? (
-              <Popover open={participantsOpen} onOpenChange={setParticipantsOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start font-normal h-10 truncate",
-                      !meetingData.participants.length && "text-muted-foreground"
-                    )}
-                  >
-                    {meetingData.participants.length > 0 
-                      ? meetingData.participants.join(", ")
-                      : "Adicionar participantes"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Buscar..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhum resultado.</CommandEmpty>
-                      <CommandGroup>
-                        {profiles.map((profile) => {
-                          const isSelected = meetingData.participants.includes(profile.full_name);
-                          return (
-                            <CommandItem
-                              key={profile.id}
-                              onSelect={() => {
-                                const newParticipants = isSelected
-                                  ? meetingData.participants.filter(p => p !== profile.full_name)
-                                  : [...meetingData.participants, profile.full_name];
-                                setMeetingData({ ...meetingData, participants: newParticipants });
-                              }}
-                              className="cursor-pointer"
-                            >
-                              <Checkbox checked={isSelected} className="mr-2" />
-                              {profile.full_name}
-                            </CommandItem>
-                          );
-                        })}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            ) : (
-              <p className="text-sm text-muted-foreground truncate">
-                {meetingData.participants.length > 0 ? meetingData.participants.join(", ") : "Nenhum participante"}
-              </p>
-            )}
-          </Card>
-        </div>
-
-        {/* Main Content with Sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-3 space-y-4">
-            {/* 1. Abertura e Alinhamento */}
-            <CollapsibleSection 
-              title="Abertura e Alinhamento" 
-              icon={<Target className="h-5 w-5" />}
-              defaultOpen={true}
+          {/* Main column */}
+          <div className="lg:col-span-3 space-y-5">
+            {/* Informações Básicas (unified) */}
+            <CollapsibleSection
+              title="Informações Básicas"
+              icon={<Info className="h-5 w-5" />}
+              defaultOpen
             >
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Data */}
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block">Objetivo da reunião</label>
+                  <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">
+                    Data da Reunião
+                  </label>
+                  {isEditMode ? (
+                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-between font-normal h-10",
+                            !meetingData.meeting_date && "text-muted-foreground"
+                          )}
+                        >
+                          {meetingData.meeting_date
+                            ? format(
+                                parseLocalDate(meetingData.meeting_date.split("T")[0]),
+                                "dd/MM/yyyy",
+                                { locale: ptBR }
+                              )
+                            : "Selecionar data"}
+                          <CalendarDays className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={
+                            meetingData.meeting_date
+                              ? parseLocalDate(meetingData.meeting_date.split("T")[0])
+                              : undefined
+                          }
+                          onSelect={(date) => {
+                            if (date) {
+                              setMeetingData({
+                                ...meetingData,
+                                meeting_date: format(date, "yyyy-MM-dd"),
+                              });
+                            }
+                            setDatePickerOpen(false);
+                          }}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-border/60 bg-muted/30 text-sm">
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {meetingData.meeting_date
+                          ? format(
+                              parseLocalDate(meetingData.meeting_date.split("T")[0]),
+                              "dd/MM/yyyy",
+                              { locale: ptBR }
+                            )
+                          : "Não definida"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">
+                    Status
+                  </label>
+                  <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-border/60 bg-muted/30">
+                    <MeetingStatusBadge status={meetingData.status} />
+                  </div>
+                </div>
+
+                {/* Participantes — full width */}
+                <div className="md:col-span-2">
+                  <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">
+                    Participantes
+                  </label>
+                  {isEditMode ? (
+                    <Popover open={participantsOpen} onOpenChange={setParticipantsOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={cn(
+                            "w-full min-h-10 px-3 py-2 rounded-md border border-border/60 bg-background text-sm text-left hover:border-primary/40 transition-colors flex items-center flex-wrap gap-1.5"
+                          )}
+                        >
+                          {meetingData.participants.length > 0 ? (
+                            <>
+                              {meetingData.participants.map((p) => (
+                                <Badge
+                                  key={p}
+                                  variant="secondary"
+                                  className="bg-primary/10 text-primary hover:bg-primary/15 gap-1 font-normal"
+                                >
+                                  {p}
+                                  <X
+                                    className="h-3 w-3 cursor-pointer opacity-60 hover:opacity-100"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setMeetingData({
+                                        ...meetingData,
+                                        participants: meetingData.participants.filter(
+                                          (x) => x !== p
+                                        ),
+                                      });
+                                    }}
+                                  />
+                                </Badge>
+                              ))}
+                              <span className="text-primary text-xs font-medium ml-1">
+                                + Adicionar
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              Adicionar participantes
+                            </span>
+                          )}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Buscar..." />
+                          <CommandList>
+                            <CommandEmpty>Nenhum resultado.</CommandEmpty>
+                            <CommandGroup>
+                              {profiles.map((profile) => {
+                                const isSelected = meetingData.participants.includes(
+                                  profile.full_name
+                                );
+                                return (
+                                  <CommandItem
+                                    key={profile.id}
+                                    onSelect={() => {
+                                      const newParticipants = isSelected
+                                        ? meetingData.participants.filter(
+                                            (p) => p !== profile.full_name
+                                          )
+                                        : [
+                                            ...meetingData.participants,
+                                            profile.full_name,
+                                          ];
+                                      setMeetingData({
+                                        ...meetingData,
+                                        participants: newParticipants,
+                                      });
+                                    }}
+                                    className="cursor-pointer"
+                                  >
+                                    <Checkbox
+                                      checked={isSelected}
+                                      className="mr-2"
+                                    />
+                                    {profile.full_name}
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  ) : meetingData.participants.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {meetingData.participants.map((p) => (
+                        <Badge
+                          key={p}
+                          variant="secondary"
+                          className="bg-primary/10 text-primary font-normal"
+                        >
+                          {p}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum participante
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            {/* Pauta e Contexto */}
+            <CollapsibleSection
+              title="Pauta e Contexto"
+              icon={<FileText className="h-5 w-5" />}
+              defaultOpen
+            >
+              <div className="space-y-5">
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">
+                    Objetivo da reunião
+                  </label>
                   {isEditMode ? (
                     <Textarea
                       value={sections.objective}
-                      onChange={(e) => setSections({ ...sections, objective: e.target.value })}
+                      onChange={(e) =>
+                        setSections({ ...sections, objective: e.target.value })
+                      }
                       placeholder="Ex: Apresentar resultados do mês e alinhar próximas ações..."
                       className="min-h-[60px]"
                     />
                   ) : (
-                    <p className="text-sm text-muted-foreground">{sections.objective || "Não definido"}</p>
+                    <p className="text-sm text-foreground/80 whitespace-pre-wrap">
+                      {sections.objective || (
+                        <span className="italic text-muted-foreground">
+                          Não definido
+                        </span>
+                      )}
+                    </p>
                   )}
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block">Contexto</label>
+                  <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">
+                    Contexto
+                  </label>
                   {isEditMode ? (
                     <Textarea
                       value={sections.context}
-                      onChange={(e) => setSections({ ...sections, context: e.target.value })}
+                      onChange={(e) =>
+                        setSections({ ...sections, context: e.target.value })
+                      }
                       placeholder="Breve contexto sobre a situação atual do cliente..."
-                      className="min-h-[80px]"
+                      className="min-h-[100px]"
                     />
                   ) : (
-                    <p className="text-sm text-muted-foreground">{sections.context || "Não definido"}</p>
+                    <p className="text-sm text-foreground/80 whitespace-pre-wrap">
+                      {sections.context || (
+                        <span className="italic text-muted-foreground">
+                          Não definido
+                        </span>
+                      )}
+                    </p>
                   )}
                 </div>
               </div>
             </CollapsibleSection>
 
             {/* Análise de KPIs */}
-            <CollapsibleSection 
-              title="Análise de KPIs" 
+            <CollapsibleSection
+              title="Análise de KPIs"
               icon={<BarChart3 className="h-5 w-5" />}
             >
               <MetricsSection
@@ -935,13 +1110,12 @@ export default function MeetingEditor() {
               />
             </CollapsibleSection>
 
-            {/* Plano de Ação e Discussões (combinado) */}
+            {/* Plano de Ação e Discussões */}
             <CollapsibleSection
               title="Plano de Ação e Discussões"
               icon={<Wrench className="h-5 w-5" />}
             >
               <div className="space-y-6">
-                {/* Discussões / notas livres */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <MessageSquare className="h-4 w-4" />
@@ -952,7 +1126,10 @@ export default function MeetingEditor() {
                       <RichTextEditor
                         content={sections.questionsAndDiscussions}
                         onChange={(content) =>
-                          setSections({ ...sections, questionsAndDiscussions: content })
+                          setSections({
+                            ...sections,
+                            questionsAndDiscussions: content,
+                          })
                         }
                         placeholder="Registre dúvidas, decisões e discussões importantes da reunião..."
                       />
@@ -962,7 +1139,7 @@ export default function MeetingEditor() {
                             clientId={clientId || ""}
                             meetingId={meetingId}
                             text={sections.questionsAndDiscussions
-                              .replace(/<[^>]*>/g, '')
+                              .replace(/<[^>]*>/g, "")
                               .substring(0, 100)}
                             profiles={profiles}
                             onTaskCreated={() => loadMeetingData()}
@@ -980,7 +1157,6 @@ export default function MeetingEditor() {
 
                 <Separator />
 
-                {/* Tarefas / plano de ação */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <Wrench className="h-4 w-4" />
@@ -996,11 +1172,11 @@ export default function MeetingEditor() {
               </div>
             </CollapsibleSection>
 
-            {/* Cronograma — calendário do mês da reunião */}
+            {/* Cronograma */}
             <CollapsibleSection
               title="Cronograma"
               icon={<CalendarRange className="h-5 w-5" />}
-              defaultOpen={true}
+              defaultOpen
             >
               <p className="text-sm text-muted-foreground mb-4">
                 Calendário do mês com todas as atividades do plano de ação. Clique em uma atividade para ver os detalhes.
@@ -1014,17 +1190,94 @@ export default function MeetingEditor() {
             </CollapsibleSection>
           </div>
 
-          {/* Enhanced Sidebar */}
-          <EnhancedSidebar
-            clientId={clientId || ""}
-            meetingId={meetingId}
-            tasks={tasks}
-            profiles={profiles}
-            selectedTasks={selectedTasks}
-            onTaskToggle={handleTaskToggle}
-            onTasksUpdated={() => loadMeetingData()}
-            isEditing={isEditMode}
-          />
+          {/* Sidebar */}
+          <aside className="lg:col-span-1">
+            <div className="lg:sticky lg:top-28 space-y-5">
+              {/* Atividades vinculadas */}
+              <EnhancedSidebar
+                clientId={clientId || ""}
+                meetingId={meetingId}
+                tasks={tasks}
+                profiles={profiles}
+                selectedTasks={selectedTasks}
+                onTaskToggle={handleTaskToggle}
+                onTasksUpdated={() => loadMeetingData()}
+                isEditing={isEditMode}
+              />
+
+              {/* Resumo da Reunião */}
+              <div className="rounded-xl border border-border/60 bg-card shadow-sm p-5">
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-primary mb-4">
+                  Resumo da Reunião
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5" />
+                      Data
+                    </span>
+                    <span className="font-medium">
+                      {meetingData.meeting_date
+                        ? format(
+                            parseLocalDate(meetingData.meeting_date.split("T")[0]),
+                            "dd/MM/yy",
+                            { locale: ptBR }
+                          )
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <ListChecks className="h-3.5 w-3.5" />
+                      Tarefas Vinculadas
+                    </span>
+                    <span className="font-medium">
+                      {linkedTasksCount} {linkedTasksCount === 1 ? "selecionada" : "selecionadas"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <Users className="h-3.5 w-3.5" />
+                      Participantes
+                    </span>
+                    <span className="font-medium">
+                      {meetingData.participants.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-border/60">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "h-2 w-2 rounded-full animate-pulse",
+                          isSaving ? "bg-amber-500" : "bg-emerald-500"
+                        )}
+                      />
+                      Status do Sync
+                    </span>
+                    <span
+                      className={cn(
+                        "font-medium",
+                        isSaving ? "text-amber-600" : "text-emerald-600"
+                      )}
+                    >
+                      {isSaving ? "Salvando..." : "Em tempo real"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* IA Vivaz Sugere */}
+              <div className="rounded-xl bg-gradient-to-br from-primary to-primary/80 p-5 text-primary-foreground shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="h-4 w-4" />
+                  <h3 className="font-bold">IA Vivaz Sugere</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-primary-foreground/90">
+                  Use as métricas inseridas na seção de KPIs para gerar insights automáticos. A IA analisa tendências e recomenda focos para a próxima reunião.
+                </p>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     </div>
