@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import MeetingEditorV3 from "./MeetingEditorV3";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -135,12 +136,48 @@ export default function MeetingEditor() {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
+  const [templateVersion, setTemplateVersion] = useState<string | null>(null);
+  const [versionResolved, setVersionResolved] = useState(false);
   
   // Resolve slugs to IDs
   const { clientId, clientSlug, loading: clientLoading, error: clientError } = useClientSlugResolver(clientSlugOrId);
   const { meetingId, meetingSlug, loading: meetingLoading, error: meetingError } = useMeetingSlugResolver(clientId, meetingSlugOrId);
+
+  // Detect template_version to route to the new V3 editor for new meetings
+  useEffect(() => {
+    if (!meetingId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("meeting_minutes")
+        .select("template_version")
+        .eq("id", meetingId)
+        .maybeSingle();
+      if (!cancelled) {
+        setTemplateVersion(data?.template_version || null);
+        setVersionResolved(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [meetingId]);
   
   const loading = clientLoading || meetingLoading || dataLoading;
+
+  // While resolving version, hold rendering to avoid flicker
+  if (meetingId && !versionResolved) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Route new meetings to the redesigned V3 editor
+  if (versionResolved && templateVersion === "v3") {
+    return <MeetingEditorV3 />;
+  }
   
   // Redirect to slug-based URL if using UUIDs
   useEffect(() => {
