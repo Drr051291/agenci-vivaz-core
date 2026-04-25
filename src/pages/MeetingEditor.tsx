@@ -1246,10 +1246,20 @@ export default function MeetingEditor() {
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-border/60">
                     <span className="text-muted-foreground flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span
+                        className={cn(
+                          "h-2 w-2 rounded-full animate-pulse",
+                          isSaving ? "bg-amber-500" : "bg-emerald-500"
+                        )}
+                      />
                       Status do Sync
                     </span>
-                    <span className="font-medium text-emerald-600">
+                    <span
+                      className={cn(
+                        "font-medium",
+                        isSaving ? "text-amber-600" : "text-emerald-600"
+                      )}
+                    >
                       {isSaving ? "Salvando..." : "Em tempo real"}
                     </span>
                   </div>
