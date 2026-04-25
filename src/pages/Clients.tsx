@@ -24,7 +24,39 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Building2, Globe, Pencil, User, Phone, Mail, ShoppingCart, Store, Megaphone, MapPin, Users, X, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Building2,
+  Globe,
+  Pencil,
+  User,
+  Phone,
+  Mail,
+  ShoppingCart,
+  Store,
+  Megaphone,
+  MapPin,
+  Users,
+  X,
+  Trash2,
+  Search,
+  Download,
+  LayoutGrid,
+  List as ListIcon,
+  TrendingUp,
+  TrendingDown,
+  ChevronRight,
+  MoreVertical,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
