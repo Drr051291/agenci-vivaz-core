@@ -121,6 +121,46 @@ const DEFAULT_SECTIONS: MeetingSections = {
 };
 
 export default function MeetingEditor() {
+  return <MeetingEditorRouter />;
+}
+
+function MeetingEditorRouter() {
+  const { meetingId: meetingSlugOrId, clientId: clientSlugOrId } = useParams();
+  const [version, setVersion] = useState<"legacy" | "v3" | null>(null);
+
+  useEffect(() => {
+    if (!meetingSlugOrId) {
+      setVersion("legacy");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      // The route param can be a UUID or a slug; query both to be safe
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(meetingSlugOrId);
+      const query = supabase.from("meeting_minutes").select("template_version");
+      const { data } = isUuid
+        ? await query.eq("id", meetingSlugOrId).maybeSingle()
+        : await query.eq("slug", meetingSlugOrId).maybeSingle();
+      if (cancelled) return;
+      setVersion(data?.template_version === "v3" ? "v3" : "legacy");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [meetingSlugOrId, clientSlugOrId]);
+
+  if (version === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+  if (version === "v3") return <MeetingEditorV3 />;
+  return <MeetingEditorLegacy />;
+}
+
+function MeetingEditorLegacy() {
   const { clientId: clientSlugOrId, meetingId: meetingSlugOrId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -136,48 +176,12 @@ export default function MeetingEditor() {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
-  const [templateVersion, setTemplateVersion] = useState<string | null>(null);
-  const [versionResolved, setVersionResolved] = useState(false);
   
   // Resolve slugs to IDs
   const { clientId, clientSlug, loading: clientLoading, error: clientError } = useClientSlugResolver(clientSlugOrId);
   const { meetingId, meetingSlug, loading: meetingLoading, error: meetingError } = useMeetingSlugResolver(clientId, meetingSlugOrId);
-
-  // Detect template_version to route to the new V3 editor for new meetings
-  useEffect(() => {
-    if (!meetingId) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("meeting_minutes")
-        .select("template_version")
-        .eq("id", meetingId)
-        .maybeSingle();
-      if (!cancelled) {
-        setTemplateVersion(data?.template_version || null);
-        setVersionResolved(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [meetingId]);
   
   const loading = clientLoading || meetingLoading || dataLoading;
-
-  // While resolving version, hold rendering to avoid flicker
-  if (meetingId && !versionResolved) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
-  // Route new meetings to the redesigned V3 editor
-  if (versionResolved && templateVersion === "v3") {
-    return <MeetingEditorV3 />;
-  }
   
   // Redirect to slug-based URL if using UUIDs
   useEffect(() => {
