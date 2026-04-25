@@ -721,8 +721,7 @@ export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
             {MEETING_TEMPLATE_OPTIONS.map((option) => {
               const icons: Record<MeetingTemplateType, React.ReactNode> = {
                 performance: <FileText className="h-5 w-5 text-primary" />,
-                kickoff: <Rocket className="h-5 w-5 text-emerald-600" />,
-                simple: <ClipboardList className="h-5 w-5 text-blue-600" />,
+                relatorio: <ClipboardList className="h-5 w-5 text-blue-600" />,
               };
               return (
                 <button
