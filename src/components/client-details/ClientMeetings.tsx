@@ -3,7 +3,27 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Pencil, Share2, Trash2, CheckSquare, FileText, Rocket, ClipboardList, Copy } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Plus,
+  Users,
+  Pencil,
+  Share2,
+  Trash2,
+  CheckSquare,
+  FileText,
+  Rocket,
+  ClipboardList,
+  Copy,
+  Search,
+  Calendar as CalendarIcon,
+  Clock,
+  Video,
+  ArrowRight,
+  CalendarPlus,
+  TrendingUp,
+} from "lucide-react";
 import { toast } from "sonner";
 import { getMeetingSlug } from "@/hooks/useSlugResolver";
 import {
@@ -24,7 +44,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ShareMeetingDialog } from "@/components/meeting-editor/ShareMeetingDialog";
-import { format } from "date-fns";
+import { format, isToday, isTomorrow, isThisMonth, isFuture } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { getMeetingTemplate, MEETING_TEMPLATE_OPTIONS, type MeetingTemplateType } from "@/lib/meetingTemplates";
 import { createNotification, getClientUserId } from "@/lib/notifications";
 
@@ -40,6 +61,10 @@ interface MeetingMinute {
   slug?: string;
   linked_dashboards?: string[];
   linked_tasks?: string[];
+  focus_channels?: string[];
+  status?: string;
+  duration_min?: number;
+  meeting_link?: string;
 }
 
 interface ClientMeetingsProps {
@@ -53,6 +78,63 @@ interface Dashboard {
   dashboard_type: string;
 }
 
+// Map focus channel keys to category badge configurations
+const CATEGORY_STYLES: Record<string, { label: string; className: string }> = {
+  estrategico: { label: "Estratégico", className: "bg-primary/10 text-primary" },
+  performance: { label: "Performance", className: "bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400" },
+  social_media: { label: "Social Media", className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+  social: { label: "Social Media", className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+  meta_ads: { label: "Meta Ads", className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+  google_ads: { label: "Google Ads", className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  conteudo: { label: "Conteúdo", className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  email: { label: "E-mail", className: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" },
+  default: { label: "Reunião", className: "bg-muted text-muted-foreground" },
+};
+
+function getCategoryBadge(meeting: MeetingMinute) {
+  const channel = meeting.focus_channels?.[0]?.toLowerCase().replace(/\s+/g, "_");
+  return CATEGORY_STYLES[channel || ""] || CATEGORY_STYLES.default;
+}
+
+function getRelativeDateLabel(date: Date) {
+  if (isToday(date)) return "Hoje";
+  if (isTomorrow(date)) return "Amanhã";
+  return format(date, "dd/MM/yyyy", { locale: ptBR });
+}
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase())
+    .join("");
+}
+
+function ParticipantAvatars({ participants }: { participants?: string[] }) {
+  if (!participants || participants.length === 0) return null;
+  const visible = participants.slice(0, 3);
+  const extra = participants.length - visible.length;
+  return (
+    <div className="flex items-center -space-x-2">
+      {visible.map((name, i) => (
+        <div
+          key={`${name}-${i}`}
+          title={name}
+          className="h-7 w-7 rounded-full border-2 border-background bg-gradient-to-br from-primary/70 to-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center"
+        >
+          {getInitials(name)}
+        </div>
+      ))}
+      {extra > 0 && (
+        <div className="h-7 w-7 rounded-full border-2 border-background bg-muted text-muted-foreground text-[10px] font-semibold flex items-center justify-center">
+          +{extra}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
   const navigate = useNavigate();
   const [meetings, setMeetings] = useState<MeetingMinute[]>([]);
@@ -63,6 +145,7 @@ export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
   const [clientName, setClientName] = useState("");
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchMeetings();
