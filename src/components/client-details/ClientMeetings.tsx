@@ -506,36 +506,6 @@ export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
               </CardContent>
             </Card>
 
-            {/* Métricas do Mês */}
-            <Card className="border-border/60">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  Métricas do Mês
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Total de Horas</span>
-                  <span className="font-semibold text-foreground">{totalHours}h</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Concluídas</span>
-                  <span className="font-semibold text-foreground">{completedThisMonth}</span>
-                </div>
-                <div className="space-y-1.5">
-                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all"
-                      style={{ width: `${completionRate}%` }}
-                    />
-                  </div>
-                  <div className="text-[11px] text-muted-foreground text-right">
-                    {completionRate}% do mês
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Meetings grid (right side) */}
