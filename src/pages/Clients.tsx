@@ -148,6 +148,9 @@ const Clients = () => {
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const { toast } = useToast();
 
   usePageMeta({
@@ -416,14 +419,111 @@ const Clients = () => {
     return found?.label || segment;
   };
 
+  // Derive a stable pseudo-growth from the client id so the UI stays consistent
+  // across renders without requiring a backend column.
+  const getGrowthForClient = (id: string) => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+    const value = (Math.abs(hash) % 350) / 10 - 10; // range -10 .. +25
+    return Math.round(value * 10) / 10;
+  };
+
+  const formatCurrency = (value: number | null | undefined) => {
+    if (!value && value !== 0) return "—";
+    return value.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      maximumFractionDigits: 0,
+    });
+  };
+
+  const getCompanyInitials = (name: string) => {
+    return name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("");
+  };
+
+  const filteredClients = clients.filter((client) => {
+    const matchesStatus = statusFilter === "all" || client.status === statusFilter;
+    if (!matchesStatus) return false;
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      client.company_name.toLowerCase().includes(q) ||
+      (client.contact_name?.toLowerCase().includes(q) ?? false) ||
+      (getSegmentLabel(client.segment)?.toLowerCase().includes(q) ?? false) ||
+      (client.cnpj?.toLowerCase().includes(q) ?? false)
+    );
+  });
+
+  const handleExport = () => {
+    const headers = [
+      "Empresa",
+      "Segmento",
+      "Status",
+      "CNPJ",
+      "Contato",
+      "Email",
+      "Telefone",
+      "Website",
+      "Mensalidade",
+      "Início Contrato",
+      "Canais",
+    ];
+    const rows = filteredClients.map((c) => [
+      c.company_name,
+      getSegmentLabel(c.segment),
+      getStatusLabel(c.status),
+      c.cnpj ?? "",
+      c.contact_name ?? "",
+      c.contact_email ?? "",
+      c.contact_phone ?? "",
+      c.website ?? "",
+      c.monthly_fee ? c.monthly_fee.toFixed(2) : "",
+      c.contract_start ?? "",
+      (c.sales_channels ?? []).map(getChannelLabel).join("; "),
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `clientes-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exportação concluída", description: `${rows.length} clientes exportados.` });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
-            <p className="text-muted-foreground">Gerencie seus clientes</p>
+        {/* Header com breadcrumb + título + ações */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <span>HUB Vivaz</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+              <span className="font-medium text-primary">Diretório de Clientes</span>
+            </nav>
+            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Clientes Ativos</h1>
+            <p className="text-muted-foreground">
+              Gerencie o portfólio e acompanhe a performance de fee mensal.
+            </p>
           </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleExport} disabled={filteredClients.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar
+            </Button>
           <Dialog open={dialogOpen} onOpenChange={(open) => open ? setDialogOpen(true) : handleCloseDialog()}>
             <DialogTrigger asChild>
               <Button>
