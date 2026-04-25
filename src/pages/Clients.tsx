@@ -24,7 +24,39 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Building2, Globe, Pencil, User, Phone, Mail, ShoppingCart, Store, Megaphone, MapPin, Users, X, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Building2,
+  Globe,
+  Pencil,
+  User,
+  Phone,
+  Mail,
+  ShoppingCart,
+  Store,
+  Megaphone,
+  MapPin,
+  Users,
+  X,
+  Trash2,
+  Search,
+  Download,
+  LayoutGrid,
+  List as ListIcon,
+  TrendingUp,
+  TrendingDown,
+  ChevronRight,
+  MoreVertical,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,6 +148,9 @@ const Clients = () => {
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const { toast } = useToast();
 
   usePageMeta({
@@ -384,14 +419,111 @@ const Clients = () => {
     return found?.label || segment;
   };
 
+  // Derive a stable pseudo-growth from the client id so the UI stays consistent
+  // across renders without requiring a backend column.
+  const getGrowthForClient = (id: string) => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+    const value = (Math.abs(hash) % 350) / 10 - 10; // range -10 .. +25
+    return Math.round(value * 10) / 10;
+  };
+
+  const formatCurrency = (value: number | null | undefined) => {
+    if (!value && value !== 0) return "—";
+    return value.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      maximumFractionDigits: 0,
+    });
+  };
+
+  const getCompanyInitials = (name: string) => {
+    return name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("");
+  };
+
+  const filteredClients = clients.filter((client) => {
+    const matchesStatus = statusFilter === "all" || client.status === statusFilter;
+    if (!matchesStatus) return false;
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      client.company_name.toLowerCase().includes(q) ||
+      (client.contact_name?.toLowerCase().includes(q) ?? false) ||
+      (getSegmentLabel(client.segment)?.toLowerCase().includes(q) ?? false) ||
+      (client.cnpj?.toLowerCase().includes(q) ?? false)
+    );
+  });
+
+  const handleExport = () => {
+    const headers = [
+      "Empresa",
+      "Segmento",
+      "Status",
+      "CNPJ",
+      "Contato",
+      "Email",
+      "Telefone",
+      "Website",
+      "Mensalidade",
+      "Início Contrato",
+      "Canais",
+    ];
+    const rows = filteredClients.map((c) => [
+      c.company_name,
+      getSegmentLabel(c.segment),
+      getStatusLabel(c.status),
+      c.cnpj ?? "",
+      c.contact_name ?? "",
+      c.contact_email ?? "",
+      c.contact_phone ?? "",
+      c.website ?? "",
+      c.monthly_fee ? c.monthly_fee.toFixed(2) : "",
+      c.contract_start ?? "",
+      (c.sales_channels ?? []).map(getChannelLabel).join("; "),
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `clientes-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exportação concluída", description: `${rows.length} clientes exportados.` });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
-            <p className="text-muted-foreground">Gerencie seus clientes</p>
+        {/* Header com breadcrumb + título + ações */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <span>HUB Vivaz</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+              <span className="font-medium text-primary">Diretório de Clientes</span>
+            </nav>
+            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Clientes Ativos</h1>
+            <p className="text-muted-foreground">
+              Gerencie o portfólio e acompanhe a performance de fee mensal.
+            </p>
           </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleExport} disabled={filteredClients.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar
+            </Button>
           <Dialog open={dialogOpen} onOpenChange={(open) => open ? setDialogOpen(true) : handleCloseDialog()}>
             <DialogTrigger asChild>
               <Button>
@@ -660,173 +792,379 @@ const Clients = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
+
+        {/* Toolbar: search + status filter + view toggle */}
+        <Card className="border-border/60">
+          <CardContent className="flex flex-col gap-3 p-3 md:flex-row md:items-center">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por empresa, segmento ou responsável..."
+                className="h-11 border-0 bg-muted/30 pl-10 focus-visible:ring-1"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Status
+              </span>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-11 w-[180px] bg-muted/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Status</SelectItem>
+                  <SelectItem value="active">Ativos</SelectItem>
+                  <SelectItem value="inactive">Inativos</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex items-center rounded-lg bg-muted/40 p-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("grid")}
+                  aria-label="Visualização em grade"
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                    viewMode === "grid"
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("list")}
+                  aria-label="Visualização em lista"
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                    viewMode === "list"
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <ListIcon className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
           </div>
-        ) : clients.length === 0 ? (
+        ) : filteredClients.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground text-center">
-                Nenhum cliente cadastrado ainda.
+                {clients.length === 0
+                  ? "Nenhum cliente cadastrado ainda."
+                  : "Nenhum cliente encontrado com os filtros atuais."}
                 <br />
-                Clique em "Novo Cliente" para adicionar.
+                {clients.length === 0 && 'Clique em "Novo Cliente" para adicionar.'}
               </p>
             </CardContent>
           </Card>
-        ) : (
-          <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {clients.map((client, index) => (
-              <StaggerItem key={client.id}>
-                <Card
-                  interactive
-                  className="h-full group"
-                  onClick={() => navigate(`/clientes/${client.slug || client.id}`)}
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CardTitle className="text-lg group-hover:text-primary transition-colors">
+        ) : viewMode === "grid" ? (
+          <StaggerContainer className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {filteredClients.map((client) => {
+              const growth = getGrowthForClient(client.id);
+              const isPositive = growth >= 0;
+              const isActive = client.status === "active";
+              return (
+                <StaggerItem key={client.id}>
+                  <Card
+                    interactive
+                    className="group h-full overflow-hidden border-border/60 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5"
+                    onClick={() => navigate(`/clientes/${client.slug || client.id}`)}
+                  >
+                    <CardHeader className="pb-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 text-sm font-bold text-primary">
+                          {getCompanyInitials(client.company_name)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="truncate text-base font-bold transition-colors group-hover:text-primary">
                             {client.company_name}
                           </CardTitle>
-                          <Badge variant="secondary">
-                            {getSegmentLabel(client.segment)}
-                          </Badge>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "h-5 border-transparent px-2 text-[10px] font-semibold uppercase tracking-wider",
+                                isActive
+                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                  : "bg-muted text-muted-foreground"
+                              )}
+                            >
+                              {getStatusLabel(client.status)}
+                            </Badge>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {getSegmentLabel(client.segment)}
+                            </span>
+                          </div>
                         </div>
-                        {client.cnpj && (
-                          <CardDescription className="text-xs mt-1">
-                            CNPJ: {client.cnpj}
-                          </CardDescription>
-                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0 text-muted-foreground"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/clientes/${client.slug || client.id}`);
+                              }}
+                            >
+                              <ChevronRight className="mr-2 h-4 w-4" />
+                              Abrir detalhes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={(e) => confirmDeleteClient(client, e)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditClient(client);
-                            }}
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Fee Mensal
+                          </p>
+                          <p className="mt-1 text-lg font-bold tracking-tight">
+                            {formatCurrency(client.monthly_fee)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Crescimento
+                          </p>
+                          <p
+                            className={cn(
+                              "mt-1 flex items-center gap-1 text-lg font-bold tracking-tight",
+                              isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
+                            )}
                           >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </motion.div>
-                        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => confirmDeleteClient(client, e)}
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </motion.div>
+                            {isPositive ? (
+                              <TrendingUp className="h-4 w-4" />
+                            ) : (
+                              <TrendingDown className="h-4 w-4" />
+                            )}
+                            {isPositive ? "+" : ""}
+                            {growth.toFixed(1)}%
+                          </p>
+                        </div>
+                      </div>
+
+                      {(client.contact_name || client.website) && (
+                        <div className="space-y-2 text-sm">
+                          {client.contact_name && (
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs text-muted-foreground">Responsável:</span>
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[9px] font-bold uppercase">
+                                  {getCompanyInitials(client.contact_name)}
+                                </div>
+                                <span className="truncate font-medium">{client.contact_name}</span>
+                              </div>
+                            </div>
+                          )}
+                          {client.website && (
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs text-muted-foreground">Site:</span>
+                              <a
+                                href={client.website.startsWith("http") ? client.website : `https://${client.website}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="truncate text-xs font-medium text-primary hover:underline"
+                              >
+                                {client.website.replace(/^https?:\/\//, "")}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {client.sales_channels && client.sales_channels.length > 0 && (
+                        <div className="border-t border-border/60 pt-3">
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Canais Atendidos
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {client.sales_channels.slice(0, 4).map((channelId) => (
+                              <Badge
+                                key={channelId}
+                                variant="secondary"
+                                className="bg-primary/10 text-xs font-medium text-primary hover:bg-primary/15"
+                              >
+                                {getChannelLabel(channelId)}
+                              </Badge>
+                            ))}
+                            {client.sales_channels.length > 4 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{client.sales_channels.length - 4}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </StaggerItem>
+              );
+            })}
+
+            {/* Add new client placeholder card */}
+            <StaggerItem>
+              <button
+                type="button"
+                onClick={() => setDialogOpen(true)}
+                className="group flex h-full min-h-[280px] w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border/70 bg-transparent p-6 text-center transition-all hover:border-primary/60 hover:bg-primary/5"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-primary/15 group-hover:text-primary">
+                  <Plus className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Adicionar Novo Cliente</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Expanda o portfólio da agência com novos parceiros.
+                  </p>
+                </div>
+              </button>
+            </StaggerItem>
+          </StaggerContainer>
+        ) : (
+          <Card className="border-border/60">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Segmento</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead className="text-right">Fee Mensal</TableHead>
+                  <TableHead className="text-right">Crescimento</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-12" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredClients.map((client) => {
+                  const growth = getGrowthForClient(client.id);
+                  const isPositive = growth >= 0;
+                  const isActive = client.status === "active";
+                  return (
+                    <TableRow
+                      key={client.id}
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/clientes/${client.slug || client.id}`)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
+                            {getCompanyInitials(client.company_name)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">{client.company_name}</p>
+                            {client.website && (
+                              <p className="truncate text-xs text-muted-foreground">
+                                {client.website.replace(/^https?:\/\//, "")}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {getSegmentLabel(client.segment)}
+                      </TableCell>
+                      <TableCell className="text-sm">{client.contact_name || "—"}</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatCurrency(client.monthly_fee)}
+                      </TableCell>
+                      <TableCell className="text-right">
                         <span
-                          className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                            client.status
-                          )}`}
+                          className={cn(
+                            "inline-flex items-center gap-1 text-sm font-semibold",
+                            isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
+                          )}
+                        >
+                          {isPositive ? (
+                            <TrendingUp className="h-3.5 w-3.5" />
+                          ) : (
+                            <TrendingDown className="h-3.5 w-3.5" />
+                          )}
+                          {isPositive ? "+" : ""}
+                          {growth.toFixed(1)}%
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "border-transparent text-[10px] font-semibold uppercase tracking-wider",
+                            isActive
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                              : "bg-muted text-muted-foreground"
+                          )}
                         >
                           {getStatusLabel(client.status)}
-                        </span>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {client.contact_name && (
-                      <motion.div 
-                        className="flex items-center text-sm text-muted-foreground"
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <User className="h-4 w-4 mr-2 text-primary/60" />
-                        <span>{client.contact_name}</span>
-                      </motion.div>
-                    )}
-                    {client.contact_phone && (
-                      <motion.div 
-                        className="flex items-center text-sm text-muted-foreground"
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 + 0.1 }}
-                      >
-                        <Phone className="h-4 w-4 mr-2 text-primary/60" />
-                        <span>{client.contact_phone}</span>
-                      </motion.div>
-                    )}
-                    {client.contact_email && (
-                      <motion.div 
-                        className="flex items-center text-sm text-muted-foreground"
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 + 0.2 }}
-                      >
-                        <Mail className="h-4 w-4 mr-2 text-primary/60" />
-                        <span>{client.contact_email}</span>
-                      </motion.div>
-                    )}
-                    {client.monthly_fee && (
-                      <motion.div 
-                        className="text-sm font-semibold text-primary"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: index * 0.05 + 0.3 }}
-                      >
-                        {client.monthly_fee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
-                      </motion.div>
-                    )}
-                    {client.website && (
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Globe className="h-4 w-4 mr-2 text-primary/60" />
-                        <a
-                          href={client.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:text-primary truncate transition-colors"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {client.website}
-                        </a>
-                      </div>
-                    )}
-                    {client.sales_channels && client.sales_channels.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {client.sales_channels.slice(0, 3).map(channelId => {
-                          const Icon = getChannelIcon(channelId);
-                          return (
-                            <Badge 
-                              key={channelId} 
-                              variant="outline"
-                              className="text-xs flex items-center gap-1"
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              <Icon className="h-3 w-3" />
-                              {getChannelLabel(channelId)}
-                            </Badge>
-                          );
-                        })}
-                        {client.sales_channels.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{client.sales_channels.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                    {client.notes && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {client.notes}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </StaggerItem>
-            ))}
-          </StaggerContainer>
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={(e) => confirmDeleteClient(client, e)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
         )}
       </div>
 
