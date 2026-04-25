@@ -23,6 +23,8 @@ import {
   ArrowRight,
   CalendarPlus,
   TrendingUp,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getMeetingSlug } from "@/hooks/useSlugResolver";
@@ -146,6 +148,12 @@ export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 8;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchMeetings();
@@ -413,6 +421,14 @@ export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
   // Other meetings (excluding the highlighted next one)
   const listMeetings = filteredMeetings.filter((m) => m.id !== nextMeeting?.id);
 
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(listMeetings.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedMeetings = listMeetings.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
+
   return (
     <div className="space-y-6">
       {/* Header with search + CTA */}
@@ -454,7 +470,7 @@ export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* Sidebar: Próxima Reunião + Métricas do Mês */}
           <div className="space-y-4 lg:col-span-1">
             {/* Próxima Reunião */}
@@ -523,14 +539,15 @@ export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
           </div>
 
           {/* Meetings grid (right side) */}
-          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 auto-rows-min">
+          <div className="lg:col-span-3 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-fr">
             {listMeetings.length === 0 && filteredMeetings.length === 0 && (
-              <div className="sm:col-span-2 rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+              <div className="sm:col-span-2 xl:col-span-3 rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
                 Nenhuma reunião corresponde a "{searchQuery}"
               </div>
             )}
 
-            {listMeetings.map((meeting) => {
+            {paginatedMeetings.map((meeting) => {
               const category = getCategoryBadge(meeting);
               const meetingDate = new Date(meeting.meeting_date);
               return (
@@ -628,18 +645,67 @@ export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
             })}
 
             {/* Empty placeholder card to schedule a new meeting */}
-            <button
-              onClick={() => setTemplateDialogOpen(true)}
-              className="rounded-xl border-2 border-dashed border-border/70 hover:border-primary/40 hover:bg-primary/5 transition-colors min-h-[200px] flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary"
-            >
-              <div className="h-10 w-10 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center">
-                <Plus className="h-5 w-5" />
+            {safePage === totalPages && (
+              <button
+                onClick={() => setTemplateDialogOpen(true)}
+                className="rounded-xl border-2 border-dashed border-border/70 hover:border-primary/40 hover:bg-primary/5 transition-colors min-h-[200px] flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary"
+              >
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <Plus className="h-5 w-5" />
+                </div>
+                <div className="text-sm font-semibold">Agendar nova conversa</div>
+                <div className="text-[11px] text-muted-foreground/80">
+                  Clique para criar uma nova reunião
+                </div>
+              </button>
+            )}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                <p className="text-xs text-muted-foreground">
+                  Mostrando <span className="font-semibold text-foreground">{(safePage - 1) * PAGE_SIZE + 1}</span>
+                  {" - "}
+                  <span className="font-semibold text-foreground">
+                    {Math.min(safePage * PAGE_SIZE, listMeetings.length)}
+                  </span>
+                  {" de "}
+                  <span className="font-semibold text-foreground">{listMeetings.length}</span> reuniões
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={page === safePage ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 w-8 p-0 text-xs"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="text-sm font-semibold">Agendar nova conversa</div>
-              <div className="text-[11px] text-muted-foreground/80">
-                Clique para criar uma nova reunião
-              </div>
-            </button>
+            )}
           </div>
         </div>
       )}
