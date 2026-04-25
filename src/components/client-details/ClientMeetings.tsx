@@ -388,19 +388,64 @@ export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
     );
   }
 
+  // Filtered meetings (search)
+  const filteredMeetings = meetings.filter((m) =>
+    m.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Next upcoming meeting
+  const upcomingMeetings = meetings
+    .filter((m) => isFuture(new Date(m.meeting_date)))
+    .sort((a, b) => new Date(a.meeting_date).getTime() - new Date(b.meeting_date).getTime());
+  const nextMeeting = upcomingMeetings[0];
+
+  // Month metrics
+  const monthMeetings = meetings.filter((m) => isThisMonth(new Date(m.meeting_date)));
+  const totalDurationMin = monthMeetings.reduce((acc, m) => acc + (m.duration_min || 60), 0);
+  const totalHours = (totalDurationMin / 60).toFixed(1).replace(".", ",");
+  const completedThisMonth = monthMeetings.filter(
+    (m) => !isFuture(new Date(m.meeting_date)) || m.status === "aprovado"
+  ).length;
+  const completionRate = monthMeetings.length
+    ? Math.round((completedThisMonth / monthMeetings.length) * 100)
+    : 0;
+
+  // Other meetings (excluding the highlighted next one)
+  const listMeetings = filteredMeetings.filter((m) => m.id !== nextMeeting?.id);
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center gap-2">
-        <h2 className="text-xl font-bold">Reuniões</h2>
-        <Button onClick={() => setTemplateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova Reunião
-        </Button>
+    <div className="space-y-6">
+      {/* Header with search + CTA */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">Reuniões</h2>
+          <p className="text-sm text-muted-foreground">
+            {meetings.length} {meetings.length === 1 ? "conversa registrada" : "conversas registradas"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar reuniões..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-background"
+            />
+          </div>
+          <Button onClick={() => setTemplateDialogOpen(true)} className="shrink-0">
+            <Plus className="mr-2 h-4 w-4" />
+            Nova Reunião
+          </Button>
+        </div>
       </div>
 
       {meetings.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center h-64">
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center h-64 text-center">
+            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+              <CalendarPlus className="h-6 w-6 text-primary" />
+            </div>
             <p className="text-muted-foreground mb-4">Nenhuma reunião encontrada</p>
             <Button onClick={() => setTemplateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -409,85 +454,193 @@ export function ClientMeetings({ clientId, clientSlug }: ClientMeetingsProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {meetings.map((meeting) => (
-            <Card 
-              key={meeting.id} 
-              className="hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => handleViewMeeting(meeting.id)}
-            >
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Sidebar: Próxima Reunião + Métricas do Mês */}
+          <div className="space-y-4 lg:col-span-1">
+            {/* Próxima Reunião */}
+            <Card className="border-border/60">
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium leading-tight">
-                    {meeting.title}
-                  </CardTitle>
-                </div>
+                <CardTitle className="text-base font-semibold">Próxima Reunião</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {meeting.linked_tasks && meeting.linked_tasks.length > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckSquare className="h-3 w-3 flex-shrink-0" />
-                    <span>{meeting.linked_tasks.length} atividade(s)</span>
-                  </div>
-                )}
-
-                {meeting.participants && meeting.participants.length > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Users className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">{meeting.participants.slice(0, 2).join(", ")}</span>
-                    {meeting.participants.length > 2 && (
-                      <span>+{meeting.participants.length - 2}</span>
+              <CardContent>
+                {nextMeeting ? (
+                  <button
+                    onClick={() => handleViewMeeting(nextMeeting.id)}
+                    className="w-full text-left rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-primary/0 to-primary/10 p-4 transition-all hover:border-primary/40 hover:shadow-sm"
+                  >
+                    <div className="text-primary font-semibold text-base">
+                      {getRelativeDateLabel(new Date(nextMeeting.meeting_date))},{" "}
+                      {format(new Date(nextMeeting.meeting_date), "HH:mm")}
+                    </div>
+                    <div className="mt-1 font-semibold text-foreground line-clamp-2">
+                      {nextMeeting.title}
+                    </div>
+                    {nextMeeting.meeting_link && (
+                      <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                        <Video className="h-4 w-4" />
+                        <span className="truncate">Link da reunião</span>
+                      </div>
                     )}
+                  </button>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+                    Sem reuniões agendadas
                   </div>
                 )}
+              </CardContent>
+            </Card>
 
-                <div className="flex gap-1 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={(e) => handleEditMeeting(meeting.id, e)}
-                  >
-                    <Pencil className="h-3 w-3 mr-1" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDuplicateMeeting(meeting, e);
-                    }}
-                    title="Duplicar"
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleShare(meeting);
-                    }}
-                    title="Compartilhar"
-                  >
-                    <Share2 className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteClick(meeting);
-                    }}
-                    title="Deletar"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+            {/* Métricas do Mês */}
+            <Card className="border-border/60">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Métricas do Mês
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Total de Horas</span>
+                  <span className="font-semibold text-foreground">{totalHours}h</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Concluídas</span>
+                  <span className="font-semibold text-foreground">{completedThisMonth}</span>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${completionRate}%` }}
+                    />
+                  </div>
+                  <div className="text-[11px] text-muted-foreground text-right">
+                    {completionRate}% do mês
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
+          </div>
+
+          {/* Meetings grid (right side) */}
+          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 auto-rows-min">
+            {listMeetings.length === 0 && filteredMeetings.length === 0 && (
+              <div className="sm:col-span-2 rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+                Nenhuma reunião corresponde a "{searchQuery}"
+              </div>
+            )}
+
+            {listMeetings.map((meeting) => {
+              const category = getCategoryBadge(meeting);
+              const meetingDate = new Date(meeting.meeting_date);
+              return (
+                <Card
+                  key={meeting.id}
+                  className="group border-border/60 hover:border-primary/30 hover:shadow-md transition-all cursor-pointer flex flex-col"
+                  onClick={() => handleViewMeeting(meeting.id)}
+                >
+                  <CardContent className="p-5 flex flex-col gap-3 flex-1">
+                    <Badge
+                      variant="secondary"
+                      className={`w-fit text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 border-0 ${category.className}`}
+                    >
+                      {category.label}
+                    </Badge>
+                    <h3 className="font-semibold text-foreground leading-tight line-clamp-2">
+                      {meeting.title}
+                    </h3>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <CalendarIcon className="h-3.5 w-3.5" />
+                        {format(meetingDate, "dd/MM/yyyy")}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
+                        {format(meetingDate, "HH:mm")}
+                      </div>
+                    </div>
+
+                    <div className="mt-auto flex items-center justify-between pt-3">
+                      <ParticipantAvatars participants={meeting.participants} />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewMeeting(meeting.id);
+                        }}
+                        className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        Ver Detalhes
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Hidden actions on hover */}
+                    <div className="flex items-center gap-1 pt-2 border-t border-border/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs flex-1"
+                        onClick={(e) => handleEditMeeting(meeting.id, e)}
+                      >
+                        <Pencil className="h-3 w-3 mr-1" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDuplicateMeeting(meeting, e);
+                        }}
+                        title="Duplicar"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShare(meeting);
+                        }}
+                        title="Compartilhar"
+                      >
+                        <Share2 className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(meeting);
+                        }}
+                        title="Deletar"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+
+            {/* Empty placeholder card to schedule a new meeting */}
+            <button
+              onClick={() => setTemplateDialogOpen(true)}
+              className="rounded-xl border-2 border-dashed border-border/70 hover:border-primary/40 hover:bg-primary/5 transition-colors min-h-[200px] flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary"
+            >
+              <div className="h-10 w-10 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center">
+                <Plus className="h-5 w-5" />
+              </div>
+              <div className="text-sm font-semibold">Agendar nova conversa</div>
+              <div className="text-[11px] text-muted-foreground/80">
+                Clique para criar uma nova reunião
+              </div>
+            </button>
+          </div>
         </div>
       )}
 
