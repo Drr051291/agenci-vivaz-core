@@ -1,31 +1,24 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Users, 
-  Briefcase, 
-  TrendingUp, 
-  Calendar, 
-  CheckSquare, 
-  Bell, 
-  ArrowRight, 
+import {
+  Users,
+  Calendar,
+  CheckSquare,
+  Bell,
   Clock,
-  FileText,
-  Activity,
-  Building2,
-  AlertCircle
+  ShieldCheck,
+  Circle,
+  CheckCircle2,
 } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { motion } from "framer-motion";
-import { StaggerContainer, StaggerItem } from "@/components/ui/animated";
-import { format, isToday, isTomorrow, isPast, parseISO } from "date-fns";
+import { format, isToday, isTomorrow, parseISO, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { safeFormatDate } from "@/lib/dateUtils";
+import { cn } from "@/lib/utils";
 
 interface DashboardStats {
   clients: number;
@@ -49,15 +42,8 @@ interface UpcomingMeeting {
   meeting_date: string;
   client_id: string;
   client_name: string;
-}
-
-interface RecentNotification {
-  id: string;
-  title: string;
-  message: string;
-  category: string;
-  is_read: boolean;
-  created_at: string;
+  meeting_link?: string | null;
+  duration_min?: number | null;
 }
 
 interface RecentClient {
@@ -67,6 +53,13 @@ interface RecentClient {
   status: string;
   updated_at: string;
   slug?: string | null;
+}
+
+interface PortfolioHealth {
+  healthy: number;
+  attention: number;
+  risk: number;
+  total: number;
 }
 
 const Dashboard = () => {
@@ -81,13 +74,19 @@ const Dashboard = () => {
   });
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
   const [upcomingMeetings, setUpcomingMeetings] = useState<UpcomingMeeting[]>([]);
-  const [recentNotifications, setRecentNotifications] = useState<RecentNotification[]>([]);
   const [recentClients, setRecentClients] = useState<RecentClient[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [health, setHealth] = useState<PortfolioHealth>({
+    healthy: 0,
+    attention: 0,
+    risk: 0,
+    total: 0,
+  });
 
   usePageMeta({
     title: "Dashboard",
-    description: "Visão geral do HUB Vivaz com estatísticas de clientes, projetos e comunicações",
-    keywords: "dashboard, estatísticas, clientes, projetos, vivaz",
+    description: "Visão geral do HUB Vivaz com estatísticas de clientes, tarefas e reuniões",
+    keywords: "dashboard, estatísticas, clientes, vivaz",
   });
 
   useEffect(() => {
@@ -99,7 +98,6 @@ const Dashboard = () => {
           return;
         }
 
-        // Fetch user profile
         const { data: profile } = await supabase
           .from("profiles")
           .select("full_name")
@@ -107,13 +105,11 @@ const Dashboard = () => {
           .single();
 
         if (profile) {
-          const firstName = profile.full_name.split(" ")[0];
-          setUserName(firstName);
+          setUserName(profile.full_name.split(" ")[0]);
         }
 
-        // Fetch all data in parallel
         const today = new Date().toISOString();
-        
+
         const [
           clientsRes,
           activeClientsRes,
@@ -121,50 +117,37 @@ const Dashboard = () => {
           upcomingMeetingsCountRes,
           recentTasksRes,
           meetingsRes,
-          notificationsRes,
-          recentClientsRes
+          recentClientsRes,
+          allClientsStatusRes,
+          unreadNotifRes,
         ] = await Promise.all([
-          // Total clients
           supabase.from("clients").select("*", { count: "exact", head: true }),
-          // Active clients
           supabase.from("clients").select("*", { count: "exact", head: true }).eq("status", "active"),
-          // Pending tasks
           supabase.from("tasks").select("*", { count: "exact", head: true }).neq("status", "done"),
-          // Upcoming meetings count
           supabase.from("meeting_minutes").select("*", { count: "exact", head: true }).gte("meeting_date", today),
-          // Recent tasks with client info
           supabase
             .from("tasks")
-            .select(`
-              id, title, status, priority, due_date,
-              clients!inner(company_name)
-            `)
+            .select(`id, title, status, priority, due_date, clients!inner(company_name)`)
             .neq("status", "done")
             .order("due_date", { ascending: true, nullsFirst: false })
-            .limit(5),
-          // Upcoming meetings with client info
+            .limit(4),
           supabase
             .from("meeting_minutes")
-            .select(`
-              id, title, meeting_date, client_id,
-              clients!inner(company_name)
-            `)
+            .select(`id, title, meeting_date, client_id, meeting_link, duration_min, clients!inner(company_name)`)
             .gte("meeting_date", today)
             .order("meeting_date", { ascending: true })
-            .limit(5),
-          // Recent notifications
-          supabase
-            .from("notifications")
-            .select("id, title, message, category, is_read, created_at")
-            .eq("user_id", session.user.id)
-            .order("created_at", { ascending: false })
-            .limit(5),
-          // Recent clients
+            .limit(4),
           supabase
             .from("clients")
             .select("id, company_name, segment, status, updated_at, slug")
             .order("updated_at", { ascending: false })
-            .limit(5)
+            .limit(4),
+          supabase.from("clients").select("status"),
+          supabase
+            .from("notifications")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", session.user.id)
+            .eq("is_read", false),
         ]);
 
         setStats({
@@ -174,41 +157,49 @@ const Dashboard = () => {
           upcomingMeetings: upcomingMeetingsCountRes.count || 0,
         });
 
-        // Process tasks
+        setUnreadNotifications(unreadNotifRes.count || 0);
+
         if (recentTasksRes.data) {
-          const tasks = recentTasksRes.data.map((task: any) => ({
-            id: task.id,
-            title: task.title,
-            status: task.status,
-            priority: task.priority,
-            due_date: task.due_date,
-            client_name: task.clients?.company_name || "Sem cliente",
-          }));
-          setRecentTasks(tasks);
+          setRecentTasks(
+            recentTasksRes.data.map((t: any) => ({
+              id: t.id,
+              title: t.title,
+              status: t.status,
+              priority: t.priority,
+              due_date: t.due_date,
+              client_name: t.clients?.company_name || "Sem cliente",
+            }))
+          );
         }
 
-        // Process meetings
         if (meetingsRes.data) {
-          const meetings = meetingsRes.data.map((meeting: any) => ({
-            id: meeting.id,
-            title: meeting.title,
-            meeting_date: meeting.meeting_date,
-            client_id: meeting.client_id,
-            client_name: meeting.clients?.company_name || "Sem cliente",
-          }));
-          setUpcomingMeetings(meetings);
+          setUpcomingMeetings(
+            meetingsRes.data.map((m: any) => ({
+              id: m.id,
+              title: m.title,
+              meeting_date: m.meeting_date,
+              client_id: m.client_id,
+              client_name: m.clients?.company_name || "Sem cliente",
+              meeting_link: m.meeting_link,
+              duration_min: m.duration_min,
+            }))
+          );
         }
 
-        // Process notifications
-        if (notificationsRes.data) {
-          setRecentNotifications(notificationsRes.data);
-        }
-
-        // Process recent clients
         if (recentClientsRes.data) {
           setRecentClients(recentClientsRes.data);
         }
 
+        // Compute portfolio health from client statuses
+        if (allClientsStatusRes.data) {
+          const total = allClientsStatusRes.data.length;
+          const healthy = allClientsStatusRes.data.filter((c: any) => c.status === "active").length;
+          const risk = allClientsStatusRes.data.filter(
+            (c: any) => c.status === "inactive" || c.status === "churned" || c.status === "cancelled"
+          ).length;
+          const attention = Math.max(total - healthy - risk, 0);
+          setHealth({ healthy, attention, risk, total });
+        }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -226,106 +217,57 @@ const Dashboard = () => {
     return "Boa noite";
   };
 
-  const getPriorityBadge = (priority: string) => {
-    const styles: Record<string, string> = {
-      high: "bg-red-500/10 text-red-600 border-red-500/20",
-      medium: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
-      low: "bg-green-500/10 text-green-600 border-green-500/20",
-    };
-    const labels: Record<string, string> = {
-      high: "Alta",
-      medium: "Média",
-      low: "Baixa",
-    };
-    return (
-      <Badge variant="outline" className={styles[priority] || ""}>
-        {labels[priority] || priority}
-      </Badge>
-    );
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      pending: "bg-yellow-500/10 text-yellow-600",
-      in_progress: "bg-blue-500/10 text-blue-600",
-      done: "bg-green-500/10 text-green-600",
-      active: "bg-green-500/10 text-green-600",
-      inactive: "bg-gray-500/10 text-gray-600",
-    };
-    const labels: Record<string, string> = {
-      pending: "Pendente",
-      in_progress: "Em andamento",
-      done: "Concluída",
-      active: "Ativo",
-      inactive: "Inativo",
-    };
-    return (
-      <Badge variant="secondary" className={styles[status] || ""}>
-        {labels[status] || status}
-      </Badge>
-    );
-  };
-
-  const getSegmentBadge = (segment: string) => {
-    const colors: Record<string, string> = {
-      inside_sales: "bg-blue-500",
-      ecommerce: "bg-green-500",
-      marketplace: "bg-purple-500",
-      local_business: "bg-orange-500",
-    };
-    const labels: Record<string, string> = {
-      inside_sales: "Inside Sales",
-      ecommerce: "E-commerce",
-      marketplace: "Marketplace",
-      local_business: "Negócio Local",
-    };
-    return (
-      <Badge className={colors[segment] || "bg-gray-500"}>
-        {labels[segment] || segment}
-      </Badge>
-    );
-  };
-
-  const getCategoryIcon = (category: string) => {
-    const icons: Record<string, any> = {
-      task: CheckSquare,
-      meeting: Calendar,
-      payment: TrendingUp,
-      comment: FileText,
-      invoice: FileText,
-    };
-    return icons[category] || Bell;
-  };
-
-  const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      task: "text-blue-500",
-      meeting: "text-purple-500",
-      payment: "text-green-500",
-      comment: "text-yellow-500",
-      invoice: "text-orange-500",
-    };
-    return colors[category] || "text-muted-foreground";
-  };
-
-  const formatMeetingDate = (dateStr: string) => {
+  const formatDueLabel = (dateStr: string | null) => {
+    if (!dateStr) return "Sem prazo";
     try {
-      const date = parseISO(dateStr);
-      if (isToday(date)) return "Hoje";
-      if (isTomorrow(date)) return "Amanhã";
-      return format(date, "dd/MM", { locale: ptBR });
+      const d = parseISO(dateStr);
+      if (isToday(d)) return "Vence hoje";
+      if (isTomorrow(d)) return "Vence amanhã";
+      if (isPast(d)) return `Atrasada • ${format(d, "dd/MM", { locale: ptBR })}`;
+      return `Vence em ${format(d, "dd/MM", { locale: ptBR })}`;
+    } catch {
+      return "Sem prazo";
+    }
+  };
+
+  const priorityLabel = (p: string) => {
+    const map: Record<string, string> = { high: "Prioridade Alta", medium: "Prioridade Média", low: "Prioridade Baixa" };
+    return map[p] || "Prioridade";
+  };
+
+  const formatMeetingDay = (dateStr: string) => {
+    try {
+      const d = parseISO(dateStr);
+      if (isToday(d)) return "HOJE";
+      if (isTomorrow(d)) return "AMANHÃ";
+      return format(d, "dd/MM", { locale: ptBR }).toUpperCase();
     } catch {
       return "";
     }
   };
 
-  const isDueDateOverdue = (dateStr: string | null) => {
-    if (!dateStr) return false;
+  const formatMeetingTime = (dateStr: string) => {
     try {
-      return isPast(parseISO(dateStr)) && !isToday(parseISO(dateStr));
+      return format(parseISO(dateStr), "HH:mm");
     } catch {
-      return false;
+      return "";
     }
+  };
+
+  const meetingChannelLabel = (m: UpcomingMeeting) => {
+    if (m.meeting_link) {
+      if (/meet\.google/i.test(m.meeting_link)) return "Google Meet";
+      if (/zoom/i.test(m.meeting_link)) return "Zoom";
+      if (/teams/i.test(m.meeting_link)) return "Microsoft Teams";
+      return "Online";
+    }
+    return "Presencial";
   };
 
   if (loading) {
@@ -340,361 +282,341 @@ const Dashboard = () => {
 
   const statCards = [
     {
-      title: "Clientes Ativos",
+      title: "CLIENTES ATIVOS",
       value: stats.activeClients,
-      total: stats.clients,
       icon: Users,
-      description: `de ${stats.clients} total`,
-      color: "text-primary",
+      iconBg: "bg-primary/10",
+      iconColor: "text-primary",
       onClick: () => navigate("/clientes"),
     },
     {
-      title: "Tarefas Pendentes",
+      title: "TAREFAS PENDENTES",
       value: stats.pendingTasks,
       icon: CheckSquare,
-      description: "aguardando execução",
-      color: "text-blue-500",
+      iconBg: "bg-amber-500/10",
+      iconColor: "text-amber-600 dark:text-amber-400",
       onClick: () => navigate("/atividades"),
     },
     {
-      title: "Próximas Reuniões",
+      title: "PRÓXIMAS REUNIÕES",
       value: stats.upcomingMeetings,
       icon: Calendar,
-      description: "agendadas",
-      color: "text-purple-500",
+      iconBg: "bg-sky-500/10",
+      iconColor: "text-sky-600 dark:text-sky-400",
       onClick: () => navigate("/reunioes"),
     },
     {
-      title: "Notificações",
-      value: recentNotifications.filter(n => !n.is_read).length,
+      title: "NOTIFICAÇÕES",
+      value: String(unreadNotifications).padStart(2, "0"),
       icon: Bell,
-      description: "não lidas",
-      color: "text-orange-500",
+      iconBg: "bg-rose-500/10",
+      iconColor: "text-rose-600 dark:text-rose-400",
       onClick: () => navigate("/notificacoes"),
     },
   ];
 
+  // Health bars heights (relative to max)
+  const maxHealth = Math.max(health.healthy, health.attention, health.risk, 1);
+  const pct = (n: number) => Math.round((n / Math.max(health.total, 1)) * 100);
+  const barHeight = (n: number) => `${Math.max((n / maxHealth) * 100, 6)}%`;
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
+      <div className="space-y-8">
+        {/* Greeting */}
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
+          transition={{ duration: 0.3 }}
         >
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {getGreeting()}, {userName || "Colaborador"}
-            </h1>
-            <p className="text-muted-foreground">
-              {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
-            </p>
-          </div>
-          <Button onClick={() => navigate("/clientes")} variant="outline">
-            <Users className="mr-2 h-4 w-4" />
-            Ver Clientes
-          </Button>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
+            {getGreeting()}, {userName || "Vivaz"}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Aqui está o que está acontecendo com seus projetos hoje.
+          </p>
         </motion.div>
 
-        {/* Stats Cards */}
-        <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {statCards.map((stat, index) => (
-            <StaggerItem key={index}>
-              <Card 
-                interactive 
-                className="h-full group cursor-pointer" 
-                onClick={stat.onClick}
-              >
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                  <motion.div
-                    whileHover={{ scale: 1.2, rotate: 5 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+        {/* Stat cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {statCards.map((s, i) => (
+            <motion.button
+              key={s.title}
+              type="button"
+              onClick={s.onClick}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05, duration: 0.3 }}
+              whileHover={{ y: -2 }}
+              className="group text-left"
+            >
+              <Card className="h-full border-border/60 hover:border-primary/40 transition-colors">
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div
+                    className={cn(
+                      "h-12 w-12 rounded-xl flex items-center justify-center shrink-0",
+                      s.iconBg
+                    )}
                   >
-                    <stat.icon className={`h-5 w-5 ${stat.color} transition-colors group-hover:text-primary`} />
-                  </motion.div>
-                </CardHeader>
-                <CardContent>
-                  <motion.div 
-                    className="text-3xl font-bold"
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: index * 0.1, type: "spring", stiffness: 200 }}
-                  >
-                    {stat.value}
-                  </motion.div>
-                  <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
+                    <s.icon className={cn("h-6 w-6", s.iconColor)} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold tracking-wider text-muted-foreground">
+                      {s.title}
+                    </p>
+                    <p className="text-3xl font-bold text-foreground leading-tight mt-0.5">
+                      {s.value}
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
-            </StaggerItem>
+            </motion.button>
           ))}
-        </StaggerContainer>
-
-        {/* Main Content Grid */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Tarefas Pendentes */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CheckSquare className="h-4 w-4 text-blue-500" />
-                  Tarefas Pendentes
-                </CardTitle>
-                <CardDescription>Próximas tarefas a serem executadas</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/atividades")}>
-                Ver todas <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {recentTasks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <CheckSquare className="h-10 w-10 text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">Nenhuma tarefa pendente</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentTasks.map((task) => (
-                    <motion.div
-                      key={task.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
-                      onClick={() => navigate("/atividades")}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium line-clamp-1">{task.title}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-muted-foreground">{task.client_name}</span>
-                          {task.due_date && (
-                            <span className={`text-xs flex items-center gap-1 ${isDueDateOverdue(task.due_date) ? 'text-red-500' : 'text-muted-foreground'}`}>
-                              <Clock className="h-3 w-3" />
-                              {safeFormatDate(task.due_date, "dd/MM", { locale: ptBR })}
-                              {isDueDateOverdue(task.due_date) && <AlertCircle className="h-3 w-3" />}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getPriorityBadge(task.priority)}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Próximas Reuniões */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-purple-500" />
-                  Próximas Reuniões
-                </CardTitle>
-                <CardDescription>Reuniões agendadas com clientes</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/reunioes")}>
-                Ver todas <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {upcomingMeetings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Calendar className="h-10 w-10 text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">Nenhuma reunião agendada</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {upcomingMeetings.map((meeting) => (
-                    <motion.div
-                      key={meeting.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
-                      onClick={() => navigate(`/clientes/${meeting.client_id}?tab=reunioes`)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col items-center justify-center bg-primary/10 rounded-lg p-2 min-w-[50px]">
-                          <span className="text-xs text-primary font-medium">
-                            {formatMeetingDate(meeting.meeting_date)}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {safeFormatDate(meeting.meeting_date, "HH:mm", { locale: ptBR })}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium line-clamp-1">{meeting.title}</p>
-                          <p className="text-xs text-muted-foreground">{meeting.client_name}</p>
-                        </div>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Second Row */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Notificações Recentes */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-orange-500" />
-                  Notificações Recentes
+        {/* Main grid */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* LEFT column */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Tarefas Pendentes */}
+            <Card className="border-border/60">
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                  Tarefas Pendentes
                 </CardTitle>
-                <CardDescription>Últimos alertas e atualizações</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/notificacoes")}>
-                Ver todas <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {recentNotifications.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Bell className="h-10 w-10 text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">Nenhuma notificação</p>
-                </div>
-              ) : (
-                <ScrollArea className="h-[200px]">
-                  <div className="space-y-3">
-                    {recentNotifications.map((notification) => {
-                      const IconComponent = getCategoryIcon(notification.category);
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-primary px-0 h-auto"
+                  onClick={() => navigate("/atividades")}
+                >
+                  Ver todas
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentTasks.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    Nenhuma tarefa pendente
+                  </div>
+                ) : (
+                  recentTasks.map((task) => {
+                    const overdue =
+                      task.due_date && isPast(parseISO(task.due_date)) && !isToday(parseISO(task.due_date));
+                    return (
+                      <button
+                        key={task.id}
+                        type="button"
+                        onClick={() => navigate("/atividades")}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/60 hover:border-primary/40 hover:bg-muted/40 transition-colors text-left"
+                      >
+                        {task.status === "done" ? (
+                          <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-muted-foreground/50 shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground line-clamp-1">
+                            {task.title}
+                            {task.client_name && (
+                              <span className="text-muted-foreground font-normal"> — {task.client_name}</span>
+                            )}
+                          </p>
+                          <p
+                            className={cn(
+                              "text-xs mt-0.5 flex items-center gap-1.5",
+                              overdue ? "text-rose-500" : "text-muted-foreground"
+                            )}
+                          >
+                            <Clock className="h-3 w-3" />
+                            {formatDueLabel(task.due_date)}
+                            <span className="text-muted-foreground/60">•</span>
+                            <span>{priorityLabel(task.priority)}</span>
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Clientes Recentes */}
+            <Card className="border-border/60">
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" />
+                  Clientes Recentes
+                </CardTitle>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-primary px-0 h-auto"
+                  onClick={() => navigate("/clientes")}
+                >
+                  Ver todos
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {recentClients.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    Nenhum cliente cadastrado
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {recentClients.map((client) => {
+                      const daysAgo = Math.max(
+                        1,
+                        Math.floor(
+                          (Date.now() - new Date(client.updated_at).getTime()) / (1000 * 60 * 60 * 24)
+                        )
+                      );
+                      const label =
+                        daysAgo === 1
+                          ? "Adicionado há 1 dia"
+                          : daysAgo < 7
+                          ? `Adicionado há ${daysAgo} dias`
+                          : daysAgo < 14
+                          ? "Adicionado há 1 semana"
+                          : `Adicionado há ${Math.floor(daysAgo / 7)} semanas`;
                       return (
-                        <motion.div
-                          key={notification.id}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-                            !notification.is_read ? 'bg-primary/5 border-primary/20' : 'bg-muted/50'
-                          }`}
+                        <button
+                          key={client.id}
+                          type="button"
+                          onClick={() => navigate(`/clientes/${client.slug || client.id}`)}
+                          className="flex items-center gap-3 p-3 rounded-lg border border-border/60 hover:border-primary/40 hover:bg-muted/40 transition-colors text-left"
                         >
-                          <IconComponent className={`h-4 w-4 mt-0.5 ${getCategoryColor(notification.category)}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm line-clamp-1 ${!notification.is_read ? 'font-medium' : ''}`}>
-                              {notification.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground line-clamp-1">
-                              {notification.message}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground mt-1">
-                              {safeFormatDate(notification.created_at, "dd/MM 'às' HH:mm", { locale: ptBR })}
-                            </p>
+                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                            <span className="text-xs font-semibold text-muted-foreground">
+                              {getInitials(client.company_name)}
+                            </span>
                           </div>
-                          {!notification.is_read && (
-                            <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1.5" />
-                          )}
-                        </motion.div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground line-clamp-1">
+                              {client.company_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{label}</p>
+                          </div>
+                        </button>
                       );
                     })}
                   </div>
-                </ScrollArea>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Clientes Recentes */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-green-500" />
-                  Clientes Atualizados
+          {/* RIGHT column */}
+          <div className="space-y-6">
+            {/* Saúde da Carteira */}
+            <Card className="border-border/60">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  Saúde da Carteira
                 </CardTitle>
-                <CardDescription>Últimas atualizações em clientes</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/clientes")}>
-                Ver todos <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {recentClients.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Building2 className="h-10 w-10 text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">Nenhum cliente cadastrado</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentClients.map((client) => (
-                    <motion.div
-                      key={client.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
-                      onClick={() => navigate(`/clientes/${client.slug || client.id}`)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="text-sm font-semibold text-primary">
-                            {client.company_name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium line-clamp-1">{client.company_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {safeFormatDate(client.updated_at, "'Atualizado em' dd/MM", { locale: ptBR })}
-                          </p>
-                        </div>
+              </CardHeader>
+              <CardContent>
+                {/* Bar chart */}
+                <div className="flex items-end justify-around gap-3 h-40 px-2">
+                  {[
+                    { key: "healthy", value: health.healthy, color: "bg-emerald-500", soft: "bg-emerald-500/15" },
+                    { key: "attention", value: health.attention, color: "bg-amber-400", soft: "bg-amber-400/20" },
+                    { key: "risk", value: health.risk, color: "bg-rose-400", soft: "bg-rose-400/20" },
+                  ].map((b) => (
+                    <div key={b.key} className="flex flex-col items-center gap-2 flex-1">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {pct(b.value)}%
+                      </span>
+                      <div className={cn("relative w-full max-w-[64px] rounded-t-md flex-1 overflow-hidden", b.soft)}>
+                        <motion.div
+                          initial={{ height: 0 }}
+                          animate={{ height: barHeight(b.value) }}
+                          transition={{ duration: 0.8, ease: "easeOut" }}
+                          className={cn("absolute bottom-0 left-0 right-0 rounded-t-md", b.color)}
+                        />
                       </div>
-                      <div className="flex items-center gap-2">
-                        {getSegmentBadge(client.segment)}
-                      </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Ações Rápidas
-              </CardTitle>
-              <CardDescription>Acesse as funcionalidades mais utilizadas</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  { icon: Users, title: "Novo Cliente", desc: "Cadastrar cliente", path: "/clientes", color: "text-primary" },
-                  { icon: CheckSquare, title: "Nova Tarefa", desc: "Criar atividade", path: "/atividades", color: "text-blue-500" },
-                  { icon: Calendar, title: "Nova Reunião", desc: "Agendar reunião", path: "/reunioes", color: "text-purple-500" },
-                  { icon: TrendingUp, title: "Ferramentas", desc: "Matriz e diagnósticos", path: "/ferramentas", color: "text-green-500" },
-                ].map((action, index) => (
-                  <motion.div
-                    key={index}
-                    className="p-4 bg-muted/50 border border-border rounded-lg cursor-pointer group"
-                    whileHover={{ 
-                      y: -4, 
-                      boxShadow: "0 10px 25px -5px hsl(var(--primary) / 0.1)",
-                      borderColor: "hsl(var(--primary) / 0.3)"
-                    }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                    onClick={() => navigate(action.path)}
-                  >
-                    <action.icon className={`h-6 w-6 ${action.color} mb-2 transition-transform group-hover:scale-110`} />
-                    <h4 className="font-medium text-sm group-hover:text-primary transition-colors">{action.title}</h4>
-                    <p className="text-xs text-muted-foreground">{action.desc}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+                {/* Legend */}
+                <div className="mt-5 space-y-2.5">
+                  {[
+                    { dot: "bg-emerald-500", label: "Saudáveis", value: health.healthy },
+                    { dot: "bg-amber-400", label: "Em Atenção", value: health.attention },
+                    { dot: "bg-rose-400", label: "Risco Crítico", value: health.risk },
+                  ].map((row) => (
+                    <div key={row.label} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className={cn("h-2 w-2 rounded-full", row.dot)} />
+                        <span className="text-foreground">{row.label}</span>
+                      </div>
+                      <span className="font-semibold text-foreground">
+                        {row.value} {row.value === 1 ? "cliente" : "clientes"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Próximas Reuniões */}
+            <Card className="border-border/60">
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  Próximas Reuniões
+                </CardTitle>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-primary px-0 h-auto"
+                  onClick={() => navigate("/reunioes")}
+                >
+                  Ver todas
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {upcomingMeetings.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    Nenhuma reunião agendada
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {upcomingMeetings.slice(0, 3).map((meeting) => (
+                      <button
+                        key={meeting.id}
+                        type="button"
+                        onClick={() => navigate(`/clientes/${meeting.client_id}?tab=reunioes`)}
+                        className="w-full flex items-start gap-4 text-left group"
+                      >
+                        <div className="flex flex-col items-center justify-center shrink-0 w-14">
+                          <span className="text-[10px] font-bold tracking-wider text-muted-foreground">
+                            {formatMeetingDay(meeting.meeting_date)}
+                          </span>
+                          <span className="text-xl font-bold text-foreground tabular-nums">
+                            {formatMeetingTime(meeting.meeting_date)}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0 border-l border-border/60 pl-4">
+                          <p className="text-sm font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                            {meeting.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {meetingChannelLabel(meeting)}
+                            {meeting.duration_min ? ` • ${meeting.duration_min} min` : ""}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{meeting.client_name}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );
